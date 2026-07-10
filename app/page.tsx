@@ -1,4 +1,4 @@
-export default function Home() {
+﻿export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
       <h1 className="text-6xl font-bold text-yellow-400">AXI</h1>
@@ -17,7 +17,7 @@ export default function Home() {
         </button>
 
         <button className="bg-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-600">
-          Administración
+          AdministraciÃ³n
         </button>
       </div>
     </main>
