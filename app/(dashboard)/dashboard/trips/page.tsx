@@ -65,7 +65,9 @@ export default function TripsPage() {
   }
 
   useEffect(() => {
-    loadTrips();
+    // Carga los viajes cuando se abre la pantalla.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTrips();
   }, []);
 
   async function cancelTrip(tripId: string) {
