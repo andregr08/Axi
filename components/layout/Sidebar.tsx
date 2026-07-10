@@ -11,7 +11,6 @@ import {
   LogOut,
   Route,
   ShieldCheck,
-  Taxi,
   UserRound,
   UsersRound,
   type LucideIcon,
@@ -58,7 +57,7 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
     {
       href: "/dashboard/driver/available-trips",
       label: "Viajes disponibles",
-      icon: Taxi,
+      icon: CarFront,
       visible: role === "driver",
     },
     {
@@ -94,7 +93,7 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
     {
       href: "/dashboard/admin/drivers",
       label: "Conductores",
-      icon: Taxi,
+      icon: CarFront,
       visible: role === "admin",
     },
     {
