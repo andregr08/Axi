@@ -1,15 +1,11 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-const menuItems = [
-  { href: "/dashboard", label: "Inicio" },
-  { href: "/dashboard/profile", label: "Perfil" },
-  { href: "/dashboard/trips", label: "Viajes" },
-  { href: "/dashboard/payments", label: "Pagos" },
-];
+type UserRole = "admin" | "driver" | "passenger";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +14,42 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [role, setRole] = useState<UserRole | null>(null);
+
+  useEffect(() => {
+    async function loadRole() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      setRole(data?.role ?? "passenger");
+    }
+
+    loadRole();
+  }, [router]);
+
+  const menuItems = [
+    { href: "/dashboard", label: "Inicio", visible: true },
+    { href: "/dashboard/profile", label: "Perfil", visible: true },
+    { href: "/dashboard/trips", label: "Viajes", visible: true },
+    {
+      href: "/dashboard/vehicles",
+      label: "Vehículos",
+      visible: role === "driver" || role === "admin",
+    },
+    { href: "/dashboard/payments", label: "Pagos", visible: true },
+  ];
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -30,21 +62,23 @@ export default function DashboardLayout({
         <h1 className="mb-10 text-3xl font-bold">AXI</h1>
 
         <nav className="space-y-2">
-          {menuItems.map((item) => {
-            const active = pathname === item.href;
+          {menuItems
+            .filter((item) => item.visible)
+            .map((item) => {
+              const active = pathname === item.href;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block rounded-lg px-4 py-3 ${
-                  active ? "bg-white text-black" : "hover:bg-gray-800"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`block rounded-lg px-4 py-3 ${
+                    active ? "bg-white text-black" : "hover:bg-gray-800"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
         </nav>
 
         <button
@@ -66,4 +100,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-
