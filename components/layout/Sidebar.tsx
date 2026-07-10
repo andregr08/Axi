@@ -4,11 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CarFront,
+  ClipboardCheck,
   CreditCard,
+  Gauge,
   Home,
   LogOut,
   Route,
+  ShieldCheck,
+  Taxi,
   UserRound,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
@@ -40,13 +45,31 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
     },
     {
       href: "/dashboard/trips",
-      label: "Viajes",
+      label: "Mis viajes",
       icon: Route,
       visible: true,
     },
     {
+      href: "/dashboard/driver/status",
+      label: "Disponibilidad",
+      icon: Gauge,
+      visible: role === "driver",
+    },
+    {
+      href: "/dashboard/driver/available-trips",
+      label: "Viajes disponibles",
+      icon: Taxi,
+      visible: role === "driver",
+    },
+    {
+      href: "/dashboard/driver-application",
+      label: "Ser conductor",
+      icon: ClipboardCheck,
+      visible: role === "passenger",
+    },
+    {
       href: "/dashboard/vehicles",
-      label: "Vehículos",
+      label: "Mis vehículos",
       icon: CarFront,
       visible: role === "driver" || role === "admin",
     },
@@ -62,6 +85,36 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       icon: UserRound,
       visible: true,
     },
+    {
+      href: "/dashboard/admin/driver-applications",
+      label: "Solicitudes",
+      icon: ClipboardCheck,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/drivers",
+      label: "Conductores",
+      icon: Taxi,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/passengers",
+      label: "Pasajeros",
+      icon: UsersRound,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/vehicles",
+      label: "Vehículos admin",
+      icon: CarFront,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/trips",
+      label: "Viajes admin",
+      icon: ShieldCheck,
+      visible: role === "admin",
+    },
   ];
 
   function isActive(href: string) {
@@ -69,7 +122,7 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       return pathname === href;
     }
 
-    return pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   return (
@@ -84,7 +137,7 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
         </p>
       </div>
 
-      <nav className="mt-4 flex-1 space-y-2">
+      <nav className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
         {menuItems
           .filter((item) => item.visible)
           .map((item) => {
@@ -104,7 +157,7 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
               >
                 <span
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl transition",
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition",
                     active
                       ? "bg-black/10"
                       : "bg-white/5 group-hover:bg-white/10"
@@ -113,13 +166,13 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
                   <Icon size={20} strokeWidth={2.2} />
                 </span>
 
-                {item.label}
+                <span>{item.label}</span>
               </Link>
             );
           })}
       </nav>
 
-      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
         <p className="text-sm font-bold text-white">AXI Mobility</p>
         <p className="mt-1 text-xs leading-5 text-slate-500">
           Movilidad segura, rápida e inteligente.

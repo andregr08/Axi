@@ -17,6 +17,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [role, setRole] = useState<UserRole | null>(null);
+  const [loadingRole, setLoadingRole] = useState(true);
 
   useEffect(() => {
     async function loadRole() {
@@ -37,9 +38,12 @@ export default function DashboardLayout({
 
       if (error) {
         console.error("Error cargando rol:", error.message);
+        setRole("passenger");
+      } else {
+        setRole((data?.role as UserRole) ?? "passenger");
       }
 
-      setRole((data?.role as UserRole) ?? "passenger");
+      setLoadingRole(false);
     }
 
     void loadRole();
@@ -48,6 +52,19 @@ export default function DashboardLayout({
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace("/login");
+  }
+
+  if (loadingRole) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F4F6F8]">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-yellow-400" />
+          <p className="mt-4 text-sm font-semibold text-slate-500">
+            Cargando AXI...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
