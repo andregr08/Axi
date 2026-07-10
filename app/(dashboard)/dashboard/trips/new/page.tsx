@@ -4,13 +4,60 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
 export default function NewTripPage() {
   const router = useRouter();
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  function getCurrentLocation() {
+    setMessage("");
+
+    if (!navigator.geolocation) {
+      setMessage("Tu navegador no permite obtener la ubicación.");
+      return;
+    }
+
+    setLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinates({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+
+        setLocating(false);
+        setMessage("Ubicación actual obtenida correctamente.");
+      },
+      (error) => {
+        setLocating(false);
+
+        if (error.code === error.PERMISSION_DENIED) {
+          setMessage(
+            "Debes permitir el acceso a tu ubicación para solicitar un viaje."
+          );
+          return;
+        }
+
+        setMessage("No pudimos obtener tu ubicación. Intenta otra vez.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 30000,
+      }
+    );
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,6 +65,11 @@ export default function NewTripPage() {
 
     if (!origin.trim() || !destination.trim()) {
       setMessage("Escribe el origen y el destino.");
+      return;
+    }
+
+    if (!coordinates) {
+      setMessage("Primero obtén tu ubicación actual.");
       return;
     }
 
@@ -34,26 +86,74 @@ export default function NewTripPage() {
       return;
     }
 
-    const { error } = await supabase.from("trips").insert({
-      passenger_id: session.user.id,
-      origin_address: origin.trim(),
-      origin_lat: 0,
-      origin_lng: 0,
-      destination_address: destination.trim(),
-      destination_lat: 0,
-      destination_lng: 0,
-      status: "requested",
-    });
+    const { data: trip, error: tripError } = await supabase
+      .from("trips")
+      .insert({
+        passenger_id: session.user.id,
+        origin_address: origin.trim(),
+        origin_lat: coordinates.latitude,
+        origin_lng: coordinates.longitude,
+        destination_address: destination.trim(),
 
-    setLoading(false);
+        // Se reemplazarán cuando integremos el mapa y buscador de destino.
+        destination_lat: 0,
+        destination_lng: 0,
 
-    if (error) {
-      setMessage(`Error: ${error.message}`);
+        status: "requested",
+      })
+      .select("id")
+      .single();
+
+    if (tripError || !trip) {
+      setLoading(false);
+      setMessage(
+        `Error creando el viaje: ${
+          tripError?.message ?? "No se obtuvo el viaje"
+        }`
+      );
       return;
     }
 
-    router.push("/dashboard/trips");
-    router.refresh();
+    const { data: notifiedDrivers, error: dispatchError } =
+      await supabase.rpc("dispatch_trip", {
+        requested_trip_id: trip.id,
+        search_radius_km: 10,
+        drivers_limit: 10,
+      });
+
+    setLoading(false);
+
+    if (dispatchError) {
+      setMessage(
+        `El viaje se creó, pero ocurrió un error buscando conductores: ${dispatchError.message}`
+      );
+
+      window.setTimeout(() => {
+        router.push("/dashboard/trips");
+        router.refresh();
+      }, 2500);
+
+      return;
+    }
+
+    const count = Number(notifiedDrivers ?? 0);
+
+    if (count === 0) {
+      setMessage(
+        "Viaje creado. Por ahora no encontramos conductores cercanos; seguiremos buscando."
+      );
+    } else {
+      setMessage(
+        `Viaje creado. Se notificó a ${count} conductor${
+          count === 1 ? "" : "es"
+        } cercano${count === 1 ? "" : "s"}.`
+      );
+    }
+
+    window.setTimeout(() => {
+      router.push("/dashboard/trips");
+      router.refresh();
+    }, 2000);
   }
 
   return (
@@ -68,7 +168,7 @@ export default function NewTripPage() {
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Escribe el punto de partida y el destino.
+          Indica tu punto de partida y el destino.
         </p>
       </div>
 
@@ -76,6 +176,32 @@ export default function NewTripPage() {
         onSubmit={handleSubmit}
         className="rounded-2xl bg-white p-8 shadow-sm"
       >
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-semibold text-gray-700">
+            Ubicación actual
+          </label>
+
+          <button
+            type="button"
+            onClick={getCurrentLocation}
+            disabled={locating}
+            className="w-full rounded-xl border px-4 py-3 font-semibold hover:bg-gray-50 disabled:opacity-50"
+          >
+            {locating
+              ? "Obteniendo ubicación..."
+              : coordinates
+                ? "Ubicación obtenida"
+                : "Usar mi ubicación actual"}
+          </button>
+
+          {coordinates && (
+            <p className="mt-2 text-xs text-gray-500">
+              GPS: {coordinates.latitude.toFixed(6)},{" "}
+              {coordinates.longitude.toFixed(6)}
+            </p>
+          )}
+        </div>
+
         <div className="mb-6">
           <label
             htmlFor="origin"
@@ -113,7 +239,7 @@ export default function NewTripPage() {
         </div>
 
         {message && (
-          <p className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <p className="mb-5 rounded-xl bg-gray-100 p-4 text-sm text-gray-700">
             {message}
           </p>
         )}
@@ -129,10 +255,10 @@ export default function NewTripPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || locating}
             className="flex-1 rounded-xl bg-black px-5 py-3 font-semibold text-white disabled:opacity-50"
           >
-            {loading ? "Solicitando..." : "Confirmar viaje"}
+            {loading ? "Buscando conductores..." : "Confirmar viaje"}
           </button>
         </div>
       </form>
