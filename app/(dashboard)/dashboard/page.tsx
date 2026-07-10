@@ -4,54 +4,86 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+type Profile = {
+  full_name: string | null;
+  role: "admin" | "driver" | "passenger";
+};
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function checkSession() {
-      const { data } = await supabase.auth.getSession();
+    async function loadDashboard() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (!data.session) {
+      if (!session) {
         router.replace("/login");
         return;
       }
 
-      setEmail(data.session.user.email ?? "");
+      setEmail(session.user.email ?? "");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (error) {
+        console.error("Error al cargar perfil:", error.message);
+      } else {
+        setProfile(data);
+      }
+
       setLoading(false);
     }
 
-    checkSession();
+    loadDashboard();
   }, [router]);
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.replace("/login");
+  if (loading) {
+    return <p>Cargando...</p>;
   }
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p>Cargando...</p>
-      </main>
-    );
-  }
+  const roleName = {
+    admin: "Administrador",
+    driver: "Conductor",
+    passenger: "Pasajero",
+  };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-100">
-      <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-xl">
-        <h1 className="mb-4 text-3xl font-bold">Dashboard AXI</h1>
-        <p className="mb-6 text-gray-600">Sesión iniciada como: {email}</p>
+    <section>
+      <h1 className="mb-2 text-3xl font-bold">
+        Bienvenido, {profile?.full_name || "Usuario"}
+      </h1>
 
-        <button
-          onClick={handleLogout}
-          className="rounded-lg bg-black px-5 py-3 font-semibold text-white"
-        >
-          Cerrar sesión
-        </button>
+      <p className="mb-8 text-gray-600">
+        Este es tu panel principal de AXI.
+      </p>
+
+      <div className="grid gap-5 md:grid-cols-3">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <p className="text-sm text-gray-500">Correo</p>
+          <p className="mt-2 font-semibold">{email}</p>
+        </div>
+
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <p className="text-sm text-gray-500">Rol</p>
+          <p className="mt-2 font-semibold">
+            {profile ? roleName[profile.role] : "Sin rol"}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <p className="text-sm text-gray-500">Estado</p>
+          <p className="mt-2 font-semibold text-green-600">Cuenta activa</p>
+        </div>
       </div>
-    </main>
+    </section>
   );
 }
-
