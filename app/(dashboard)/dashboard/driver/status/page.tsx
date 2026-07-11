@@ -84,6 +84,7 @@ export default function DriverStatusPage() {
   }, [router]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDriverStatus();
   }, [loadDriverStatus]);
 
