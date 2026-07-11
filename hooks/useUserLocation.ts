@@ -68,7 +68,8 @@ export function useUserLocation() {
   }, []);
 
   useEffect(() => {
-    requestLocation();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void requestLocation();
   }, [requestLocation]);
 
   return {

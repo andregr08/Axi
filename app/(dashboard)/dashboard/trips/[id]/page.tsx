@@ -1,25 +1,10 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  CarFront,
-  Check,
-  CircleDollarSign,
-  Clock3,
-  MapPin,
-  Navigation,
-  Phone,
-  Route,
-  ShieldCheck,
-  Star,
-} from "lucide-react";
-import { GoogleMapView } from "@/components/maps/GoogleMap";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { cn } from "@/utils/cn";
+
+type UserRole = "admin" | "driver" | "passenger";
 
 type TripStatus =
   | "requested"
@@ -33,447 +18,431 @@ type TripStatus =
 
 type Trip = {
   id: string;
+  passenger_id: string;
+  driver_id: string | null;
+  vehicle_id: string | null;
   origin_address: string;
   destination_address: string;
   status: TripStatus;
   estimated_price: number | null;
   final_price: number | null;
   requested_at: string;
+  accepted_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
 };
 
-const statusData: Record<
-  TripStatus,
-  {
-    title: string;
-    description: string;
-    step: number;
-  }
+const statusLabels: Record<TripStatus, string> = {
+  requested: "Solicitado",
+  searching: "Buscando conductor",
+  accepted: "Aceptado",
+  driver_arriving: "Conductor en camino",
+  driver_arrived: "Conductor llegó",
+  in_progress: "Viaje en curso",
+  completed: "Viaje completado",
+  cancelled: "Viaje cancelado",
+};
+
+const nextDriverAction: Partial<
+  Record<
+    TripStatus,
+    {
+      status: TripStatus;
+      label: string;
+    }
+  >
 > = {
-  requested: {
-    title: "Viaje solicitado",
-    description: "Tu solicitud fue enviada correctamente.",
-    step: 1,
-  },
-  searching: {
-    title: "Buscando conductor",
-    description: "Estamos localizando un conductor cercano.",
-    step: 2,
-  },
   accepted: {
-    title: "Conductor asignado",
-    description: "Un conductor aceptó tu solicitud.",
-    step: 3,
+    status: "driver_arriving",
+    label: "Voy en camino",
   },
   driver_arriving: {
-    title: "Conductor en camino",
-    description: "Tu conductor se dirige al punto de origen.",
-    step: 4,
+    status: "driver_arrived",
+    label: "Ya llegué",
   },
   driver_arrived: {
-    title: "El conductor llegó",
-    description: "Tu unidad ya se encuentra en el punto de origen.",
-    step: 5,
+    status: "in_progress",
+    label: "Iniciar viaje",
   },
   in_progress: {
-    title: "Viaje en curso",
-    description: "Te estás dirigiendo hacia tu destino.",
-    step: 6,
-  },
-  completed: {
-    title: "Viaje completado",
-    description: "Llegaste correctamente a tu destino.",
-    step: 7,
-  },
-  cancelled: {
-    title: "Viaje cancelado",
-    description: "Esta solicitud fue cancelada.",
-    step: 0,
+    status: "completed",
+    label: "Finalizar viaje",
   },
 };
 
-const progressSteps = [
-  "Solicitud",
-  "Buscando",
-  "Asignado",
-  "En camino",
-  "Llegó",
-  "En viaje",
-  "Completado",
-];
-
-function formatCurrency(value: number | null) {
-  if (value === null) return "Por calcular";
-
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(value);
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "long",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-export default function TripDetailPage({
+export default function ActiveTripPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
 
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [passengerName, setPassengerName] = useState("");
+  const [driverName, setDriverName] = useState("");
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    async function loadTrip() {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function start() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session) {
-        setErrorMessage("Debes iniciar sesión para consultar este viaje.");
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        setMessage("No fue posible cargar tu perfil.");
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("trips")
-        .select(
-          "id, origin_address, destination_address, status, estimated_price, final_price, requested_at"
+      setRole(profile.role as UserRole);
+
+      await loadTrip();
+
+      channel = supabase
+        .channel(`trip-${id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "trips",
+            filter: `id=eq.${id}`,
+          },
+          () => {
+            loadTrip();
+          }
         )
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        console.error("Error cargando viaje:", error.message);
-        setErrorMessage("No encontramos este viaje.");
-      } else {
-        setTrip(data as Trip);
-      }
-
-      setLoading(false);
+        .subscribe();
     }
 
-    void loadTrip();
-  }, [id]);
+    start();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [id, router]);
+
+  async function loadTrip() {
+    const { data, error } = await supabase
+      .from("trips")
+      .select(`
+        id,
+        passenger_id,
+        driver_id,
+        vehicle_id,
+        origin_address,
+        destination_address,
+        status,
+        estimated_price,
+        final_price,
+        requested_at,
+        accepted_at,
+        started_at,
+        completed_at
+      `)
+      .eq("id", id)
+      .single();
+
+    if (error || !data) {
+      setMessage(
+        `No fue posible cargar el viaje: ${
+          error?.message ?? "Viaje no encontrado"
+        }`
+      );
+      setLoading(false);
+      return;
+    }
+
+    const loadedTrip = data as Trip;
+    setTrip(loadedTrip);
+
+    const userIds = [
+      loadedTrip.passenger_id,
+      loadedTrip.driver_id,
+    ].filter(Boolean) as string[];
+
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+
+      const passenger = profiles?.find(
+        (profile) => profile.id === loadedTrip.passenger_id
+      );
+
+      const driver = profiles?.find(
+        (profile) => profile.id === loadedTrip.driver_id
+      );
+
+      setPassengerName(
+        passenger?.full_name || "Pasajero sin nombre"
+      );
+
+      setDriverName(
+        loadedTrip.driver_id
+          ? driver?.full_name || "Conductor sin nombre"
+          : "Sin asignar"
+      );
+    }
+
+    setLoading(false);
+  }
+
+  async function advanceStatus(nextStatus: TripStatus) {
+    if (!trip) return;
+
+    const confirmed = window.confirm(
+      `¿Confirmas la acción "${statusLabels[nextStatus]}"?`
+    );
+
+    if (!confirmed) return;
+
+    setProcessing(true);
+    setMessage("");
+
+    const { error } = await supabase.rpc(
+      "advance_trip_status",
+      {
+        trip_id: trip.id,
+        next_status: nextStatus,
+      }
+    );
+
+    if (error) {
+      setMessage(`Error actualizando viaje: ${error.message}`);
+    } else {
+      setMessage("Estado del viaje actualizado.");
+      await loadTrip();
+    }
+
+    setProcessing(false);
+  }
 
   if (loading) {
-    return (
-      <section className="space-y-6">
-        <div className="h-64 animate-pulse rounded-[2rem] bg-slate-200" />
+    return <p>Cargando viaje...</p>;
+  }
 
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
-          <div className="h-[520px] animate-pulse rounded-[2rem] bg-slate-200" />
-          <div className="h-[520px] animate-pulse rounded-[2rem] bg-slate-200" />
-        </div>
+  if (!trip) {
+    return (
+      <section>
+        <p className="rounded-xl bg-red-50 p-4 text-red-700">
+          {message || "El viaje no existe."}
+        </p>
       </section>
     );
   }
 
-  if (!trip || errorMessage) {
-    return (
-      <section className="flex min-h-[65vh] items-center justify-center">
-        <Card className="max-w-lg text-center">
-          <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-red-100 text-red-700">
-            <Route size={34} />
-          </span>
+  const driverAction = nextDriverAction[trip.status];
 
-          <h1 className="mt-6 text-3xl font-black">
-            Viaje no disponible
-          </h1>
+  const progress = [
+    "accepted",
+    "driver_arriving",
+    "driver_arrived",
+    "in_progress",
+    "completed",
+  ];
 
-          <p className="mt-3 text-sm leading-7 text-slate-500">
-            {errorMessage || "No fue posible cargar la información."}
-          </p>
-
-          <Link
-            href="/dashboard/trips"
-            className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white"
-          >
-            <ArrowLeft size={18} />
-            Volver a mis viajes
-          </Link>
-        </Card>
-      </section>
-    );
-  }
-
-  const currentStatus = statusData[trip.status];
-  const displayPrice = trip.final_price ?? trip.estimated_price;
-  const isCancelled = trip.status === "cancelled";
-  const isCompleted = trip.status === "completed";
+  const currentProgressIndex = progress.indexOf(trip.status);
 
   return (
-    <section className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Link
-          href="/dashboard/trips"
-          className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
-        >
-          <ArrowLeft size={18} />
-          Volver a viajes
-        </Link>
+    <section className="mx-auto max-w-4xl">
+      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <p className="mb-1 text-sm font-medium text-gray-500">
+            Viaje activo
+          </p>
 
-        <p className="text-sm font-semibold text-slate-500">
-          Solicitado el {formatDate(trip.requested_at)}
-        </p>
-      </div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {statusLabels[trip.status]}
+          </h1>
 
-      <div
-        className={cn(
-          "relative overflow-hidden rounded-[2rem] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.18)] sm:px-9 sm:py-10",
-          isCancelled ? "bg-red-950" : "bg-[#0B0F19]"
-        )}
-      >
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-yellow-400/20 blur-3xl" />
-
-        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <Badge
-              className={cn(
-                "border border-white/10",
-                isCancelled
-                  ? "bg-red-500/20 text-red-200"
-                  : isCompleted
-                    ? "bg-emerald-500/20 text-emerald-300"
-                    : "bg-yellow-400 text-black"
-              )}
-            >
-              {currentStatus.title}
-            </Badge>
-
-            <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
-              {isCancelled
-                ? "Este viaje fue cancelado"
-                : isCompleted
-                  ? "Llegaste a tu destino"
-                  : "Tu viaje con AXI"}
-            </h1>
-
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              {currentStatus.description}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-5 backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Precio del viaje
-            </p>
-
-            <p className="mt-2 text-4xl font-black">
-              {formatCurrency(displayPrice)}
-            </p>
-          </div>
+          <p className="mt-2 text-gray-600">
+            La información se actualizará automáticamente.
+          </p>
         </div>
+
+        <button
+          onClick={() => router.push("/dashboard/trips")}
+          className="rounded-xl border px-5 py-3 font-semibold hover:bg-gray-50"
+        >
+          Volver a mis viajes
+        </button>
       </div>
 
-      {!isCancelled && (
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Seguimiento
-              </p>
-
-              <h2 className="mt-1 text-2xl font-black">
-                Progreso del viaje
-              </h2>
-            </div>
-
-            <Clock3 size={25} className="text-yellow-600" />
-          </div>
-
-          <div className="mt-8 grid grid-cols-7 gap-2">
-            {progressSteps.map((step, index) => {
-              const stepNumber = index + 1;
-              const completed = stepNumber <= currentStatus.step;
-              const active = stepNumber === currentStatus.step;
-
-              return (
-                <div key={step} className="min-w-0 text-center">
-                  <div
-                    className={cn(
-                      "mx-auto flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-black transition",
-                      completed
-                        ? "border-yellow-400 bg-yellow-400 text-black"
-                        : "border-slate-200 bg-white text-slate-400",
-                      active && "ring-4 ring-yellow-400/20"
-                    )}
-                  >
-                    {completed ? <Check size={18} /> : stepNumber}
-                  </div>
-
-                  <p
-                    className={cn(
-                      "mt-3 hidden truncate text-[10px] font-bold uppercase tracking-wide sm:block",
-                      completed ? "text-slate-950" : "text-slate-400"
-                    )}
-                  >
-                    {step}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+      {message && (
+        <div className="mb-6 rounded-xl bg-gray-100 p-4 text-sm">
+          {message}
+        </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
-        <GoogleMapView />
+      <div className="mb-8 rounded-2xl bg-white p-7 shadow-sm">
+        <h2 className="mb-6 text-xl font-bold">
+          Progreso del viaje
+        </h2>
 
-        <div className="space-y-6">
-          <Card>
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-black">
-                Detalles del recorrido
-              </h2>
+        <div className="grid gap-3 md:grid-cols-5">
+          {progress.map((status, index) => {
+            const completed =
+              currentProgressIndex >= index ||
+              trip.status === "completed";
 
-              <Route className="text-yellow-600" size={25} />
-            </div>
-
-            <div className="mt-7 flex gap-4">
-              <div className="flex w-11 shrink-0 flex-col items-center">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                  <MapPin size={20} />
-                </span>
-
-                <span className="my-2 h-12 border-l-2 border-dashed border-slate-300" />
-
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
-                  <Navigation size={20} />
-                </span>
-              </div>
-
-              <div className="min-w-0 flex-1 space-y-8">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Origen
-                  </p>
-
-                  <p className="mt-2 font-black text-slate-950">
-                    {trip.origin_address}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Destino
-                  </p>
-
-                  <p className="mt-2 font-black text-slate-950">
-                    {trip.destination_address}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-7 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <CircleDollarSign
-                  size={20}
-                  className="text-emerald-600"
-                />
-
-                <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Estimado
-                </p>
-
-                <p className="mt-1 font-black">
-                  {formatCurrency(trip.estimated_price)}
+            return (
+              <div
+                key={status}
+                className={`rounded-xl border p-4 text-center ${
+                  completed
+                    ? "border-black bg-black text-white"
+                    : "bg-gray-50 text-gray-400"
+                }`}
+              >
+                <p className="text-sm font-semibold">
+                  {statusLabels[status as TripStatus]}
                 </p>
               </div>
-
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <Clock3 size={20} className="text-blue-600" />
-
-                <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Estado
-                </p>
-
-                <p className="mt-1 font-black">
-                  {currentStatus.title}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {!isCancelled && !isCompleted && (
-            <Card className="bg-[#0B0F19] text-white">
-              <div className="flex items-center gap-4">
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-                  <CarFront size={25} />
-                </span>
-
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-400">
-                    Conductor AXI
-                  </p>
-
-                  <h2 className="mt-1 text-xl font-black">
-                    Buscando información
-                  </h2>
-                </div>
-              </div>
-
-              <p className="mt-5 text-sm leading-6 text-slate-400">
-                Los datos del conductor aparecerán cuando la solicitud sea
-                aceptada.
-              </p>
-
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  disabled
-                  className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-sm font-bold text-slate-500"
-                >
-                  <Phone size={17} />
-                  Llamar
-                </button>
-
-                <button
-                  type="button"
-                  disabled
-                  className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-sm font-bold text-slate-500"
-                >
-                  <ShieldCheck size={17} />
-                  Seguridad
-                </button>
-              </div>
-            </Card>
-          )}
-
-          {isCompleted && (
-            <Card className="bg-yellow-400 text-black">
-              <Star size={28} />
-
-              <h2 className="mt-5 text-2xl font-black">
-                ¿Cómo estuvo tu viaje?
-              </h2>
-
-              <p className="mt-2 text-sm font-medium leading-6 text-black/65">
-                La calificación estará disponible cuando Gali conecte el módulo
-                de reseñas.
-              </p>
-
-              <div className="mt-6 flex gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/10 transition hover:bg-black hover:text-yellow-400"
-                  >
-                    <Star size={20} />
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
+            );
+          })}
         </div>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl bg-white p-7 shadow-sm">
+          <h2 className="mb-5 text-xl font-bold">
+            Recorrido
+          </h2>
+
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm text-gray-500">
+                Punto de partida
+              </p>
+              <p className="mt-1 font-semibold">
+                {trip.origin_address}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">
+                Destino
+              </p>
+              <p className="mt-1 font-semibold">
+                {trip.destination_address}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">
+                Precio
+              </p>
+              <p className="mt-1 text-2xl font-bold">
+                $
+                {(
+                  trip.final_price ??
+                  trip.estimated_price ??
+                  0
+                ).toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white p-7 shadow-sm">
+          <h2 className="mb-5 text-xl font-bold">
+            Participantes
+          </h2>
+
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm text-gray-500">
+                Pasajero
+              </p>
+              <p className="mt-1 font-semibold">
+                {passengerName}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">
+                Conductor
+              </p>
+              <p className="mt-1 font-semibold">
+                {driverName}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">
+                Estado
+              </p>
+              <p className="mt-1 font-semibold">
+                {statusLabels[trip.status]}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {role === "driver" &&
+        driverAction &&
+        trip.status !== "completed" &&
+        trip.status !== "cancelled" && (
+          <div className="mt-8 rounded-2xl bg-white p-7 shadow-sm">
+            <p className="mb-4 text-sm text-gray-500">
+              Acción del conductor
+            </p>
+
+            <button
+              onClick={() =>
+                advanceStatus(driverAction.status)
+              }
+              disabled={processing}
+              className="w-full rounded-xl bg-black py-4 text-lg font-semibold text-white disabled:opacity-50"
+            >
+              {processing
+                ? "Actualizando..."
+                : driverAction.label}
+            </button>
+          </div>
+        )}
+
+      {trip.status === "completed" && (
+        <div className="mt-8 rounded-2xl bg-green-50 p-7 text-center">
+          <h2 className="text-2xl font-bold text-green-700">
+            Viaje completado
+          </h2>
+
+          <p className="mt-2 text-green-700">
+            El viaje terminó correctamente.
+          </p>
+        </div>
+      )}
+
+      {trip.status === "cancelled" && (
+        <div className="mt-8 rounded-2xl bg-red-50 p-7 text-center">
+          <h2 className="text-2xl font-bold text-red-700">
+            Viaje cancelado
+          </h2>
+        </div>
+      )}
     </section>
   );
 }

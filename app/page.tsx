@@ -200,7 +200,7 @@ export default function HomePage() {
                   ["51%", "43%"],
                   ["71%", "68%"],
                   ["31%", "67%"],
-                ].map(([left, top], index) => (
+                ].map(([left, top]) => (
                   <div
                     key={`${left}-${top}`}
                     className="absolute"
