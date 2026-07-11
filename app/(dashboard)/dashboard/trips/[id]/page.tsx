@@ -115,8 +115,10 @@ export default function ActiveTripPage({
 
       await loadTrip();
 
+      const channelName = `trip-${id}-${crypto.randomUUID()}`;
+
       channel = supabase
-        .channel(`trip-${id}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           {
