@@ -17,7 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Hero } from "@/components/dashboard/Hero";
-import { MapPreview } from "@/components/maps/MapPreview";
+import { GoogleMapView } from "@/components/maps/GoogleMap";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
@@ -219,7 +219,7 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <MapPreview />
+        <GoogleMapView />
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
