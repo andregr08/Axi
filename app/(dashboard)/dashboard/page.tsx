@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Hero } from "@/components/dashboard/Hero";
 import { GoogleMapView } from "@/components/maps/GoogleMap";
+import { RideActionPanel } from "@/components/trips/RideActionPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
@@ -219,7 +220,10 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <GoogleMapView />
+        <div className="grid gap-6 xl:grid-cols-[1.65fr_0.75fr]">
+          <GoogleMapView />
+          <RideActionPanel role={role} />
+        </div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
