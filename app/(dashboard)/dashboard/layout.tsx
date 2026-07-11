@@ -79,7 +79,7 @@ export default function DashboardLayout({
         </main>
       </div>
 
-      <MobileNav role={role} />
+      <MobileNav role={role} onLogout={handleLogout} />
     </div>
   );
 }
