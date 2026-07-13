@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   CreditCard,
   Gauge,
+  Headphones,
   Home,
   LogOut,
   Route,
@@ -112,6 +113,12 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       href: "/dashboard/admin/trips",
       label: "Viajes admin",
       icon: ShieldCheck,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/support",
+      label: "Soporte",
+      icon: Headphones,
       visible: role === "admin",
     },
   ];
