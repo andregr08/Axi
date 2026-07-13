@@ -21,7 +21,6 @@ import {
   ShieldCheck,
   Sparkles,
   TicketCheck,
-  UserRound,
   Zap,
   type LucideIcon,
 } from "lucide-react";

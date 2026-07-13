@@ -26,7 +26,6 @@ import {
   Star,
   UserRound,
   UsersRound,
-  XCircle,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";

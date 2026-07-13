@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
-  ShieldCheck,
   UserRound,
   UsersRound,
   Wrench,

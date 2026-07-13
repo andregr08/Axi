@@ -15,7 +15,6 @@ import {
   CarFront,
   CheckCircle2,
   CircleDollarSign,
-  Clock3,
   MapPin,
   Navigation,
   RefreshCw,
