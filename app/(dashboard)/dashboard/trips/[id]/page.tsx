@@ -19,10 +19,14 @@ import {
   MapPin,
   Navigation,
   Phone,
+  Radio,
+  RefreshCw,
   Route,
   ShieldCheck,
   Star,
+  TimerReset,
   UserRound,
+  XCircle,
 } from "lucide-react";
 import { GoogleMapView } from "@/components/maps/GoogleMap";
 import { SOSButton } from "@/components/safety/SOSButton";
@@ -55,7 +59,11 @@ type Trip = {
   driver_id: string | null;
   vehicle_id: string | null;
   origin_address: string;
+  origin_lat: number | null;
+  origin_lng: number | null;
   destination_address: string;
+  destination_lat: number | null;
+  destination_lng: number | null;
   status: TripStatus;
   estimated_price: number | null;
   final_price: number | null;
@@ -189,6 +197,8 @@ export default function ActiveTripPage({
     useState<DriverIdentity | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [searchSeconds, setSearchSeconds] = useState(0);
   const [message, setMessage] = useState("");
 
   const loadTrip = useCallback(async () => {
@@ -200,7 +210,11 @@ export default function ActiveTripPage({
         driver_id,
         vehicle_id,
         origin_address,
+        origin_lat,
+        origin_lng,
         destination_address,
+        destination_lat,
+        destination_lng,
         status,
         estimated_price,
         final_price,
@@ -353,6 +367,95 @@ export default function ActiveTripPage({
     };
   }, [id, loadTrip, router]);
 
+  useEffect(() => {
+    const searching =
+      trip?.status === "requested" ||
+      trip?.status === "searching";
+
+    if (!searching) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setSearchSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [trip?.status]);
+
+  async function cancelCurrentTrip() {
+    if (!trip) return;
+
+    const confirmed = window.confirm(
+      "¿Seguro que quieres cancelar la solicitud? Los conductores dejarán de verla."
+    );
+
+    if (!confirmed) return;
+
+    setCancelling(true);
+    setMessage("");
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      setCancelling(false);
+      router.replace("/login");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        status: "cancelled",
+      })
+      .eq("id", trip.id)
+      .eq("passenger_id", session.user.id)
+      .in("status", ["requested", "searching"]);
+
+    if (error) {
+      setMessage(`No fue posible cancelar el viaje: ${error.message}`);
+      setCancelling(false);
+      return;
+    }
+
+    setMessage("La solicitud fue cancelada correctamente.");
+    setCancelling(false);
+    await loadTrip();
+  }
+
+  function openExternalNavigation(
+    provider: "google" | "apple",
+    target: {
+      latitude: number | null;
+      longitude: number | null;
+      address: string;
+    }
+  ) {
+    const destination =
+      target.latitude !== null &&
+      target.longitude !== null
+        ? `${target.latitude},${target.longitude}`
+        : target.address;
+
+    const encodedDestination =
+      encodeURIComponent(destination);
+
+    const url =
+      provider === "google"
+        ? `https://www.google.com/maps/dir/?api=1&destination=${encodedDestination}&travelmode=driving`
+        : `https://maps.apple.com/?daddr=${encodedDestination}&dirflg=d`;
+
+    window.open(
+      url,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
   async function advanceStatus(nextStatus: TripStatus) {
     if (!trip) return;
 
@@ -438,6 +541,44 @@ export default function ActiveTripPage({
 
   const isCancelled = trip.status === "cancelled";
   const isCompleted = trip.status === "completed";
+  const isSearching =
+    trip.status === "requested" ||
+    trip.status === "searching";
+
+  const searchMinutes = Math.floor(searchSeconds / 60);
+  const searchRemainingSeconds = searchSeconds % 60;
+
+  const searchTimeLabel =
+    `${searchMinutes.toString().padStart(2, "0")}:` +
+    `${searchRemainingSeconds.toString().padStart(2, "0")}`;
+
+  const navigationToOrigin =
+    trip.status === "accepted" ||
+    trip.status === "driver_arriving" ||
+    trip.status === "driver_arrived";
+
+  const navigationToDestination =
+    trip.status === "in_progress";
+
+  const navigationTarget = navigationToOrigin
+    ? {
+        latitude: trip.origin_lat,
+        longitude: trip.origin_lng,
+        address: trip.origin_address,
+        label: "Ir por el pasajero",
+        description:
+          "Abre la navegación hacia el punto de recogida.",
+      }
+    : navigationToDestination
+      ? {
+          latitude: trip.destination_lat,
+          longitude: trip.destination_lng,
+          address: trip.destination_address,
+          label: "Ir al destino",
+          description:
+            "Abre la navegación hacia el destino final.",
+        }
+      : null;
 
   const displayPrice =
     trip.final_price ?? trip.estimated_price;
@@ -511,7 +652,127 @@ export default function ActiveTripPage({
         </div>
       )}
 
-      {!isCancelled && (
+      {isSearching && (
+        <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.1)]">
+          <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="relative flex min-h-[390px] items-center justify-center overflow-hidden bg-[#0B0F19] p-8">
+              <div className="absolute h-72 w-72 animate-ping rounded-full border border-yellow-400/20" />
+              <div className="absolute h-56 w-56 animate-pulse rounded-full border border-yellow-400/30" />
+              <div className="absolute h-40 w-40 rounded-full border border-yellow-400/40" />
+
+              <div className="absolute left-[18%] top-[22%] flex h-11 w-11 animate-bounce items-center justify-center rounded-2xl bg-white text-slate-950 shadow-xl">
+                <CarFront size={20} />
+              </div>
+
+              <div className="absolute bottom-[20%] right-[16%] flex h-11 w-11 animate-pulse items-center justify-center rounded-2xl bg-white text-slate-950 shadow-xl">
+                <CarFront size={20} />
+              </div>
+
+              <div className="absolute right-[22%] top-[18%] flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 text-slate-950 shadow-xl">
+                <CarFront size={18} />
+              </div>
+
+              <div className="relative z-10 text-center">
+                <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-yellow-400 text-black shadow-[0_0_60px_rgba(250,204,21,0.45)]">
+                  <Radio size={38} className="animate-pulse" />
+                </span>
+
+                <p className="mt-6 text-xs font-black uppercase tracking-[0.22em] text-yellow-400">
+                  Red AXI activa
+                </p>
+
+                <h2 className="mt-2 text-3xl font-black text-white">
+                  Buscando taxista
+                </h2>
+
+                <p className="mt-3 text-sm text-slate-400">
+                  Revisando conductores disponibles cerca de ti.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-8">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-600">
+                    Solicitud enviada
+                  </p>
+
+                  <h2 className="mt-2 text-3xl font-black text-slate-950">
+                    Encontraremos tu taxi
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-950 px-5 py-4 text-white">
+                  <TimerReset size={21} className="text-yellow-400" />
+
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Tiempo buscando
+                    </p>
+
+                    <p className="mt-1 text-xl font-black">
+                      {searchTimeLabel}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-7 space-y-3">
+                <SearchStep
+                  completed
+                  title="Solicitud recibida"
+                  description="AXI registró correctamente tu viaje."
+                />
+
+                <SearchStep
+                  completed={searchSeconds >= 3}
+                  title="Buscando conductores cercanos"
+                  description="Estamos consultando taxistas disponibles."
+                />
+
+                <SearchStep
+                  completed={searchSeconds >= 30}
+                  active={searchSeconds >= 30}
+                  title="Ampliando zona de búsqueda"
+                  description="Buscaremos conductores en un radio mayor."
+                />
+              </div>
+
+              <div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <div className="flex items-start gap-3">
+                  <RefreshCw
+                    size={18}
+                    className="mt-0.5 shrink-0 animate-spin text-blue-600"
+                  />
+
+                  <p className="text-xs leading-6 text-blue-800">
+                    No cierres esta pantalla. La información se actualizará
+                    automáticamente cuando un conductor acepte.
+                  </p>
+                </div>
+              </div>
+
+              {role === "passenger" && (
+                <button
+                  type="button"
+                  onClick={cancelCurrentTrip}
+                  disabled={cancelling}
+                  className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 font-black text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                >
+                  <XCircle size={19} />
+
+                  {cancelling
+                    ? "Cancelando solicitud..."
+                    : "Cancelar solicitud"}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!isCancelled && !isSearching && (
         <Card>
           <div className="flex items-center justify-between">
             <div>
@@ -575,8 +836,9 @@ export default function ActiveTripPage({
         </Card>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
-        <GoogleMapView />
+      {!isSearching && (
+        <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
+          <GoogleMapView />
 
         <div className="space-y-6">
           <Card>
@@ -752,6 +1014,87 @@ export default function ActiveTripPage({
           )}
 
           {role === "driver" &&
+            navigationTarget &&
+            !isCompleted &&
+            !isCancelled && (
+              <Card className="overflow-hidden border-blue-100 bg-[linear-gradient(135deg,#eff6ff,#ffffff)]">
+                <div className="flex items-start gap-4">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                    <Navigation size={26} />
+                  </span>
+
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
+                      Navegación del conductor
+                    </p>
+
+                    <h2 className="mt-1 text-2xl font-black text-slate-950">
+                      {navigationTarget.label}
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {navigationTarget.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-blue-100 bg-white p-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin
+                      size={19}
+                      className="mt-0.5 shrink-0 text-blue-600"
+                    />
+
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Dirección
+                      </p>
+
+                      <p className="mt-1 text-sm font-black leading-6 text-slate-800">
+                        {navigationTarget.address}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openExternalNavigation(
+                        "google",
+                        navigationTarget
+                      )
+                    }
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800"
+                  >
+                    <Navigation size={19} />
+                    Abrir Google Maps
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openExternalNavigation(
+                        "apple",
+                        navigationTarget
+                      )
+                    }
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 font-black text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    <Route size={19} />
+                    Abrir Apple Maps
+                  </button>
+                </div>
+
+                <p className="mt-4 text-center text-xs leading-5 text-slate-400">
+                  La aplicación de mapas utilizará tu ubicación actual
+                  para iniciar la ruta.
+                </p>
+              </Card>
+            )}
+
+          {role === "driver" &&
             driverAction &&
             !isCompleted &&
             !isCancelled && (
@@ -882,6 +1225,49 @@ export default function ActiveTripPage({
           )}
         </div>
       </div>
+      )}
     </section>
+  );
+}
+
+function SearchStep({
+  completed,
+  active = false,
+  title,
+  description,
+}: {
+  completed: boolean;
+  active?: boolean;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start gap-4 rounded-2xl bg-slate-50 p-4">
+      <span
+        className={cn(
+          "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+          completed
+            ? "bg-emerald-100 text-emerald-700"
+            : "bg-slate-200 text-slate-400",
+          active && "animate-pulse bg-yellow-100 text-yellow-700"
+        )}
+      >
+        {completed ? (
+          <Check size={17} />
+        ) : (
+          <Radio size={17} />
+        )}
+      </span>
+
+      <div>
+        <p className="text-sm font-black text-slate-800">
+          {title}
+        </p>
+
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          {description}
+        </p>
+      </div>
+    </div>
   );
 }
