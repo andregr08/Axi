@@ -17,6 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { DriverHome } from "@/components/dashboard/DriverHome";
+import { PassengerHome } from "@/components/dashboard/PassengerHome";
 import { Hero } from "@/components/dashboard/Hero";
 import { GoogleMapView } from "@/components/maps/GoogleMap";
 import { RideActionPanel } from "@/components/trips/RideActionPanel";
@@ -107,6 +108,15 @@ export default function DashboardPage() {
   if (role === "driver") {
     return (
       <DriverHome
+        name={displayName}
+        email={email}
+      />
+    );
+  }
+
+  if (role === "passenger") {
+    return (
+      <PassengerHome
         name={displayName}
         email={email}
       />
