@@ -1,28 +1,56 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-type ApplicationStatus = "pending" | "approved" | "rejected";
-type FaceStatus = "pending" | "matched" | "not_matched" | "manual_review";
+type ApplicationStatus =
+  | "pending"
+  | "approved"
+  | "rejected";
+
+type FaceStatus =
+  | "pending"
+  | "matched"
+  | "not_matched"
+  | "manual_review";
 
 type DriverApplication = {
   id: string;
   user_id: string;
+
   license_number: string;
   license_expiration: string;
+
+  operating_state: string | null;
+  operating_city: string | null;
+  taxi_number: string | null;
+  concession_number: string | null;
+  concession_authority: string | null;
+  concession_holder_name: string | null;
+  concession_expiration: string | null;
+  vehicle_vin: string | null;
+
   status: ApplicationStatus;
   documents_complete: boolean;
   face_match_status: FaceStatus;
   face_match_score: number | null;
   rejection_reason: string | null;
+
   profile_photo_url: string | null;
   selfie_url: string | null;
   license_front_url: string | null;
   license_back_url: string | null;
   identification_url: string | null;
+  concession_document_url: string | null;
+
+  vehicle_front_photo_url: string | null;
+  vehicle_rear_photo_url: string | null;
+  vehicle_left_photo_url: string | null;
+  vehicle_right_photo_url: string | null;
+
   created_at: string;
+
   profiles:
     | {
         full_name: string | null;
@@ -41,23 +69,33 @@ type DocumentLinks = {
   licenseFront: string | null;
   licenseBack: string | null;
   identification: string | null;
+  concessionDocument: string | null;
+  vehicleFrontPhoto: string | null;
+  vehicleRearPhoto: string | null;
+  vehicleLeftPhoto: string | null;
+  vehicleRightPhoto: string | null;
 };
 
 export default function DriverApplicationsAdminPage() {
   const router = useRouter();
 
-  const [applications, setApplications] = useState<DriverApplication[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [openingId, setOpeningId] = useState<string | null>(null);
-  const [documentLinks, setDocumentLinks] = useState<
-    Record<string, DocumentLinks>
-  >({});
-  const [message, setMessage] = useState("");
+  const [applications, setApplications] =
+    useState<DriverApplication[]>([]);
 
-  useEffect(() => {
-    loadApplications();
-  }, []);
+  const [loading, setLoading] =
+    useState(true);
+
+  const [processingId, setProcessingId] =
+    useState<string | null>(null);
+
+  const [openingId, setOpeningId] =
+    useState<string | null>(null);
+
+  const [documentLinks, setDocumentLinks] =
+    useState<Record<string, DocumentLinks>>({});
+
+  const [message, setMessage] =
+    useState("");
 
   async function loadApplications() {
     setLoading(true);
@@ -90,6 +128,14 @@ export default function DriverApplicationsAdminPage() {
         user_id,
         license_number,
         license_expiration,
+        operating_state,
+        operating_city,
+        taxi_number,
+        concession_number,
+        concession_authority,
+        concession_holder_name,
+        concession_expiration,
+        vehicle_vin,
         status,
         documents_complete,
         face_match_status,
@@ -100,29 +146,54 @@ export default function DriverApplicationsAdminPage() {
         license_front_url,
         license_back_url,
         identification_url,
+        concession_document_url,
+        vehicle_front_photo_url,
+        vehicle_rear_photo_url,
+        vehicle_left_photo_url,
+        vehicle_right_photo_url,
         created_at,
         profiles:user_id (
           full_name,
           role
         )
       `)
-      .order("created_at", { ascending: false });
+      .order("created_at", {
+        ascending: false,
+      });
 
     if (error) {
-      setMessage(`Error cargando solicitudes: ${error.message}`);
+      setMessage(
+        `Error cargando solicitudes: ${error.message}`
+      );
     } else {
-      setApplications((data ?? []) as DriverApplication[]);
+      setApplications(
+        (data ?? []) as DriverApplication[]
+      );
     }
 
     setLoading(false);
   }
 
-  async function createSignedLink(path: string | null) {
-    if (!path) return null;
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadApplications();
+    }, 0);
 
-    const { data, error } = await supabase.storage
-      .from("driver-documents")
-      .createSignedUrl(path, 600);
+    return () =>
+      window.clearTimeout(timer);
+  }, []);
+
+  async function createSignedLink(
+    path: string | null
+  ) {
+    if (!path) {
+      return null;
+    }
+
+    const { data, error } =
+      await supabase.storage
+        .from("driver-documents")
+        .createSignedUrl(path, 600);
 
     if (error) {
       throw new Error(error.message);
@@ -131,25 +202,63 @@ export default function DriverApplicationsAdminPage() {
     return data.signedUrl;
   }
 
-  async function openDocuments(application: DriverApplication) {
+  async function openDocuments(
+    application: DriverApplication
+  ) {
     setOpeningId(application.id);
     setMessage("");
 
     try {
       const links: DocumentLinks = {
-        profilePhoto: await createSignedLink(
-          application.profile_photo_url
-        ),
-        selfie: await createSignedLink(application.selfie_url),
-        licenseFront: await createSignedLink(
-          application.license_front_url
-        ),
-        licenseBack: await createSignedLink(
-          application.license_back_url
-        ),
-        identification: await createSignedLink(
-          application.identification_url
-        ),
+        profilePhoto:
+          await createSignedLink(
+            application.profile_photo_url
+          ),
+
+        selfie:
+          await createSignedLink(
+            application.selfie_url
+          ),
+
+        licenseFront:
+          await createSignedLink(
+            application.license_front_url
+          ),
+
+        licenseBack:
+          await createSignedLink(
+            application.license_back_url
+          ),
+
+        identification:
+          await createSignedLink(
+            application.identification_url
+          ),
+
+        concessionDocument:
+          await createSignedLink(
+            application.concession_document_url
+          ),
+
+        vehicleFrontPhoto:
+          await createSignedLink(
+            application.vehicle_front_photo_url
+          ),
+
+        vehicleRearPhoto:
+          await createSignedLink(
+            application.vehicle_rear_photo_url
+          ),
+
+        vehicleLeftPhoto:
+          await createSignedLink(
+            application.vehicle_left_photo_url
+          ),
+
+        vehicleRightPhoto:
+          await createSignedLink(
+            application.vehicle_right_photo_url
+          ),
       };
 
       setDocumentLinks((current) => ({
@@ -169,7 +278,10 @@ export default function DriverApplicationsAdminPage() {
 
   async function reviewFace(
     applicationId: string,
-    reviewStatus: "matched" | "not_matched" | "manual_review"
+    reviewStatus:
+      | "matched"
+      | "not_matched"
+      | "manual_review"
   ) {
     let score: number | null = null;
 
@@ -178,12 +290,20 @@ export default function DriverApplicationsAdminPage() {
         "Escribe el porcentaje estimado de coincidencia, de 0 a 100:"
       );
 
-      if (scoreInput === null) return;
+      if (scoreInput === null) {
+        return;
+      }
 
       score = Number(scoreInput);
 
-      if (Number.isNaN(score) || score < 0 || score > 100) {
-        alert("Escribe un número válido entre 0 y 100.");
+      if (
+        Number.isNaN(score) ||
+        score < 0 ||
+        score > 100
+      ) {
+        window.alert(
+          "Escribe un número válido entre 0 y 100."
+        );
         return;
       }
     }
@@ -192,33 +312,47 @@ export default function DriverApplicationsAdminPage() {
       "¿Confirmas esta revisión facial?"
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     setProcessingId(applicationId);
     setMessage("");
 
-    const { error } = await supabase.rpc("review_driver_face", {
-      application_id: applicationId,
-      review_status: reviewStatus,
-      review_score: score,
-    });
+    const { error } = await supabase.rpc(
+      "review_driver_face",
+      {
+        application_id: applicationId,
+        review_status: reviewStatus,
+        review_score: score,
+      }
+    );
 
     if (error) {
-      setMessage(`Error en revisión facial: ${error.message}`);
+      setMessage(
+        `Error en revisión facial: ${error.message}`
+      );
     } else {
-      setMessage("Revisión facial guardada.");
+      setMessage(
+        "Revisión facial guardada."
+      );
+
       await loadApplications();
     }
 
     setProcessingId(null);
   }
 
-  async function approveApplication(applicationId: string) {
+  async function approveApplication(
+    applicationId: string
+  ) {
     const confirmed = window.confirm(
-      "¿Confirmas que revisaste identidad, licencia y documentos?"
+      "¿Confirmas que revisaste identidad, licencia, concesión y documentos del taxi?"
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     setProcessingId(applicationId);
     setMessage("");
@@ -231,19 +365,30 @@ export default function DriverApplicationsAdminPage() {
     );
 
     if (error) {
-      setMessage(`Error al aprobar: ${error.message}`);
+      setMessage(
+        `Error al aprobar: ${error.message}`
+      );
     } else {
-      setMessage("Conductor aprobado correctamente.");
+      setMessage(
+        "Conductor aprobado correctamente."
+      );
+
       await loadApplications();
     }
 
     setProcessingId(null);
   }
 
-  async function rejectApplication(applicationId: string) {
-    const reason = window.prompt("Escribe el motivo del rechazo:");
+  async function rejectApplication(
+    applicationId: string
+  ) {
+    const reason = window.prompt(
+      "Escribe el motivo del rechazo:"
+    );
 
-    if (!reason) return;
+    if (!reason?.trim()) {
+      return;
+    }
 
     setProcessingId(applicationId);
     setMessage("");
@@ -252,30 +397,46 @@ export default function DriverApplicationsAdminPage() {
       "reject_driver_application",
       {
         application_id: applicationId,
-        reason,
+        reason: reason.trim(),
       }
     );
 
     if (error) {
-      setMessage(`Error al rechazar: ${error.message}`);
+      setMessage(
+        `Error al rechazar: ${error.message}`
+      );
     } else {
-      setMessage("Solicitud rechazada.");
+      setMessage(
+        "Solicitud rechazada."
+      );
+
       await loadApplications();
     }
 
     setProcessingId(null);
   }
 
-  function getApplicantName(application: DriverApplication) {
-    const profile = Array.isArray(application.profiles)
-      ? application.profiles[0]
-      : application.profiles;
+  function getApplicantName(
+    application: DriverApplication
+  ) {
+    const profile =
+      Array.isArray(application.profiles)
+        ? application.profiles[0]
+        : application.profiles;
 
-    return profile?.full_name || "Usuario sin nombre";
+    return (
+      profile?.full_name ||
+      "Usuario sin nombre"
+    );
   }
 
-  function faceStatusLabel(status: FaceStatus) {
-    const labels: Record<FaceStatus, string> = {
+  function faceStatusLabel(
+    status: FaceStatus
+  ) {
+    const labels: Record<
+      FaceStatus,
+      string
+    > = {
       pending: "Pendiente",
       matched: "Coincide",
       not_matched: "No coincide",
@@ -285,8 +446,37 @@ export default function DriverApplicationsAdminPage() {
     return labels[status];
   }
 
+  function applicationStatusLabel(
+    status: ApplicationStatus
+  ) {
+    const labels: Record<
+      ApplicationStatus,
+      string
+    > = {
+      pending: "Pendiente",
+      approved: "Aprobada",
+      rejected: "Rechazada",
+    };
+
+    return labels[status];
+  }
+
+  function formatDate(
+    value: string | null
+  ) {
+    if (!value) {
+      return "No aplica";
+    }
+
+    return new Date(
+      `${value}T12:00:00`
+    ).toLocaleDateString("es-MX");
+  }
+
   if (loading) {
-    return <p>Cargando solicitudes...</p>;
+    return (
+      <p>Cargando solicitudes...</p>
+    );
   }
 
   return (
@@ -301,7 +491,7 @@ export default function DriverApplicationsAdminPage() {
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Revisa identidad, licencia y documentos antes de aprobar.
+          Revisa al conductor, la licencia, la concesión y los datos legales del taxi.
         </p>
       </div>
 
@@ -311,7 +501,7 @@ export default function DriverApplicationsAdminPage() {
         </div>
       )}
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         {applications.length === 0 ? (
           <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
             <p className="font-semibold">
@@ -320,97 +510,218 @@ export default function DriverApplicationsAdminPage() {
           </div>
         ) : (
           applications.map((application) => {
-            const links = documentLinks[application.id];
+            const links =
+              documentLinks[application.id];
+
+            const processing =
+              processingId === application.id;
 
             return (
               <article
                 key={application.id}
                 className="rounded-2xl bg-white p-6 shadow-sm"
               >
-                <div className="flex flex-col justify-between gap-5 lg:flex-row">
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {getApplicantName(application)}
-                    </h2>
+                <div className="flex flex-col justify-between gap-6 xl:flex-row">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="text-xl font-bold">
+                        {getApplicantName(
+                          application
+                        )}
+                      </h2>
 
-                    <p className="mt-2 text-sm text-gray-500">
-                      Licencia: {application.license_number}
-                    </p>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          application.status ===
+                          "approved"
+                            ? "bg-green-50 text-green-700"
+                            : application.status ===
+                                "rejected"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-yellow-50 text-yellow-700"
+                        }`}
+                      >
+                        {applicationStatusLabel(
+                          application.status
+                        )}
+                      </span>
+                    </div>
 
-                    <p className="mt-1 text-sm text-gray-500">
-                      Vence:{" "}
-                      {new Date(
-                        application.license_expiration
-                      ).toLocaleDateString("es-MX")}
-                    </p>
+                    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <DataItem
+                        label="Número de licencia"
+                        value={
+                          application.license_number
+                        }
+                      />
 
-                    <p className="mt-1 text-sm text-gray-500">
-                      Documentos:{" "}
-                      {application.documents_complete
-                        ? "Completos"
-                        : "Incompletos"}
-                    </p>
+                      <DataItem
+                        label="Vencimiento de licencia"
+                        value={formatDate(
+                          application.license_expiration
+                        )}
+                      />
 
-                    <p className="mt-1 text-sm text-gray-500">
-                      Verificación facial:{" "}
-                      {faceStatusLabel(application.face_match_status)}
-                      {application.face_match_score !== null
-                        ? ` (${application.face_match_score}%)`
-                        : ""}
-                    </p>
+                      <DataItem
+                        label="Estado donde opera"
+                        value={
+                          application.operating_state
+                        }
+                      />
+
+                      <DataItem
+                        label="Ciudad o municipio"
+                        value={
+                          application.operating_city
+                        }
+                      />
+
+                      <DataItem
+                        label="Número económico"
+                        value={
+                          application.taxi_number
+                        }
+                      />
+
+                      <DataItem
+                        label="Concesión o permiso"
+                        value={
+                          application.concession_number
+                        }
+                      />
+
+                      <DataItem
+                        label="Autoridad emisora"
+                        value={
+                          application.concession_authority
+                        }
+                      />
+
+                      <DataItem
+                        label="Titular de la concesión"
+                        value={
+                          application.concession_holder_name
+                        }
+                      />
+
+                      <DataItem
+                        label="Vencimiento del permiso"
+                        value={formatDate(
+                          application.concession_expiration
+                        )}
+                      />
+
+                      <DataItem
+                        label="VIN / número de serie"
+                        value={
+                          application.vehicle_vin
+                        }
+                      />
+
+                      <DataItem
+                        label="Documentos"
+                        value={
+                          application.documents_complete
+                            ? "Completos"
+                            : "Incompletos"
+                        }
+                      />
+
+                      <DataItem
+                        label="Verificación facial"
+                        value={`${faceStatusLabel(
+                          application.face_match_status
+                        )}${
+                          application.face_match_score !==
+                          null
+                            ? ` (${application.face_match_score}%)`
+                            : ""
+                        }`}
+                      />
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3 xl:max-w-sm xl:justify-end">
                     <button
-                      onClick={() => openDocuments(application)}
-                      disabled={openingId === application.id}
-                      className="rounded-lg border px-4 py-2 text-sm font-semibold"
+                      type="button"
+                      onClick={() =>
+                        openDocuments(
+                          application
+                        )
+                      }
+                      disabled={
+                        openingId ===
+                        application.id
+                      }
+                      className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
                     >
-                      {openingId === application.id
+                      {openingId ===
+                      application.id
                         ? "Abriendo..."
                         : "Revisar documentos"}
                     </button>
 
-                    {application.status === "pending" && (
+                    {application.status ===
+                      "pending" && (
                       <>
                         <button
+                          type="button"
                           onClick={() =>
-                            reviewFace(application.id, "matched")
+                            reviewFace(
+                              application.id,
+                              "matched"
+                            )
                           }
-                          disabled={processingId === application.id}
+                          disabled={processing}
                           className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                         >
                           Rostro coincide
                         </button>
 
                         <button
+                          type="button"
                           onClick={() =>
-                            reviewFace(application.id, "not_matched")
+                            reviewFace(
+                              application.id,
+                              "not_matched"
+                            )
                           }
-                          disabled={processingId === application.id}
+                          disabled={processing}
                           className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
                         >
                           No coincide
                         </button>
 
                         <button
+                          type="button"
                           onClick={() =>
-                            reviewFace(application.id, "manual_review")
+                            reviewFace(
+                              application.id,
+                              "manual_review"
+                            )
                           }
-                          disabled={processingId === application.id}
+                          disabled={processing}
                           className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
                         >
                           Revisión manual
                         </button>
 
                         <button
+                          type="button"
                           onClick={() =>
-                            approveApplication(application.id)
+                            approveApplication(
+                              application.id
+                            )
                           }
                           disabled={
-                            processingId === application.id ||
-                            application.face_match_status !== "matched" ||
-                            !application.documents_complete
+                            processing ||
+                            application.face_match_status !==
+                              "matched" ||
+                            !application.documents_complete ||
+                            !application.concession_document_url ||
+                            !application.vehicle_vin ||
+                            !application.taxi_number ||
+                            !application.concession_number
                           }
                           className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                         >
@@ -418,10 +729,13 @@ export default function DriverApplicationsAdminPage() {
                         </button>
 
                         <button
+                          type="button"
                           onClick={() =>
-                            rejectApplication(application.id)
+                            rejectApplication(
+                              application.id
+                            )
                           }
-                          disabled={processingId === application.id}
+                          disabled={processing}
                           className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
                         >
                           Rechazar
@@ -432,33 +746,88 @@ export default function DriverApplicationsAdminPage() {
                 </div>
 
                 {links && (
-                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <DocumentCard
-                      label="Foto de perfil"
-                      url={links.profilePhoto}
-                    />
-                    <DocumentCard
-                      label="Selfie"
-                      url={links.selfie}
-                    />
-                    <DocumentCard
-                      label="Licencia frente"
-                      url={links.licenseFront}
-                    />
-                    <DocumentCard
-                      label="Licencia reverso"
-                      url={links.licenseBack}
-                    />
-                    <DocumentCard
-                      label="Identificación"
-                      url={links.identification}
-                    />
+                  <div className="mt-8">
+                    <h3 className="mb-4 text-lg font-bold">
+                      Documentos obligatorios
+                    </h3>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <DocumentCard
+                        label="Foto de perfil"
+                        url={links.profilePhoto}
+                      />
+
+                      <DocumentCard
+                        label="Selfie"
+                        url={links.selfie}
+                      />
+
+                      <DocumentCard
+                        label="Licencia frente"
+                        url={links.licenseFront}
+                      />
+
+                      <DocumentCard
+                        label="Licencia reverso"
+                        url={links.licenseBack}
+                      />
+
+                      <DocumentCard
+                        label="Identificación"
+                        url={links.identification}
+                      />
+
+                      <DocumentCard
+                        label="Concesión o permiso"
+                        url={
+                          links.concessionDocument
+                        }
+                        document
+                      />
+                    </div>
+
+                    <h3 className="mb-4 mt-8 text-lg font-bold">
+                      Fotografías opcionales del taxi
+                    </h3>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <DocumentCard
+                        label="Vista frontal"
+                        url={
+                          links.vehicleFrontPhoto
+                        }
+                      />
+
+                      <DocumentCard
+                        label="Vista trasera"
+                        url={
+                          links.vehicleRearPhoto
+                        }
+                      />
+
+                      <DocumentCard
+                        label="Lado izquierdo"
+                        url={
+                          links.vehicleLeftPhoto
+                        }
+                      />
+
+                      <DocumentCard
+                        label="Lado derecho"
+                        url={
+                          links.vehicleRightPhoto
+                        }
+                      />
+                    </div>
                   </div>
                 )}
 
                 {application.rejection_reason && (
-                  <p className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                    Motivo: {application.rejection_reason}
+                  <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                    Motivo:{" "}
+                    {
+                      application.rejection_reason
+                    }
                   </p>
                 )}
               </article>
@@ -470,16 +839,40 @@ export default function DriverApplicationsAdminPage() {
   );
 }
 
+function DataItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+        {label}
+      </p>
+
+      <p className="mt-2 break-words text-sm font-semibold text-gray-800">
+        {value || "No registrado"}
+      </p>
+    </div>
+  );
+}
+
 function DocumentCard({
   label,
   url,
+  document = false,
 }: {
   label: string;
   url: string | null;
+  document?: boolean;
 }) {
   return (
     <div className="rounded-xl border p-4">
-      <p className="mb-3 text-sm font-semibold">{label}</p>
+      <p className="mb-3 text-sm font-semibold">
+        {label}
+      </p>
 
       {url ? (
         <a
@@ -488,19 +881,25 @@ function DocumentCard({
           rel="noreferrer"
           className="block"
         >
-          <img
-            src={url}
-            alt={label}
-            className="h-52 w-full rounded-lg bg-gray-100 object-contain"
-          />
+          {document ? (
+            <div className="flex h-52 items-center justify-center rounded-lg bg-gray-100 px-5 text-center text-sm font-semibold text-gray-700">
+              Abrir documento o imagen
+            </div>
+          ) : (
+            <img
+              src={url}
+              alt={label}
+              className="h-52 w-full rounded-lg bg-gray-100 object-contain"
+            />
+          )}
 
           <p className="mt-3 text-center text-sm font-semibold underline">
             Abrir en tamaño completo
           </p>
         </a>
       ) : (
-        <div className="flex h-52 items-center justify-center rounded-lg bg-gray-100 text-sm text-gray-500">
-          Documento no disponible
+        <div className="flex h-52 items-center justify-center rounded-lg bg-gray-100 px-4 text-center text-sm text-gray-500">
+          Archivo no disponible
         </div>
       )}
     </div>
