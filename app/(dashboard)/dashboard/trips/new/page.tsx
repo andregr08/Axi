@@ -24,6 +24,10 @@ type Coordinates = {
 export default function NewTripPage() {
   const router = useRouter();
 
+  const placesConfigured = Boolean(
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  );
+
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
 
@@ -127,11 +131,20 @@ export default function NewTripPage() {
       return;
     }
 
-    if (!originCoordinates) {
-      setMessage(
-        "Selecciona una dirección real como origen o usa tu ubicación actual."
-      );
-      return;
+    let resolvedOriginCoordinates = originCoordinates;
+
+    if (!resolvedOriginCoordinates) {
+      if (placesConfigured) {
+        setMessage(
+          "Selecciona una dirección real como origen o usa tu ubicación actual."
+        );
+        return;
+      }
+
+      resolvedOriginCoordinates = {
+        latitude: 19.0414,
+        longitude: -98.2063,
+      };
     }
 
     if (!destination.trim()) {
@@ -139,11 +152,23 @@ export default function NewTripPage() {
       return;
     }
 
-    if (!destinationPlace) {
-      setMessage(
-        "Selecciona una de las ubicaciones sugeridas para confirmar el destino."
-      );
-      return;
+    let resolvedDestinationPlace = destinationPlace;
+
+    if (!resolvedDestinationPlace) {
+      if (placesConfigured) {
+        setMessage(
+          "Selecciona una de las ubicaciones sugeridas para confirmar el destino."
+        );
+        return;
+      }
+
+      resolvedDestinationPlace = {
+        placeId: "demo-manual-destination",
+        name: destination.trim(),
+        address: destination.trim(),
+        latitude: 19.0544,
+        longitude: -98.2221,
+      };
     }
 
     setLoading(true);
@@ -166,15 +191,15 @@ export default function NewTripPage() {
           passenger_id: session.user.id,
           origin_address: origin.trim(),
           origin_lat:
-            originCoordinates.latitude,
+            resolvedOriginCoordinates.latitude,
           origin_lng:
-            originCoordinates.longitude,
+            resolvedOriginCoordinates.longitude,
           destination_address:
-            destinationPlace.address,
+            resolvedDestinationPlace.address,
           destination_lat:
-            destinationPlace.latitude,
+            resolvedDestinationPlace.latitude,
           destination_lng:
-            destinationPlace.longitude,
+            resolvedDestinationPlace.longitude,
           status: "requested",
         })
         .select("id")
@@ -242,10 +267,12 @@ export default function NewTripPage() {
   }
 
   const originReady =
-    originCoordinates !== null;
+    originCoordinates !== null ||
+    (!placesConfigured && origin.trim().length > 2);
 
   const destinationReady =
-    destinationPlace !== null;
+    destinationPlace !== null ||
+    (!placesConfigured && destination.trim().length > 2);
 
   return (
     <section className="mx-auto max-w-3xl space-y-8">
@@ -275,6 +302,13 @@ export default function NewTripPage() {
           punto exacto del viaje.
         </p>
       </div>
+
+      {!placesConfigured && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+          Modo demo activo: puedes escribir origen y destino manualmente.
+          Las coordenadas serán temporales hasta que Gali configure Google Places.
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}

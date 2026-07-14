@@ -26,6 +26,11 @@ import {
 } from "lucide-react";
 import { GoogleMapView } from "@/components/maps/GoogleMap";
 import { SOSButton } from "@/components/safety/SOSButton";
+import {
+  DriverIdentityCard,
+  type DriverIdentity,
+} from "@/components/safety/DriverIdentityCard";
+import { TripPinCard } from "@/components/safety/TripPinCard";
 import { ShareTripCard } from "@/components/trips/ShareTripCard";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -180,6 +185,8 @@ export default function ActiveTripPage({
   const [role, setRole] = useState<UserRole | null>(null);
   const [passengerName, setPassengerName] = useState("");
   const [driverName, setDriverName] = useState("");
+  const [driverIdentity, setDriverIdentity] =
+    useState<DriverIdentity | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
@@ -226,7 +233,7 @@ export default function ActiveTripPage({
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, avatar_url, rating")
         .in("id", userIds);
 
       const passenger = profiles?.find(
@@ -241,11 +248,49 @@ export default function ActiveTripPage({
         passenger?.full_name || "Pasajero sin nombre"
       );
 
-      setDriverName(
+      const resolvedDriverName =
         loadedTrip.driver_id
           ? driver?.full_name || "Conductor sin nombre"
-          : "Sin asignar"
-      );
+          : "Sin asignar";
+
+      setDriverName(resolvedDriverName);
+
+      if (loadedTrip.driver_id) {
+        let vehicleData: {
+          brand: string | null;
+          model: string | null;
+          color: string | null;
+          plates: string | null;
+          verified: boolean | null;
+        } | null = null;
+
+        if (loadedTrip.vehicle_id) {
+          const { data: vehicle } = await supabase
+            .from("vehicles")
+            .select("brand, model, color, plates, verified")
+            .eq("id", loadedTrip.vehicle_id)
+            .maybeSingle();
+
+          vehicleData = vehicle;
+        }
+
+        setDriverIdentity({
+          name: resolvedDriverName,
+          avatarUrl: driver?.avatar_url ?? null,
+          rating:
+            driver?.rating !== null &&
+            driver?.rating !== undefined
+              ? Number(driver.rating)
+              : null,
+          vehicleBrand: vehicleData?.brand ?? null,
+          vehicleModel: vehicleData?.model ?? null,
+          vehicleColor: vehicleData?.color ?? null,
+          vehiclePlates: vehicleData?.plates ?? null,
+          verified: Boolean(vehicleData?.verified),
+        });
+      } else {
+        setDriverIdentity(null);
+      }
     }
 
     setLoading(false);
@@ -652,6 +697,21 @@ export default function ActiveTripPage({
               </div>
             </div>
           </Card>
+
+          {driverIdentity &&
+            !isCompleted &&
+            !isCancelled && (
+              <DriverIdentityCard driver={driverIdentity} />
+            )}
+
+          {trip.driver_id &&
+            !isCompleted &&
+            !isCancelled && (
+              <TripPinCard
+                pin={null}
+                visibleToPassenger={role === "passenger"}
+              />
+            )}
 
           {!isCompleted && !isCancelled && role === "passenger" && (
             <ShareTripCard tripId={trip.id} />
