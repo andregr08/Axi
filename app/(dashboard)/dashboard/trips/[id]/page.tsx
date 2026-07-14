@@ -1307,20 +1307,26 @@ export default function ActiveTripPage({
               </h2>
 
               <p className="mt-2 text-sm font-medium leading-6 text-black/65">
-                El recorrido terminó correctamente.
+                El recorrido terminó correctamente. Comparte tu opinión para
+                ayudar a mejorar la comunidad AXI.
               </p>
 
-              <div className="mt-6 flex gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/10 transition hover:bg-black hover:text-yellow-400"
-                  >
-                    <Star size={20} />
-                  </button>
-                ))}
-              </div>
+              <Link
+                href={`/dashboard/trips/${trip.id}/review`}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-black px-5 font-black text-yellow-400 transition hover:bg-slate-900"
+              >
+                <Star size={20} />
+                Calificar viaje
+              </Link>
+
+              {role === "passenger" && (
+                <Link
+                  href={`/dashboard/trips/${trip.id}/payment`}
+                  className="mt-3 flex h-13 w-full items-center justify-center gap-2 rounded-2xl border border-black/15 bg-black/10 px-5 font-black text-black transition hover:bg-black/15"
+                >
+                  Revisar pago y propina
+                </Link>
+              )}
             </Card>
           )}
 
