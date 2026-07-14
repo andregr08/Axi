@@ -1,39 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ChevronDown,
-  Search,
-} from "lucide-react";
+import { Bell, ChevronDown, Search } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
 import type { UserRole } from "@/components/layout/Sidebar";
 
 interface NavbarProps {
   role: UserRole | null;
-  notifications?: React.ReactNode;
 }
 
-const roleNames: Record<
-  UserRole,
-  string
-> = {
+const roleNames: Record<UserRole, string> = {
   admin: "Administrador",
   driver: "Conductor",
   passenger: "Pasajero",
 };
 
-export function Navbar({
-  role,
-  notifications,
-}: NavbarProps) {
+export function Navbar({ role }: NavbarProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
       <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="lg:hidden">
-          <Logo
-            href="/dashboard"
-            compact
-          />
+          <Logo href="/dashboard" compact />
         </div>
 
         <div className="hidden max-w-md flex-1 lg:block">
@@ -52,7 +39,14 @@ export function Navbar({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {notifications}
+          <button
+            type="button"
+            aria-label="Notificaciones"
+            className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
+          >
+            <Bell size={19} />
+            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-yellow-400 ring-2 ring-white" />
+          </button>
 
           <Link
             href="/dashboard/profile"
@@ -66,18 +60,12 @@ export function Navbar({
               <span className="block text-sm font-bold text-slate-900">
                 Mi cuenta
               </span>
-
               <span className="block text-xs text-slate-500">
-                {role
-                  ? roleNames[role]
-                  : "Cargando..."}
+                {role ? roleNames[role] : "Cargando..."}
               </span>
             </span>
 
-            <ChevronDown
-              size={16}
-              className="hidden text-slate-400 sm:block"
-            />
+            <ChevronDown size={16} className="hidden text-slate-400 sm:block" />
           </Link>
         </div>
       </div>

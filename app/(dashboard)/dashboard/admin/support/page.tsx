@@ -1,106 +1,50 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Headphones,
+  HelpCircle,
+  Inbox,
+  LifeBuoy,
+  LockKeyhole,
+  MessageCircle,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  TicketCheck,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { cn } from "@/utils/cn";
 
-type TicketStatus =
+type TicketFilter =
+  | "all"
   | "open"
-  | "in_review"
-  | "waiting_user"
+  | "in-progress"
   | "resolved"
-  | "closed";
-
-type TicketPriority =
-  | "low"
-  | "normal"
-  | "high"
   | "urgent";
-
-type TicketCategory =
-  | "trip_issue"
-  | "payment_issue"
-  | "driver_issue"
-  | "passenger_issue"
-  | "lost_item"
-  | "refund_request"
-  | "safety_issue"
-  | "account_issue"
-  | "other";
-
-type SupportTicket = {
-  id: string;
-  user_id: string;
-  trip_id: string | null;
-  category: TicketCategory;
-  subject: string;
-  description: string;
-  priority: TicketPriority;
-  status: TicketStatus;
-  resolution: string | null;
-  created_at: string;
-  updated_at: string;
-  profiles:
-    | {
-        full_name: string | null;
-      }
-    | {
-        full_name: string | null;
-      }[]
-    | null;
-  trips:
-    | {
-        origin_address: string;
-        destination_address: string;
-      }
-    | {
-        origin_address: string;
-        destination_address: string;
-      }[]
-    | null;
-};
-
-const categoryLabels: Record<TicketCategory, string> = {
-  trip_issue: "Problema con un viaje",
-  payment_issue: "Problema con un pago",
-  driver_issue: "Problema con un conductor",
-  passenger_issue: "Problema con un pasajero",
-  lost_item: "Objeto olvidado",
-  refund_request: "Solicitud de reembolso",
-  safety_issue: "Problema de seguridad",
-  account_issue: "Problema con la cuenta",
-  other: "Otro",
-};
-
-const priorityLabels: Record<TicketPriority, string> = {
-  low: "Baja",
-  normal: "Normal",
-  high: "Alta",
-  urgent: "Urgente",
-};
-
-const statusLabels: Record<TicketStatus, string> = {
-  open: "Abierto",
-  in_review: "En revisión",
-  waiting_user: "Esperando usuario",
-  resolved: "Resuelto",
-  closed: "Cerrado",
-};
 
 export default function AdminSupportPage() {
   const router = useRouter();
 
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] =
+    useState<TicketFilter>("all");
 
-  async function loadTickets() {
-    setLoading(true);
-    setMessage("");
-
+  const validateAdmin = useCallback(async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -110,445 +54,370 @@ export default function AdminSupportPage() {
       return;
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", session.user.id)
       .single();
 
-    if (profileError || profile?.role !== "admin") {
+    if (error || profile?.role !== "admin") {
       router.replace("/dashboard");
       return;
     }
 
-    const { data, error } = await supabase
-      .from("support_tickets")
-      .select(`
-        id,
-        user_id,
-        trip_id,
-        category,
-        subject,
-        description,
-        priority,
-        status,
-        resolution,
-        created_at,
-        updated_at,
-        profiles:user_id (
-          full_name
-        ),
-        trips:trip_id (
-          origin_address,
-          destination_address
-        )
-      `)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      setMessage(`Error cargando tickets: ${error.message}`);
-    } else {
-      setTickets((data ?? []) as SupportTicket[]);
-    }
-
     setLoading(false);
-  }
+  }, [router]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadTickets();
-    }, 0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void validateAdmin();
+  }, [validateAdmin]);
 
-    return () => window.clearTimeout(timer);
-  }, []);
+  function refreshSupport() {
+    setRefreshing(true);
 
-  async function updateTicket(
-    ticket: SupportTicket,
-    newStatus: TicketStatus,
-    newPriority: TicketPriority
-  ) {
-    let resolution = ticket.resolution;
-
-    if (
-      newStatus === "resolved" ||
-      newStatus === "closed"
-    ) {
-      resolution = window.prompt(
-        "Escribe la resolución del caso:",
-        ticket.resolution ?? ""
-      );
-
-      if (!resolution?.trim() || resolution.trim().length < 5) {
-        setMessage("Debes escribir una resolución de al menos 5 caracteres.");
-        return;
-      }
-    }
-
-    const confirmed = window.confirm(
-      `¿Confirmas cambiar el ticket a "${statusLabels[newStatus]}"?`
-    );
-
-    if (!confirmed) return;
-
-    setProcessingId(ticket.id);
-    setMessage("");
-
-    const { error } = await supabase.rpc(
-      "update_support_ticket",
-      {
-        ticket_id_value: ticket.id,
-        new_status_value: newStatus,
-        new_priority_value: newPriority,
-        resolution_value: resolution?.trim() || null,
-      }
-    );
-
-    if (error) {
-      setMessage(`Error actualizando ticket: ${error.message}`);
-    } else {
-      setMessage("Ticket actualizado correctamente.");
-      await loadTickets();
-    }
-
-    setProcessingId(null);
+    window.setTimeout(() => {
+      setRefreshing(false);
+    }, 700);
   }
-
-  function getProfile(ticket: SupportTicket) {
-    return Array.isArray(ticket.profiles)
-      ? ticket.profiles[0]
-      : ticket.profiles;
-  }
-
-  function getTrip(ticket: SupportTicket) {
-    return Array.isArray(ticket.trips)
-      ? ticket.trips[0]
-      : ticket.trips;
-  }
-
-  function formatDate(value: string) {
-    return new Date(value).toLocaleString("es-MX", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  }
-
-  const filteredTickets = useMemo(() => {
-    return tickets.filter((ticket) => {
-      const matchesStatus =
-        statusFilter === "all" ||
-        ticket.status === statusFilter;
-
-      const matchesPriority =
-        priorityFilter === "all" ||
-        ticket.priority === priorityFilter;
-
-      return matchesStatus && matchesPriority;
-    });
-  }, [tickets, statusFilter, priorityFilter]);
-
-  const openCount = tickets.filter(
-    (ticket) => ticket.status === "open"
-  ).length;
-
-  const reviewCount = tickets.filter(
-    (ticket) => ticket.status === "in_review"
-  ).length;
-
-  const urgentCount = tickets.filter(
-    (ticket) => ticket.priority === "urgent"
-  ).length;
-
-  const resolvedCount = tickets.filter(
-    (ticket) =>
-      ticket.status === "resolved" ||
-      ticket.status === "closed"
-  ).length;
 
   if (loading) {
-    return <p>Cargando soporte...</p>;
+    return (
+      <section className="space-y-6">
+        <div className="h-72 animate-pulse rounded-[2rem] bg-slate-200" />
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((item) => (
+            <div
+              key={item}
+              className="h-36 animate-pulse rounded-[2rem] bg-slate-200"
+            />
+          ))}
+        </div>
+
+        <div className="h-[520px] animate-pulse rounded-[2rem] bg-slate-200" />
+      </section>
+    );
   }
 
   return (
-    <section>
-      <div className="mb-8">
-        <p className="mb-1 text-sm font-medium text-gray-500">
-          Administración
-        </p>
+    <section className="space-y-8">
+      <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.2)] sm:px-9 sm:py-10">
+        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
+        <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 
-        <h1 className="text-3xl font-bold text-gray-900">
-          Soporte
-        </h1>
+        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+              <Sparkles size={15} />
+              Centro de atención
+            </span>
 
-        <p className="mt-2 text-gray-600">
-          Gestiona las solicitudes de pasajeros y conductores.
-        </p>
+            <h1 className="mt-6 max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
+              Soporte AXI
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+              Aquí se atenderán reportes de viajes, problemas de cuenta,
+              pagos, seguridad y solicitudes de pasajeros y conductores.
+            </p>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
+                <Headphones
+                  size={18}
+                  className="text-yellow-400"
+                />
+                Atención centralizada
+              </span>
+
+              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
+                <ShieldCheck
+                  size={18}
+                  className="text-emerald-400"
+                />
+                Reportes protegidos
+              </span>
+            </div>
+          </div>
+
+          <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
+                  Sistema de tickets
+                </p>
+
+                <p className="mt-2 text-2xl font-black">
+                  Preparado
+                </p>
+              </div>
+
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                <LifeBuoy size={27} />
+              </span>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-start gap-3">
+                <Clock3
+                  size={19}
+                  className="mt-0.5 shrink-0 text-yellow-400"
+                />
+
+                <div>
+                  <p className="text-sm font-black">
+                    Conexión pendiente
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    Gali conectará posteriormente las tablas de tickets,
+                    respuestas y archivos adjuntos.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="mb-8 grid gap-5 md:grid-cols-4">
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Abiertos</p>
-          <p className="mt-3 text-3xl font-bold">{openCount}</p>
-        </div>
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Tickets abiertos"
+          value={0}
+          description="Sin reportes pendientes"
+          icon={Inbox}
+          iconClass="bg-blue-100 text-blue-700"
+        />
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">En revisión</p>
-          <p className="mt-3 text-3xl font-bold">{reviewCount}</p>
-        </div>
+        <MetricCard
+          label="En atención"
+          value={0}
+          description="Sin casos asignados"
+          icon={Headphones}
+          iconClass="bg-amber-100 text-amber-800"
+        />
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Urgentes</p>
-          <p className="mt-3 text-3xl font-bold">{urgentCount}</p>
-        </div>
+        <MetricCard
+          label="Urgentes"
+          value={0}
+          description="Sin alertas críticas"
+          icon={AlertTriangle}
+          iconClass="bg-red-100 text-red-700"
+        />
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Resueltos</p>
-          <p className="mt-3 text-3xl font-bold">{resolvedCount}</p>
-        </div>
+        <MetricCard
+          label="Resueltos"
+          value={0}
+          description="Sin historial registrado"
+          icon={CheckCircle2}
+          iconClass="bg-emerald-100 text-emerald-700"
+        />
       </div>
 
-      <div className="mb-6 grid gap-4 rounded-2xl bg-white p-5 shadow-sm md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-semibold">
-            Estado
-          </label>
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-slate-100 px-5 py-6 sm:px-7">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                Bandeja de atención
+              </p>
 
-          <select
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value)
-            }
-            className="w-full rounded-xl border px-4 py-3"
-          >
-            <option value="all">Todos</option>
+              <h2 className="mt-1 text-2xl font-black">
+                Tickets de soporte
+              </h2>
 
-            {(
-              Object.entries(statusLabels) as [
-                TicketStatus,
-                string,
-              ][]
-            ).map(([value, label]) => (
-              <option key={value} value={value}>
+              <p className="mt-2 text-sm text-slate-500">
+                Los reportes aparecerán aquí cuando el backend de soporte esté
+                conectado.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 lg:flex-row">
+              <div className="relative">
+                <Search
+                  size={18}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) =>
+                    setSearch(event.target.value)
+                  }
+                  placeholder="Buscar ticket o usuario..."
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-72"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={refreshSupport}
+                disabled={refreshing}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60"
+              >
+                <RefreshCw
+                  size={18}
+                  className={refreshing ? "animate-spin" : ""}
+                />
+
+                {refreshing
+                  ? "Actualizando..."
+                  : "Actualizar"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 flex max-w-full overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-1">
+            {[
+              ["all", "Todos"],
+              ["open", "Abiertos"],
+              ["in-progress", "En atención"],
+              ["urgent", "Urgentes"],
+              ["resolved", "Resueltos"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() =>
+                  setFilter(value as TicketFilter)
+                }
+                className={cn(
+                  "whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black transition",
+                  filter === value
+                    ? "bg-slate-950 text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-950"
+                )}
+              >
                 {label}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-semibold">
-            Prioridad
-          </label>
+        <div className="relative flex min-h-[480px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.14),_transparent_32%),linear-gradient(to_bottom,_#ffffff,_#f8fafc)] px-6 py-12">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.45)_1px,transparent_1px)] bg-[size:42px_42px]" />
 
-          <select
-            value={priorityFilter}
-            onChange={(event) =>
-              setPriorityFilter(event.target.value)
-            }
-            className="w-full rounded-xl border px-4 py-3"
-          >
-            <option value="all">Todas</option>
+          <div className="relative max-w-lg text-center">
+            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-slate-950 text-yellow-400 shadow-2xl shadow-slate-950/20">
+              <MessageCircle size={35} />
+            </span>
 
-            {(
-              Object.entries(priorityLabels) as [
-                TicketPriority,
-                string,
-              ][]
-            ).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+            <h3 className="mt-7 text-3xl font-black text-slate-950">
+              No hay tickets registrados
+            </h3>
 
-      {message && (
-        <div className="mb-6 rounded-xl bg-gray-100 p-4 text-sm">
-          {message}
-        </div>
-      )}
-
-      <div className="space-y-5">
-        {filteredTickets.length === 0 ? (
-          <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
-            <p className="font-semibold">
-              No hay tickets con estos filtros.
+            <p className="mt-4 text-sm leading-7 text-slate-500">
+              La interfaz ya está preparada. Cuando se conecte la base de datos,
+              aquí aparecerán los reportes, prioridades, usuarios, mensajes y
+              responsables de atención.
             </p>
           </div>
-        ) : (
-          filteredTickets.map((ticket) => {
-            const profile = getProfile(ticket);
-            const trip = getTrip(ticket);
-            const processing = processingId === ticket.id;
+        </div>
+      </Card>
 
-            return (
-              <article
-                key={ticket.id}
-                className="rounded-2xl bg-white p-6 shadow-sm"
-              >
-                <div className="flex flex-col justify-between gap-6 xl:flex-row">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="text-xl font-bold">
-                        {ticket.subject}
-                      </h2>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <SupportCategory
+          title="Problemas de viaje"
+          description="Cancelaciones, rutas, conductores o pasajeros."
+          icon={Zap}
+          iconClass="bg-yellow-100 text-yellow-800"
+        />
 
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold">
-                        {statusLabels[ticket.status]}
-                      </span>
+        <SupportCategory
+          title="Cuenta y seguridad"
+          description="Acceso, bloqueos, verificación y reportes."
+          icon={LockKeyhole}
+          iconClass="bg-blue-100 text-blue-700"
+        />
 
-                      <span className="rounded-full border px-3 py-1 text-xs font-semibold">
-                        {priorityLabels[ticket.priority]}
-                      </span>
-                    </div>
-
-                    <p className="mt-3 text-sm text-gray-500">
-                      Usuario:{" "}
-                      {profile?.full_name || "Usuario sin nombre"}
-                    </p>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      Categoría: {categoryLabels[ticket.category]}
-                    </p>
-
-                    {trip && (
-                      <p className="mt-1 text-sm text-gray-500">
-                        Viaje: {trip.origin_address} →{" "}
-                        {trip.destination_address}
-                      </p>
-                    )}
-
-                    <p className="mt-4 whitespace-pre-wrap text-gray-700">
-                      {ticket.description}
-                    </p>
-
-                    {ticket.resolution && (
-                      <div className="mt-5 rounded-xl bg-green-50 p-4">
-                        <p className="text-sm font-semibold text-green-700">
-                          Resolución
-                        </p>
-
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-green-700">
-                          {ticket.resolution}
-                        </p>
-                      </div>
-                    )}
-
-                    <p className="mt-5 text-xs text-gray-400">
-                      Creado: {formatDate(ticket.created_at)}
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-400">
-                      Actualizado: {formatDate(ticket.updated_at)}
-                    </p>
-                  </div>
-
-                  <div className="xl:w-72">
-                    <label className="mb-2 block text-sm font-semibold">
-                      Prioridad
-                    </label>
-
-                    <select
-                      value={ticket.priority}
-                      onChange={(event) =>
-                        void updateTicket(
-                          ticket,
-                          ticket.status,
-                          event.target.value as TicketPriority
-                        )
-                      }
-                      disabled={processing}
-                      className="w-full rounded-xl border px-4 py-3 disabled:opacity-50"
-                    >
-                      {(
-                        Object.entries(priorityLabels) as [
-                          TicketPriority,
-                          string,
-                        ][]
-                      ).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div className="mt-4 space-y-3">
-                      {ticket.status === "open" && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateTicket(
-                              ticket,
-                              "in_review",
-                              ticket.priority
-                            )
-                          }
-                          disabled={processing}
-                          className="w-full rounded-xl bg-black px-4 py-3 font-semibold text-white disabled:opacity-50"
-                        >
-                          Pasar a revisión
-                        </button>
-                      )}
-
-                      {ticket.status !== "resolved" &&
-                        ticket.status !== "closed" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateTicket(
-                                  ticket,
-                                  "waiting_user",
-                                  ticket.priority
-                                )
-                              }
-                              disabled={processing}
-                              className="w-full rounded-xl border px-4 py-3 font-semibold disabled:opacity-50"
-                            >
-                              Pedir información
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateTicket(
-                                  ticket,
-                                  "resolved",
-                                  ticket.priority
-                                )
-                              }
-                              disabled={processing}
-                              className="w-full rounded-xl bg-green-600 px-4 py-3 font-semibold text-white disabled:opacity-50"
-                            >
-                              Resolver
-                            </button>
-                          </>
-                        )}
-
-                      {ticket.status === "resolved" && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateTicket(
-                              ticket,
-                              "closed",
-                              ticket.priority
-                            )
-                          }
-                          disabled={processing}
-                          className="w-full rounded-xl bg-gray-800 px-4 py-3 font-semibold text-white disabled:opacity-50"
-                        >
-                          Cerrar caso
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })
-        )}
+        <SupportCategory
+          title="Pagos y cargos"
+          description="Cobros, reembolsos y comprobantes."
+          icon={TicketCheck}
+          iconClass="bg-emerald-100 text-emerald-700"
+        />
       </div>
     </section>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  description,
+  icon: Icon,
+  iconClass,
+}: {
+  label: string;
+  value: number;
+  description: string;
+  icon: LucideIcon;
+  iconClass: string;
+}) {
+  return (
+    <Card>
+      <div className="flex items-start justify-between">
+        <span
+          className={cn(
+            "flex h-12 w-12 items-center justify-center rounded-2xl",
+            iconClass
+          )}
+        >
+          <Icon size={23} />
+        </span>
+
+        <p className="text-4xl font-black">
+          {value}
+        </p>
+      </div>
+
+      <p className="mt-5 font-black">
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm text-slate-500">
+        {description}
+      </p>
+    </Card>
+  );
+}
+
+function SupportCategory({
+  title,
+  description,
+  icon: Icon,
+  iconClass,
+}: {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  iconClass: string;
+}) {
+  return (
+    <Card>
+      <span
+        className={cn(
+          "flex h-12 w-12 items-center justify-center rounded-2xl",
+          iconClass
+        )}
+      >
+        <Icon size={22} />
+      </span>
+
+      <h2 className="mt-5 text-lg font-black">
+        {title}
+      </h2>
+
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        {description}
+      </p>
+
+      <div className="mt-5 flex items-center gap-2 text-xs font-black text-slate-400">
+        <HelpCircle size={15} />
+        Disponible cuando se conecte soporte
+      </div>
+    </Card>
   );
 }

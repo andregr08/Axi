@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import NotificationsBell from "@/components/NotificationsBell";
+import { MobileNav } from "@/components/layout/MobileNav";
+import { Navbar } from "@/components/layout/Navbar";
 import {
   Sidebar,
   type UserRole,
 } from "@/components/layout/Sidebar";
-import { Navbar } from "@/components/layout/Navbar";
-import { MobileNav } from "@/components/layout/MobileNav";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function DashboardLayout({
@@ -17,94 +16,70 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-
-  const [role, setRole] =
-    useState<UserRole | null>(null);
-
-  const [loadingRole, setLoadingRole] =
-    useState(true);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [loadingRole, setLoadingRole] = useState(true);
 
   useEffect(() => {
-    const timer = window.setTimeout(
-      async () => {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+    async function loadRole() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        if (!session) {
-          router.replace("/login");
-          return;
-        }
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
 
-        const { data, error } =
-          await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
 
-        if (error) {
-          console.error(
-            "Error cargando rol:",
-            error.message
-          );
+      if (error) {
+        console.error("Error cargando rol:", error.message);
+        setRole("passenger");
+      } else {
+        setRole((data?.role as UserRole) ?? "passenger");
+      }
 
-          setRole("passenger");
-        } else {
-          setRole(
-            data.role as UserRole
-          );
-        }
+      setLoadingRole(false);
+    }
 
-        setLoadingRole(false);
-      },
-      0
-    );
-
-    return () =>
-      window.clearTimeout(timer);
+    void loadRole();
   }, [router]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace("/login");
-    router.refresh();
   }
 
   if (loadingRole) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="rounded-3xl bg-white px-8 py-6 font-semibold text-slate-600 shadow-sm">
-          Cargando AXI...
+      <div className="flex min-h-screen items-center justify-center bg-[#F4F6F8]">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-yellow-400" />
+          <p className="mt-4 text-sm font-semibold text-slate-500">
+            Cargando AXI...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Sidebar
-        role={role}
-        onLogout={handleLogout}
-      />
+    <div className="min-h-screen bg-[#F4F6F8] text-slate-950">
+      <Sidebar role={role} onLogout={handleLogout} />
 
-      <div className="min-h-screen lg:pl-72">
-        <Navbar
-          role={role}
-          notifications={
-            <NotificationsBell />
-          }
-        />
+      <div className="min-h-screen lg:ml-72">
+        <Navbar role={role} />
 
-        <main className="mx-auto w-full max-w-[1600px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-10">
+        <main className="mx-auto w-full max-w-[1600px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
           {children}
         </main>
       </div>
 
-      <MobileNav
-        role={role}
-        onLogout={handleLogout}
-      />
+      <MobileNav role={role} onLogout={handleLogout} />
     </div>
   );
 }
