@@ -25,10 +25,36 @@ import {
   ShieldCheck,
   Signal,
   SignalZero,
+  Star,
+  WalletCards,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/utils/cn";
+
+type DriverStats = {
+  earnings_today: number;
+  earnings_week: number;
+  earnings_month: number;
+  completed_trips: number;
+  trips_today: number;
+  trips_week: number;
+  worked_hours: number;
+  average_rating: number;
+  rating_count: number;
+};
+
+const EMPTY_STATS: DriverStats = {
+  earnings_today: 0,
+  earnings_week: 0,
+  earnings_month: 0,
+  completed_trips: 0,
+  trips_today: 0,
+  trips_week: 0,
+  worked_hours: 0,
+  average_rating: 0,
+  rating_count: 0,
+};
 
 export default function DriverStatusPage() {
   const router = useRouter();
@@ -37,51 +63,97 @@ export default function DriverStatusPage() {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [stats, setStats] = useState<DriverStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [refreshingStats, setRefreshingStats] = useState(false);
   const [message, setMessage] = useState("");
 
-  const loadDriverStatus = useCallback(async () => {
-    setLoading(true);
-    setMessage("");
+  const loadDriverStatus = useCallback(
+    async (silent = false) => {
+      if (silent) {
+        setRefreshingStats(true);
+      } else {
+        setLoading(true);
+      }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      setMessage("");
 
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", session.user.id)
-      .single();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
 
-    if (profile?.role !== "driver") {
-      router.replace("/dashboard");
-      return;
-    }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
 
-    const { data: driver, error } = await supabase
-      .from("drivers")
-      .select("online, current_lat, current_lng")
-      .eq("id", session.user.id)
-      .single();
+      if (profile?.role !== "driver") {
+        router.replace("/dashboard");
+        return;
+      }
 
-    if (error) {
-      setMessage(`Error cargando estado: ${error.message}`);
-    } else {
-      setOnline(Boolean(driver.online));
-      setLatitude(driver.current_lat);
-      setLongitude(driver.current_lng);
-    }
+      const [
+        driverResult,
+        statsResult,
+      ] = await Promise.all([
+        supabase
+          .from("drivers")
+          .select(
+            "online, current_lat, current_lng"
+          )
+          .eq("id", session.user.id)
+          .single(),
 
-    setLoading(false);
-  }, [router]);
+        supabase.rpc(
+          "get_driver_dashboard_stats"
+        ),
+      ]);
+
+      if (driverResult.error) {
+        setMessage(
+          `Error cargando estado: ${driverResult.error.message}`
+        );
+      } else {
+        setOnline(
+          Boolean(driverResult.data.online)
+        );
+        setLatitude(
+          driverResult.data.current_lat
+        );
+        setLongitude(
+          driverResult.data.current_lng
+        );
+      }
+
+      if (statsResult.error) {
+        setMessage(
+          `Error cargando estadísticas: ${statsResult.error.message}`
+        );
+      } else {
+        const resolvedStats =
+          Array.isArray(statsResult.data)
+            ? statsResult.data[0]
+            : statsResult.data;
+
+        setStats({
+          ...EMPTY_STATS,
+          ...(resolvedStats as Partial<DriverStats> | null),
+        });
+      }
+
+      setLoading(false);
+      setRefreshingStats(false);
+    },
+    [router]
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -180,6 +252,23 @@ export default function DriverStatusPage() {
         ? "Ya estás en línea y puedes recibir viajes."
         : "Ahora estás fuera de línea."
     );
+  }
+
+  function formatMoney(value: number) {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+    }).format(Number(value ?? 0));
+  }
+
+  function formatHours(value: number) {
+    const hours = Number(value ?? 0);
+
+    if (hours < 1) {
+      return `${Math.round(hours * 60)} min`;
+    }
+
+    return `${hours.toFixed(1)} h`;
   }
 
   if (loading) {
@@ -430,10 +519,10 @@ export default function DriverStatusPage() {
 
         <div className="space-y-6">
           <Card>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Resumen
+                  Resumen real
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
@@ -441,48 +530,150 @@ export default function DriverStatusPage() {
                 </h2>
               </div>
 
-              <Activity size={25} className="text-yellow-600" />
+              <button
+                type="button"
+                onClick={() =>
+                  loadDriverStatus(true)
+                }
+                disabled={refreshingStats}
+                aria-label="Actualizar estadísticas"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700 transition hover:bg-yellow-200 disabled:opacity-50"
+              >
+                <RefreshCw
+                  size={20}
+                  className={
+                    refreshingStats
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+              </button>
             </div>
 
             <div className="mt-7 grid grid-cols-2 gap-3">
               <div className="rounded-3xl bg-slate-50 p-5">
-                <Route size={21} className="text-blue-600" />
+                <Route
+                  size={21}
+                  className="text-blue-600"
+                />
 
                 <p className="mt-5 text-3xl font-black">
-                  0
+                  {stats.trips_today}
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  Viajes realizados
+                  Viajes de hoy
                 </p>
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-5">
-                <Clock3 size={21} className="text-violet-600" />
+                <Clock3
+                  size={21}
+                  className="text-violet-600"
+                />
 
                 <p className="mt-5 text-3xl font-black">
-                  0 h
+                  {formatHours(
+                    stats.worked_hours
+                  )}
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  Tiempo conectado
+                  Horas trabajadas
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <Star
+                  size={21}
+                  className="text-amber-500"
+                />
+
+                <p className="mt-5 text-3xl font-black">
+                  {stats.rating_count > 0
+                    ? Number(
+                        stats.average_rating
+                      ).toFixed(2)
+                    : "—"}
+                </p>
+
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  {stats.rating_count} reseña
+                  {stats.rating_count === 1
+                    ? ""
+                    : "s"}
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <Activity
+                  size={21}
+                  className="text-emerald-600"
+                />
+
+                <p className="mt-5 text-3xl font-black">
+                  {stats.completed_trips}
+                </p>
+
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  Viajes históricos
                 </p>
               </div>
             </div>
 
             <div className="mt-4 rounded-3xl bg-[#0B0F19] p-5 text-white">
-              <p className="text-sm font-semibold text-slate-400">
-                Ganancias de hoy
-              </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-400">
+                    Ganancias de hoy
+                  </p>
 
-              <p className="mt-2 text-4xl font-black">
-                $0.00
-              </p>
+                  <p className="mt-2 text-4xl font-black">
+                    {formatMoney(
+                      stats.earnings_today
+                    )}
+                  </p>
+                </div>
 
-              <p className="mt-2 text-xs text-slate-500">
-                Se actualizará con los viajes completados.
-              </p>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                  <WalletCards size={22} />
+                </span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
+                <div>
+                  <p className="text-xs text-slate-500">
+                    Esta semana
+                  </p>
+
+                  <p className="mt-1 text-sm font-black">
+                    {formatMoney(
+                      stats.earnings_week
+                    )}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-slate-500">
+                    Este mes
+                  </p>
+
+                  <p className="mt-1 text-sm font-black">
+                    {formatMoney(
+                      stats.earnings_month
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <Link
+              href="/dashboard/driver/profile"
+              className="mt-4 flex h-13 items-center justify-center gap-2 rounded-2xl border border-slate-200 font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
+            >
+              Ver ganancias e historial
+              <ArrowRight size={18} />
+            </Link>
           </Card>
 
           <Card>
