@@ -394,7 +394,7 @@ export default function ActiveTripPage({
           </h1>
 
           <p className="mt-2 text-gray-600">
-            La informaciÃ³n se actualiza automÃ¡ticamente.
+            La información se actualiza automáticamente.
           </p>
         </div>
 
