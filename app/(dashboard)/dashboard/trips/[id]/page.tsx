@@ -25,6 +25,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { GoogleMapView } from "@/components/maps/GoogleMap";
+import { SOSButton } from "@/components/safety/SOSButton";
+import { ShareTripCard } from "@/components/trips/ShareTripCard";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
@@ -650,6 +652,44 @@ export default function ActiveTripPage({
               </div>
             </div>
           </Card>
+
+          {!isCompleted && !isCancelled && role === "passenger" && (
+            <ShareTripCard tripId={trip.id} />
+          )}
+
+          {!isCompleted && !isCancelled && (
+            <Card className="border-red-100 bg-[linear-gradient(135deg,#fff7f7,#ffffff)]">
+              <div className="flex items-start gap-4">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-700">
+                  <ShieldCheck size={25} />
+                </span>
+
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-red-600">
+                    Seguridad durante el viaje
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-black text-slate-950">
+                    Ayuda inmediata
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Mantén presionado el botón SOS únicamente si existe una
+                    situación de riesgo o emergencia.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <SOSButton tripId={trip.id} />
+              </div>
+
+              <p className="mt-4 text-center text-xs leading-5 text-slate-400">
+                La alerta se conectará después con ubicación, contactos de
+                confianza y registro de incidentes.
+              </p>
+            </Card>
+          )}
 
           {role === "driver" &&
             driverAction &&
