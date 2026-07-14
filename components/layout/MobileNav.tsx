@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   CreditCard,
   Gauge,
+  Headphones,
   Home,
   LogOut,
   Menu,
@@ -24,7 +25,7 @@ import { cn } from "@/utils/cn";
 
 interface MobileNavProps {
   role: UserRole | null;
-  onLogout?: () => void;
+  onLogout: () => void;
 }
 
 type NavigationItem = {
@@ -63,13 +64,27 @@ export function MobileNav({
     },
     {
       href: "/dashboard/profile",
-      label: "Perfil",
+      label: "Cuenta",
       icon: UserRound,
       visible: true,
     },
   ];
 
   const secondaryItems: NavigationItem[] = [
+    {
+      href: "/dashboard/passenger/profile",
+      label: "Perfil de pasajero",
+      description: "Estadísticas y lugares guardados",
+      icon: UserRound,
+      visible: role === "passenger",
+    },
+    {
+      href: "/dashboard/passenger/history",
+      label: "Historial",
+      description: "Viajes, pagos y recibos",
+      icon: Route,
+      visible: role === "passenger",
+    },
     {
       href: "/dashboard/driver-application",
       label: "Ser conductor",
@@ -88,15 +103,42 @@ export function MobileNav({
       href: "/dashboard/driver/available-trips",
       label: "Viajes disponibles",
       description: "Consulta solicitudes cercanas",
-      icon: Route,
+      icon: CarFront,
+      visible: role === "driver",
+    },
+    {
+      href: "/dashboard/driver/profile",
+      label: "Mi rendimiento",
+      description: "Ganancias, viajes y reseñas",
+      icon: Gauge,
       visible: role === "driver",
     },
     {
       href: "/dashboard/vehicles",
       label: "Mis vehículos",
-      description: "Administra tu unidad o flotilla",
+      description: "Administra tus unidades",
       icon: CarFront,
-      visible: role === "driver" || role === "admin",
+      visible:
+        role === "driver" ||
+        role === "admin",
+    },
+    {
+      href: "/dashboard/support",
+      label: "Centro de ayuda",
+      description: "Solicitudes y soporte",
+      icon: Headphones,
+      visible:
+        role === "driver" ||
+        role === "passenger",
+    },
+    {
+      href: "/dashboard/security",
+      label: "Seguridad",
+      description: "Contactos de emergencia y SOS",
+      icon: ShieldCheck,
+      visible:
+        role === "driver" ||
+        role === "passenger",
     },
     {
       href: "/dashboard/admin/driver-applications",
@@ -108,7 +150,7 @@ export function MobileNav({
     {
       href: "/dashboard/admin/drivers",
       label: "Conductores",
-      description: "Administra conductores activos",
+      description: "Administra conductores",
       icon: CarFront,
       visible: role === "admin",
     },
@@ -121,34 +163,67 @@ export function MobileNav({
     },
     {
       href: "/dashboard/admin/vehicles",
-      label: "Vehículos admin",
-      description: "Supervisa toda la flotilla",
+      label: "Vehículos",
+      description: "Supervisa la flotilla",
       icon: CarFront,
       visible: role === "admin",
     },
     {
       href: "/dashboard/admin/trips",
       label: "Operación de viajes",
-      description: "Supervisa los viajes de AXI",
+      description: "Supervisa todos los viajes",
+      icon: Route,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/payments",
+      label: "Transacciones",
+      description: "Revisa pagos y reembolsos",
+      icon: CreditCard,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/promotions",
+      label: "Promociones",
+      description: "Crea y administra cupones",
+      icon: ClipboardCheck,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/support",
+      label: "Soporte",
+      description: "Gestiona tickets",
+      icon: Headphones,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/sos",
+      label: "Alertas SOS",
+      description: "Atiende emergencias",
       icon: ShieldCheck,
       visible: role === "admin",
     },
   ];
 
-  const visiblePrimaryItems = primaryItems.filter(
-    (item) => item.visible
-  );
+  const visiblePrimaryItems =
+    primaryItems.filter(
+      (item) => item.visible
+    );
 
-  const visibleSecondaryItems = secondaryItems.filter(
-    (item) => item.visible
-  );
+  const visibleSecondaryItems =
+    secondaryItems.filter(
+      (item) => item.visible
+    );
 
   function isActive(href: string) {
     if (href === "/dashboard") {
       return pathname === href;
     }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
   }
 
   function closeMenu() {
@@ -175,7 +250,7 @@ export function MobileNav({
                   type="button"
                   onClick={closeMenu}
                   aria-label="Cerrar menú"
-                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition active:scale-95"
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700"
                 >
                   <X size={21} />
                 </button>
@@ -213,58 +288,62 @@ export function MobileNav({
               </p>
 
               <div className="space-y-2">
-                {visibleSecondaryItems.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.href);
+                {visibleSecondaryItems.map(
+                  (item) => {
+                    const Icon = item.icon;
+                    const active = isActive(
+                      item.href
+                    );
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={closeMenu}
-                      className={cn(
-                        "flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99]",
-                        active
-                          ? "border-yellow-400 bg-yellow-50"
-                          : "border-slate-100 bg-white hover:border-slate-300 hover:bg-slate-50"
-                      )}
-                    >
-                      <span
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={closeMenu}
                         className={cn(
-                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
+                          "flex items-center gap-4 rounded-2xl border p-4 transition",
                           active
-                            ? "bg-yellow-400 text-black"
-                            : "bg-slate-100 text-slate-700"
+                            ? "border-yellow-400 bg-yellow-50"
+                            : "border-slate-100 bg-white hover:bg-slate-50"
                         )}
                       >
-                        <Icon size={21} />
-                      </span>
-
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-black text-slate-950">
-                          {item.label}
+                        <span
+                          className={cn(
+                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
+                            active
+                              ? "bg-yellow-400 text-black"
+                              : "bg-slate-100 text-slate-700"
+                          )}
+                        >
+                          <Icon size={21} />
                         </span>
 
-                        {item.description && (
-                          <span className="mt-1 block truncate text-xs text-slate-500">
-                            {item.description}
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-black text-slate-950">
+                            {item.label}
                           </span>
-                        )}
-                      </span>
-                    </Link>
-                  );
-                })}
+
+                          {item.description && (
+                            <span className="mt-1 block truncate text-xs text-slate-500">
+                              {item.description}
+                            </span>
+                          )}
+                        </span>
+                      </Link>
+                    );
+                  }
+                )}
               </div>
 
               <button
                 type="button"
                 onClick={() => {
                   closeMenu();
-                  onLogout?.();
+                  onLogout();
                 }}
-                className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 font-black text-red-700 transition active:scale-[0.99]"
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 py-4 font-bold text-red-600"
               >
-                <LogOut size={19} />
+                <LogOut size={18} />
                 Cerrar sesión
               </button>
             </div>
@@ -272,8 +351,8 @@ export function MobileNav({
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-5">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {visiblePrimaryItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -283,20 +362,14 @@ export function MobileNav({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex min-w-0 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-bold transition",
-                  active ? "text-slate-950" : "text-slate-400"
+                  "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-bold",
+                  active
+                    ? "bg-yellow-400 text-black"
+                    : "text-slate-500"
                 )}
               >
-                <span
-                  className={cn(
-                    "flex h-9 w-12 items-center justify-center rounded-xl transition",
-                    active && "bg-yellow-400 text-black"
-                  )}
-                >
-                  <Icon size={19} strokeWidth={2.2} />
-                </span>
-
-                <span className="truncate">{item.label}</span>
+                <Icon size={20} />
+                <span>{item.label}</span>
               </Link>
             );
           })}
@@ -304,12 +377,9 @@ export function MobileNav({
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="flex min-w-0 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-bold text-slate-400 transition"
+            className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-bold text-slate-500"
           >
-            <span className="flex h-9 w-12 items-center justify-center rounded-xl">
-              <Menu size={20} strokeWidth={2.2} />
-            </span>
-
+            <Menu size={20} />
             <span>Más</span>
           </button>
         </div>

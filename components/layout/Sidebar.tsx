@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,7 +19,10 @@ import {
 import { Logo } from "@/components/shared/Logo";
 import { cn } from "@/utils/cn";
 
-export type UserRole = "admin" | "driver" | "passenger";
+export type UserRole =
+  | "admin"
+  | "driver"
+  | "passenger";
 
 interface SidebarProps {
   role: UserRole | null;
@@ -33,7 +36,10 @@ type MenuItem = {
   visible: boolean;
 };
 
-export function Sidebar({ role, onLogout }: SidebarProps) {
+export function Sidebar({
+  role,
+  onLogout,
+}: SidebarProps) {
   const pathname = usePathname();
 
   const menuItems: MenuItem[] = [
@@ -50,6 +56,38 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       visible: true,
     },
     {
+      href: "/dashboard/payments",
+      label: "Pagos",
+      icon: CreditCard,
+      visible: true,
+    },
+    {
+      href: "/dashboard/profile",
+      label: "Cuenta",
+      icon: UserRound,
+      visible: true,
+    },
+
+    {
+      href: "/dashboard/passenger/profile",
+      label: "Perfil de pasajero",
+      icon: UserRound,
+      visible: role === "passenger",
+    },
+    {
+      href: "/dashboard/passenger/history",
+      label: "Historial",
+      icon: Route,
+      visible: role === "passenger",
+    },
+    {
+      href: "/dashboard/driver-application",
+      label: "Ser conductor",
+      icon: ClipboardCheck,
+      visible: role === "passenger",
+    },
+
+    {
       href: "/dashboard/driver/status",
       label: "Disponibilidad",
       icon: Gauge,
@@ -62,29 +100,37 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       visible: role === "driver",
     },
     {
-      href: "/dashboard/driver-application",
-      label: "Ser conductor",
-      icon: ClipboardCheck,
-      visible: role === "passenger",
+      href: "/dashboard/driver/profile",
+      label: "Mi rendimiento",
+      icon: Gauge,
+      visible: role === "driver",
     },
     {
       href: "/dashboard/vehicles",
       label: "Mis vehículos",
       icon: CarFront,
-      visible: role === "driver" || role === "admin",
+      visible:
+        role === "driver" ||
+        role === "admin",
+    },
+
+    {
+      href: "/dashboard/support",
+      label: "Centro de ayuda",
+      icon: Headphones,
+      visible:
+        role === "passenger" ||
+        role === "driver",
     },
     {
-      href: "/dashboard/payments",
-      label: "Pagos",
-      icon: CreditCard,
-      visible: true,
+      href: "/dashboard/security",
+      label: "Seguridad",
+      icon: ShieldCheck,
+      visible:
+        role === "passenger" ||
+        role === "driver",
     },
-    {
-      href: "/dashboard/profile",
-      label: "Perfil",
-      icon: UserRound,
-      visible: true,
-    },
+
     {
       href: "/dashboard/admin/driver-applications",
       label: "Solicitudes",
@@ -105,20 +151,38 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
     },
     {
       href: "/dashboard/admin/vehicles",
-      label: "Vehículos admin",
+      label: "Vehículos",
       icon: CarFront,
       visible: role === "admin",
     },
     {
       href: "/dashboard/admin/trips",
-      label: "Viajes admin",
-      icon: ShieldCheck,
+      label: "Operación de viajes",
+      icon: Route,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/payments",
+      label: "Transacciones",
+      icon: CreditCard,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/promotions",
+      label: "Promociones",
+      icon: ClipboardCheck,
       visible: role === "admin",
     },
     {
       href: "/dashboard/admin/support",
       label: "Soporte",
       icon: Headphones,
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/sos",
+      label: "Alertas SOS",
+      icon: ShieldCheck,
       visible: role === "admin",
     },
   ];
@@ -128,7 +192,10 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       return pathname === href;
     }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
   }
 
   return (
@@ -148,7 +215,9 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
           .filter((item) => item.visible)
           .map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.href);
+            const active = isActive(
+              item.href
+            );
 
             return (
               <Link
@@ -169,7 +238,10 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
                       : "bg-white/5 group-hover:bg-white/10"
                   )}
                 >
-                  <Icon size={20} strokeWidth={2.2} />
+                  <Icon
+                    size={20}
+                    strokeWidth={2.2}
+                  />
                 </span>
 
                 <span>{item.label}</span>
@@ -179,7 +251,10 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       </nav>
 
       <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="text-sm font-bold text-white">AXI Mobility</p>
+        <p className="text-sm font-bold text-white">
+          AXI Mobility
+        </p>
+
         <p className="mt-1 text-xs leading-5 text-slate-500">
           Movilidad segura, rápida e inteligente.
         </p>
