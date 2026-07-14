@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,9 +16,6 @@ export default function DriverStatusPage() {
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    loadDriverStatus();
-  }, []);
 
   async function loadDriverStatus() {
     setLoading(true);
@@ -61,11 +58,18 @@ export default function DriverStatusPage() {
     setLoading(false);
   }
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadDriverStatus();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
   function shareLocation() {
     setMessage("");
 
     if (!navigator.geolocation) {
-      setMessage("Tu navegador no permite usar la ubicación.");
+      setMessage("Tu navegador no permite usar la ubicaciÃƒÂ³n.");
       return;
     }
 
@@ -91,14 +95,14 @@ export default function DriverStatusPage() {
         setLocating(false);
 
         if (error) {
-          setMessage(`Error actualizando ubicación: ${error.message}`);
+          setMessage(`Error actualizando ubicaciÃƒÂ³n: ${error.message}`);
           return;
         }
 
         setLatitude(newLatitude);
         setLongitude(newLongitude);
         setAccuracy(newAccuracy);
-        setMessage("Ubicación actualizada correctamente.");
+        setMessage("UbicaciÃƒÂ³n actualizada correctamente.");
       },
       (error) => {
         setLocating(false);
@@ -108,7 +112,7 @@ export default function DriverStatusPage() {
           return;
         }
 
-        setMessage("No pudimos obtener tu ubicación.");
+        setMessage("No pudimos obtener tu ubicaciÃƒÂ³n.");
       },
       {
         enableHighAccuracy: true,
@@ -136,8 +140,8 @@ export default function DriverStatusPage() {
     setOnline(nextOnline);
     setMessage(
       nextOnline
-        ? "Ya estás en línea y puedes recibir viajes."
-        : "Ahora estás fuera de línea."
+        ? "Ya estÃƒÂ¡s en lÃƒÂ­nea y puedes recibir viajes."
+        : "Ahora estÃƒÂ¡s fuera de lÃƒÂ­nea."
     );
   }
 
@@ -157,7 +161,7 @@ export default function DriverStatusPage() {
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Comparte tu ubicación y controla si estás disponible para recibir viajes.
+          Comparte tu ubicaciÃƒÂ³n y controla si estÃƒÂ¡s disponible para recibir viajes.
         </p>
       </div>
 
@@ -170,12 +174,12 @@ export default function DriverStatusPage() {
               online ? "text-green-600" : "text-gray-700"
             }`}
           >
-            {online ? "En línea" : "Fuera de línea"}
+            {online ? "En lÃƒÂ­nea" : "Fuera de lÃƒÂ­nea"}
           </p>
         </div>
 
         <div className="rounded-xl border p-5">
-          <h2 className="text-lg font-bold">Ubicación GPS</h2>
+          <h2 className="text-lg font-bold">UbicaciÃƒÂ³n GPS</h2>
 
           {latitude !== null && longitude !== null ? (
             <div className="mt-3 text-sm text-gray-600">
@@ -183,12 +187,12 @@ export default function DriverStatusPage() {
               <p>Longitud: {Number(longitude).toFixed(6)}</p>
 
               {accuracy !== null && (
-                <p>Precisión aproximada: {Math.round(accuracy)} metros</p>
+                <p>PrecisiÃƒÂ³n aproximada: {Math.round(accuracy)} metros</p>
               )}
             </div>
           ) : (
             <p className="mt-3 text-sm text-gray-500">
-              Todavía no has compartido tu ubicación.
+              TodavÃƒÂ­a no has compartido tu ubicaciÃƒÂ³n.
             </p>
           )}
 
@@ -199,8 +203,8 @@ export default function DriverStatusPage() {
             className="mt-5 w-full rounded-xl border px-5 py-3 font-semibold hover:bg-gray-50 disabled:opacity-50"
           >
             {locating
-              ? "Obteniendo ubicación..."
-              : "Actualizar mi ubicación"}
+              ? "Obteniendo ubicaciÃƒÂ³n..."
+              : "Actualizar mi ubicaciÃƒÂ³n"}
           </button>
         </div>
 
@@ -216,7 +220,7 @@ export default function DriverStatusPage() {
             disabled={processing}
             className="w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:opacity-50"
           >
-            {processing ? "Procesando..." : "Ponerme fuera de línea"}
+            {processing ? "Procesando..." : "Ponerme fuera de lÃƒÂ­nea"}
           </button>
         ) : (
           <button
@@ -224,7 +228,7 @@ export default function DriverStatusPage() {
             disabled={processing}
             className="w-full rounded-xl bg-black py-3 font-semibold text-white disabled:opacity-50"
           >
-            {processing ? "Procesando..." : "Ponerme en línea"}
+            {processing ? "Procesando..." : "Ponerme en lÃƒÂ­nea"}
           </button>
         )}
       </div>

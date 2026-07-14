@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -36,7 +36,7 @@ const statusLabels: Record<TripStatus, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegó",
+  driver_arrived: "Conductor llegÃƒÂ³",
   in_progress: "En curso",
   completed: "Completado",
   cancelled: "Cancelado",
@@ -50,9 +50,6 @@ export default function AdminTripsPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    loadTrips();
-  }, []);
 
   async function loadTrips() {
     setLoading(true);
@@ -132,6 +129,13 @@ export default function AdminTripsPage() {
     setLoading(false);
   }
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadTrips();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
   const activeCount = trips.filter(
     (trip) => !["completed", "cancelled"].includes(trip.status)
   ).length;
@@ -152,7 +156,7 @@ export default function AdminTripsPage() {
     <section>
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          Administración
+          AdministraciÃƒÂ³n
         </p>
 
         <h1 className="text-3xl font-bold text-gray-900">

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -29,7 +29,7 @@ const statusName: Record<TripStatus, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegó",
+  driver_arrived: "Conductor llegÃƒÂ³",
   in_progress: "En curso",
   completed: "Completado",
   cancelled: "Cancelado",
@@ -39,14 +39,10 @@ export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   async function loadTrips() {
-    const { data: sessionData } = await supabase.auth.getSession();
-
-    if (!sessionData.session) {
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     const { data, error } = await supabase
       .from("trips")
@@ -56,7 +52,7 @@ export default function TripsPage() {
       .order("requested_at", { ascending: false });
 
     if (error) {
-      console.error("Error cargando viajes:", error.message);
+      setMessage(`Error cargando viajes: ${error.message}`);
     } else {
       setTrips(data ?? []);
     }
@@ -65,41 +61,53 @@ export default function TripsPage() {
   }
 
   useEffect(() => {
-    loadTrips();
+    const timer = window.setTimeout(() => {
+      void loadTrips();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   async function cancelTrip(tripId: string) {
+    const reason = window.prompt(
+      "Escribe el motivo de la cancelaciÃƒÂ³n:"
+    );
+
+    if (!reason) return;
+
+    if (reason.trim().length < 5) {
+      setMessage("El motivo debe tener al menos 5 caracteres.");
+      return;
+    }
+
     const confirmed = window.confirm(
-      "¿Seguro que quieres cancelar este viaje?"
+      "Ã‚Â¿Seguro que quieres cancelar este viaje?"
     );
 
     if (!confirmed) return;
 
     setCancellingId(tripId);
+    setMessage("");
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      setCancellingId(null);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("trips")
-      .update({
-        status: "cancelled",
-        cancelled_by: session.user.id,
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: "Cancelado por el pasajero",
-      })
-      .eq("id", tripId)
-      .in("status", ["requested", "searching", "accepted"]);
+    const { data: fee, error } = await supabase.rpc(
+      "passenger_cancel_trip",
+      {
+        requested_trip_id: tripId,
+        cancellation_reason_value: reason.trim(),
+      }
+    );
 
     if (error) {
-      alert(`Error al cancelar: ${error.message}`);
+      setMessage(`Error al cancelar: ${error.message}`);
     } else {
+      const cancellationFee = Number(fee ?? 0);
+
+      setMessage(
+        cancellationFee > 0
+          ? `Viaje cancelado. Se aplicÃƒÂ³ una penalizaciÃƒÂ³n de $${cancellationFee.toFixed(2)}.`
+          : "Viaje cancelado sin penalizaciÃƒÂ³n."
+      );
+
       await loadTrips();
     }
 
@@ -126,10 +134,10 @@ export default function TripsPage() {
     <section>
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          Gestión de viajes
+          GestiÃƒÂ³n de viajes
         </p>
 
-        <h1 className="text-3xl font-bold text-gray-900">Viajes</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Mis viajes</h1>
 
         <p className="mt-2 text-gray-600">
           Consulta tus viajes activos, completados y cancelados.
@@ -143,28 +151,34 @@ export default function TripsPage() {
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Viajes completados</p>
+          <p className="text-sm text-gray-500">Completados</p>
           <p className="mt-3 text-3xl font-bold">{completedTrips.length}</p>
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Viajes cancelados</p>
+          <p className="text-sm text-gray-500">Cancelados</p>
           <p className="mt-3 text-3xl font-bold">{cancelledTrips.length}</p>
         </div>
       </div>
+
+      {message && (
+        <div className="mt-6 rounded-xl bg-gray-100 p-4 text-sm">
+          {message}
+        </div>
+      )}
 
       <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Historial de viajes</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Los viajes guardados en Supabase aparecen aquí.
+              Abre cualquier viaje para ver su estado y detalles.
             </p>
           </div>
 
           <Link
             href="/dashboard/trips/new"
-            className="rounded-lg bg-black px-4 py-2 font-semibold text-white hover:bg-gray-800"
+            className="rounded-lg bg-black px-4 py-2 font-semibold text-white"
           >
             Solicitar viaje
           </Link>
@@ -172,14 +186,9 @@ export default function TripsPage() {
 
         {trips.length === 0 ? (
           <div className="flex min-h-56 items-center justify-center rounded-xl border border-dashed">
-            <div className="text-center">
-              <p className="font-semibold text-gray-700">
-                No hay viajes registrados
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                Solicita tu primer viaje para comenzar.
-              </p>
-            </div>
+            <p className="font-semibold text-gray-700">
+              No hay viajes registrados.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -191,24 +200,29 @@ export default function TripsPage() {
               ].includes(trip.status);
 
               return (
-                <div key={trip.id} className="rounded-xl border p-5">
-                  <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                <article
+                  key={trip.id}
+                  className="rounded-xl border p-5"
+                >
+                  <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
                     <div>
-                      <p className="font-semibold">
+                      <h3 className="font-bold">
                         {trip.origin_address}
-                      </p>
+                      </h3>
 
                       <p className="mt-1 text-sm text-gray-500">
                         hacia {trip.destination_address}
                       </p>
 
                       <p className="mt-2 text-xs text-gray-400">
-                        {new Date(trip.requested_at).toLocaleString("es-MX")}
+                        {new Date(
+                          trip.requested_at
+                        ).toLocaleString("es-MX")}
                       </p>
                     </div>
 
-                    <div className="flex flex-col gap-3 md:items-end">
-                      <div className="text-left md:text-right">
+                    <div className="flex flex-col gap-3 lg:items-end">
+                      <div className="lg:text-right">
                         <p className="font-semibold">
                           {statusName[trip.status]}
                         </p>
@@ -223,20 +237,29 @@ export default function TripsPage() {
                         </p>
                       </div>
 
-                      {canCancel && (
-                        <button
-                          onClick={() => cancelTrip(trip.id)}
-                          disabled={cancellingId === trip.id}
-                          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      <div className="flex flex-wrap gap-3">
+                        <Link
+                          href={`/dashboard/trips/${trip.id}`}
+                          className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white"
                         >
-                          {cancellingId === trip.id
-                            ? "Cancelando..."
-                            : "Cancelar viaje"}
-                        </button>
-                      )}
+                          Ver viaje
+                        </Link>
+
+                        {canCancel && (
+                          <button
+                            onClick={() => cancelTrip(trip.id)}
+                            disabled={cancellingId === trip.id}
+                            className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
+                          >
+                            {cancellingId === trip.id
+                              ? "Cancelando..."
+                              : "Cancelar"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

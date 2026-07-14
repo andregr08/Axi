@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import NotificationsBell from "@/components/NotificationsBell";
 import { supabase } from "@/lib/supabaseClient";
 
 type UserRole = "admin" | "driver" | "passenger";
@@ -14,11 +15,12 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+
   const [role, setRole] = useState<UserRole | null>(null);
   const [loadingRole, setLoadingRole] = useState(true);
 
   useEffect(() => {
-    async function loadRole() {
+    const timer = window.setTimeout(async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -38,13 +40,13 @@ export default function DashboardLayout({
         console.error("Error cargando rol:", error.message);
         setRole("passenger");
       } else {
-        setRole(data.role);
+        setRole(data.role as UserRole);
       }
 
       setLoadingRole(false);
-    }
+    }, 0);
 
-    loadRole();
+    return () => window.clearTimeout(timer);
   }, [router]);
 
   const menuItems = [
@@ -58,20 +60,28 @@ export default function DashboardLayout({
       visible: role === "driver",
     },
     {
+      href: "/dashboard/driver/profile",
+      label: "Mi rendimiento",
+      visible: role === "driver",
+    },
+    {
       href: "/dashboard/driver/available-trips",
       label: "Viajes disponibles",
       visible: role === "driver",
     },
-
+    {
+      href: "/dashboard/passenger/profile",
+      label: "Mi perfil",
+      visible: role === "passenger",
+    },
     {
       href: "/dashboard/driver-application",
       label: "Ser conductor",
       visible: role === "passenger",
     },
-
     {
       href: "/dashboard/vehicles",
-      label: "Mis vehículos",
+      label: "Mis vehÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­culos",
       visible: role === "driver" || role === "admin",
     },
 
@@ -94,12 +104,27 @@ export default function DashboardLayout({
     },
     {
       href: "/dashboard/admin/vehicles",
-      label: "Vehículos admin",
+      label: "VehÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­culos admin",
       visible: role === "admin",
     },
     {
       href: "/dashboard/admin/trips",
       label: "Viajes admin",
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/payments",
+      label: "Transacciones",
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/support",
+      label: "Soporte admin",
+      visible: role === "admin",
+    },
+    {
+      href: "/dashboard/admin/sos",
+      label: "Alertas SOS",
       visible: role === "admin",
     },
   ];
@@ -144,7 +169,7 @@ export default function DashboardLayout({
           onClick={handleLogout}
           className="mt-4 rounded-lg bg-red-600 px-4 py-3 font-semibold hover:bg-red-700"
         >
-          Cerrar sesión
+          Cerrar sesiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n
         </button>
       </aside>
 
@@ -152,13 +177,18 @@ export default function DashboardLayout({
         <header className="flex h-16 items-center justify-between border-b bg-white px-8">
           <h2 className="text-xl font-semibold">Panel de control</h2>
 
-          <div className="text-right">
-            <p className="text-sm font-semibold">AXI Mobility</p>
-            <p className="text-xs text-gray-500">
-              {role === "admin" && "Administrador"}
-              {role === "driver" && "Conductor"}
-              {role === "passenger" && "Pasajero"}
-            </p>
+          <div className="flex items-center gap-4">
+            <NotificationsBell />
+
+            <div className="text-right">
+              <p className="text-sm font-semibold">AXI Mobility</p>
+
+              <p className="text-xs text-gray-500">
+                {role === "admin" && "Administrador"}
+                {role === "driver" && "Conductor"}
+                {role === "passenger" && "Pasajero"}
+              </p>
+            </div>
           </div>
         </header>
 
