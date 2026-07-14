@@ -92,6 +92,13 @@ export function MobileNav({
       visible: role === "driver",
     },
     {
+      href: "/dashboard/driver/profile",
+      label: "Mi rendimiento",
+      description: "Consulta ganancias, viajes y calificación",
+      icon: UserRound,
+      visible: role === "driver",
+    },
+    {
       href: "/dashboard/vehicles",
       label: "Mis vehículos",
       description: "Administra tu unidad o flotilla",

@@ -62,6 +62,12 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       visible: role === "driver",
     },
     {
+      href: "/dashboard/driver/profile",
+      label: "Mi rendimiento",
+      icon: UserRound,
+      visible: role === "driver",
+    },
+    {
       href: "/dashboard/driver-application",
       label: "Ser conductor",
       icon: ClipboardCheck,

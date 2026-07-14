@@ -27,11 +27,11 @@ const content = {
     eyebrow: "Panel del conductor",
     title: "Tu jornada empieza aquí",
     description:
-      "Gestiona viajes, vehículo, pagos y disponibilidad desde tu panel.",
-    primaryLabel: "Ver viajes",
-    primaryHref: "/dashboard/trips",
-    secondaryLabel: "Mi vehículo",
-    secondaryHref: "/dashboard/vehicles",
+      "Gestiona viajes, vehículo, pagos, disponibilidad y rendimiento desde tu panel.",
+    primaryLabel: "Viajes disponibles",
+    primaryHref: "/dashboard/driver/available-trips",
+    secondaryLabel: "Mi rendimiento",
+    secondaryHref: "/dashboard/driver/profile",
   },
   passenger: {
     eyebrow: "Movilidad inteligente",
