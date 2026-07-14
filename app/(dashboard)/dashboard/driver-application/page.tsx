@@ -1,38 +1,18 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
 import {
   FormEvent,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  ArrowRight,
-  BadgeCheck,
-  CalendarDays,
-  Camera,
-  Check,
-  CheckCircle2,
-  CircleUserRound,
-  Clock3,
-  FileCheck2,
-  FileImage,
-  FileText,
-  IdCard,
-  LoaderCircle,
-  LockKeyhole,
-  ShieldCheck,
-  UploadCloud,
-  XCircle,
-} from "lucide-react";
-import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
-import { cn } from "@/utils/cn";
 
-type Status = "none" | "pending" | "approved" | "rejected";
+type Status =
+  | "none"
+  | "pending"
+  | "approved"
+  | "rejected";
 
 type DocumentFiles = {
   profilePhoto: File | null;
@@ -40,9 +20,12 @@ type DocumentFiles = {
   licenseFront: File | null;
   licenseBack: File | null;
   identification: File | null;
+  concessionDocument: File | null;
+  vehicleFrontPhoto: File | null;
+  vehicleRearPhoto: File | null;
+  vehicleLeftPhoto: File | null;
+  vehicleRightPhoto: File | null;
 };
-
-type DocumentField = keyof DocumentFiles;
 
 const emptyFiles: DocumentFiles = {
   profilePhoto: null,
@@ -50,157 +33,164 @@ const emptyFiles: DocumentFiles = {
   licenseFront: null,
   licenseBack: null,
   identification: null,
+  concessionDocument: null,
+  vehicleFrontPhoto: null,
+  vehicleRearPhoto: null,
+  vehicleLeftPhoto: null,
+  vehicleRightPhoto: null,
 };
-
-const documentConfiguration: Array<{
-  field: DocumentField;
-  title: string;
-  description: string;
-  accept: string;
-  icon: typeof Camera;
-}> = [
-  {
-    field: "profilePhoto",
-    title: "Foto de perfil",
-    description: "Fotografía clara, reciente y con buena iluminación.",
-    accept: "image/jpeg,image/png,image/webp",
-    icon: CircleUserRound,
-  },
-  {
-    field: "selfie",
-    title: "Selfie frontal",
-    description: "Muestra tu rostro completo, sin lentes ni accesorios.",
-    accept: "image/jpeg,image/png,image/webp",
-    icon: Camera,
-  },
-  {
-    field: "licenseFront",
-    title: "Licencia — frente",
-    description: "La información debe verse completa y ser legible.",
-    accept: "image/jpeg,image/png,image/webp",
-    icon: IdCard,
-  },
-  {
-    field: "licenseBack",
-    title: "Licencia — reverso",
-    description: "Evita reflejos, sombras o partes recortadas.",
-    accept: "image/jpeg,image/png,image/webp",
-    icon: FileImage,
-  },
-  {
-    field: "identification",
-    title: "Identificación oficial",
-    description: "INE, pasaporte u otra identificación vigente.",
-    accept: "image/jpeg,image/png,image/webp,application/pdf",
-    icon: FileText,
-  },
-];
-
-const statusContent: Record<
-  Status,
-  {
-    label: string;
-    description: string;
-    icon: typeof Clock3;
-    containerClass: string;
-    iconClass: string;
-  }
-> = {
-  none: {
-    label: "Sin solicitud",
-    description: "Completa tus datos y documentos para iniciar.",
-    icon: AlertCircle,
-    containerClass: "border-slate-200 bg-slate-50",
-    iconClass: "bg-slate-200 text-slate-700",
-  },
-  pending: {
-    label: "Pendiente de revisión",
-    description: "El equipo de AXI está revisando tus documentos.",
-    icon: Clock3,
-    containerClass: "border-amber-200 bg-amber-50",
-    iconClass: "bg-amber-200 text-amber-800",
-  },
-  approved: {
-    label: "Solicitud aprobada",
-    description: "Tu cuenta ya puede continuar como conductor.",
-    icon: BadgeCheck,
-    containerClass: "border-emerald-200 bg-emerald-50",
-    iconClass: "bg-emerald-200 text-emerald-800",
-  },
-  rejected: {
-    label: "Solicitud rechazada",
-    description: "Revisa tus datos y vuelve a enviar los documentos.",
-    icon: XCircle,
-    containerClass: "border-red-200 bg-red-50",
-    iconClass: "bg-red-200 text-red-800",
-  },
-};
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-
-  const kilobytes = bytes / 1024;
-
-  if (kilobytes < 1024) {
-    return `${kilobytes.toFixed(1)} KB`;
-  }
-
-  return `${(kilobytes / 1024).toFixed(1)} MB`;
-}
 
 export default function DriverApplicationPage() {
   const router = useRouter();
 
-  const [licenseNumber, setLicenseNumber] = useState("");
-  const [licenseExpiration, setLicenseExpiration] = useState("");
-  const [status, setStatus] = useState<Status>("none");
-  const [files, setFiles] = useState<DocumentFiles>(emptyFiles);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [licenseNumber, setLicenseNumber] =
+    useState("");
 
-  useEffect(() => {
-    async function loadApplication() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  const [
+    licenseExpiration,
+    setLicenseExpiration,
+  ] = useState("");
 
-      if (!session) {
-        router.replace("/login");
-        return;
-      }
+  const [operatingState, setOperatingState] =
+    useState("");
 
-      const { data, error } = await supabase
-        .from("driver_applications")
-        .select("license_number, license_expiration, status")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
+  const [operatingCity, setOperatingCity] =
+    useState("");
 
-      if (error) {
-        setMessage(`Error: ${error.message}`);
-      } else if (data) {
-        setLicenseNumber(data.license_number ?? "");
-        setLicenseExpiration(data.license_expiration ?? "");
-        setStatus(data.status as Status);
-      }
+  const [taxiNumber, setTaxiNumber] =
+    useState("");
 
-      setLoading(false);
+  const [
+    concessionNumber,
+    setConcessionNumber,
+  ] = useState("");
+
+  const [
+    concessionAuthority,
+    setConcessionAuthority,
+  ] = useState("");
+
+  const [
+    concessionHolderName,
+    setConcessionHolderName,
+  ] = useState("");
+
+  const [
+    concessionExpiration,
+    setConcessionExpiration,
+  ] = useState("");
+
+  const [vehicleVin, setVehicleVin] =
+    useState("");
+
+  const [status, setStatus] =
+    useState<Status>("none");
+
+  const [files, setFiles] =
+    useState<DocumentFiles>(emptyFiles);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  async function loadApplication() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      router.replace("/login");
+      return;
     }
 
-    void loadApplication();
-  }, [router]);
+    const { data, error } = await supabase
+      .from("driver_applications")
+      .select(`
+        license_number,
+        license_expiration,
+        operating_state,
+        operating_city,
+        taxi_number,
+        concession_number,
+        concession_authority,
+        concession_holder_name,
+        concession_expiration,
+        vehicle_vin,
+        status
+      `)
+      .eq("user_id", session.user.id)
+      .maybeSingle();
 
-  const selectedDocuments = useMemo(
-    () => Object.values(files).filter(Boolean).length,
-    [files]
-  );
+    if (error) {
+      setMessage(
+        `Error cargando solicitud: ${error.message}`
+      );
+    } else if (data) {
+      setLicenseNumber(
+        data.license_number ?? ""
+      );
 
-  const completionPercentage = Math.round(
-    (selectedDocuments / documentConfiguration.length) * 100
-  );
+      setLicenseExpiration(
+        data.license_expiration ?? ""
+      );
+
+      setOperatingState(
+        data.operating_state ?? ""
+      );
+
+      setOperatingCity(
+        data.operating_city ?? ""
+      );
+
+      setTaxiNumber(
+        data.taxi_number ?? ""
+      );
+
+      setConcessionNumber(
+        data.concession_number ?? ""
+      );
+
+      setConcessionAuthority(
+        data.concession_authority ?? ""
+      );
+
+      setConcessionHolderName(
+        data.concession_holder_name ?? ""
+      );
+
+      setConcessionExpiration(
+        data.concession_expiration ?? ""
+      );
+
+      setVehicleVin(
+        data.vehicle_vin ?? ""
+      );
+
+      setStatus(
+        data.status as Status
+      );
+    }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadApplication();
+    }, 0);
+
+    return () =>
+      window.clearTimeout(timer);
+  }, []);
 
   function getExtension(file: File) {
     const parts = file.name.split(".");
+
     return parts.length > 1
       ? parts.pop()!.toLowerCase()
       : "jpg";
@@ -212,13 +202,17 @@ export default function DriverApplicationPage() {
     documentName: string
   ) {
     const extension = getExtension(file);
-    const path = `${userId}/${documentName}.${extension}`;
+
+    const path =
+      `${userId}/${documentName}.${extension}`;
 
     const { error } = await supabase.storage
       .from("driver-documents")
       .upload(path, file, {
         upsert: true,
-        contentType: file.type,
+        contentType:
+          file.type ||
+          "application/octet-stream",
       });
 
     if (error) {
@@ -230,40 +224,115 @@ export default function DriverApplicationPage() {
     return path;
   }
 
+  function normalizeVin(value: string) {
+    return value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function updateFile(
+    field: keyof DocumentFiles,
+    file: File | null
+  ) {
+    setFiles((current) => ({
+      ...current,
+      [field]: file,
+    }));
+  }
+
+  async function uploadOptionalDocument(
+    userId: string,
+    file: File | null,
+    documentName: string
+  ) {
+    if (!file) {
+      return null;
+    }
+
+    return uploadDocument(
+      userId,
+      file,
+      documentName
+    );
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
     setMessage("");
 
-    if (!licenseNumber.trim() || !licenseExpiration) {
+    const cleanVin =
+      normalizeVin(vehicleVin);
+
+    if (
+      !licenseNumber.trim() ||
+      !licenseExpiration
+    ) {
       setMessage(
         "Completa el número y vencimiento de la licencia."
       );
       return;
     }
 
-    const expirationDate = new Date(
-      `${licenseExpiration}T23:59:59`
-    );
-
-    if (expirationDate.getTime() <= Date.now()) {
+    if (
+      !operatingState.trim() ||
+      !operatingCity.trim()
+    ) {
       setMessage(
-        "La fecha de vencimiento de la licencia debe ser futura."
+        "Escribe el estado y la ciudad o municipio donde opera el taxi."
       );
       return;
     }
 
-    const allDocumentsSelected =
+    if (!taxiNumber.trim()) {
+      setMessage(
+        "Escribe el número económico del taxi."
+      );
+      return;
+    }
+
+    if (
+      concessionNumber.trim().length < 3
+    ) {
+      setMessage(
+        "Escribe un número de concesión o permiso válido."
+      );
+      return;
+    }
+
+    if (!concessionAuthority.trim()) {
+      setMessage(
+        "Escribe la autoridad que emitió la concesión o permiso."
+      );
+      return;
+    }
+
+    if (!concessionHolderName.trim()) {
+      setMessage(
+        "Escribe el nombre del titular de la concesión."
+      );
+      return;
+    }
+
+    if (cleanVin.length !== 17) {
+      setMessage(
+        "El VIN o número de serie debe contener exactamente 17 caracteres."
+      );
+      return;
+    }
+
+    const requiredDocumentsSelected =
       files.profilePhoto &&
       files.selfie &&
       files.licenseFront &&
       files.licenseBack &&
-      files.identification;
+      files.identification &&
+      files.concessionDocument;
 
-    if (!allDocumentsSelected) {
+    if (!requiredDocumentsSelected) {
       setMessage(
-        "Debes seleccionar todos los documentos y fotografías."
+        "Selecciona todos los documentos obligatorios, incluido el documento de concesión o permiso."
       );
       return;
     }
@@ -282,52 +351,151 @@ export default function DriverApplicationPage() {
 
       const userId = session.user.id;
 
-      const profilePhotoPath = await uploadDocument(
-        userId,
-        files.profilePhoto!,
-        "profile-photo"
-      );
+      const profilePhotoPath =
+        await uploadDocument(
+          userId,
+          files.profilePhoto!,
+          "profile-photo"
+        );
 
-      const selfiePath = await uploadDocument(
-        userId,
-        files.selfie!,
-        "selfie"
-      );
+      const selfiePath =
+        await uploadDocument(
+          userId,
+          files.selfie!,
+          "selfie"
+        );
 
-      const licenseFrontPath = await uploadDocument(
-        userId,
-        files.licenseFront!,
-        "license-front"
-      );
+      const licenseFrontPath =
+        await uploadDocument(
+          userId,
+          files.licenseFront!,
+          "license-front"
+        );
 
-      const licenseBackPath = await uploadDocument(
-        userId,
-        files.licenseBack!,
-        "license-back"
-      );
+      const licenseBackPath =
+        await uploadDocument(
+          userId,
+          files.licenseBack!,
+          "license-back"
+        );
 
-      const identificationPath = await uploadDocument(
-        userId,
-        files.identification!,
-        "identification"
-      );
+      const identificationPath =
+        await uploadDocument(
+          userId,
+          files.identification!,
+          "identification"
+        );
+
+      const concessionDocumentPath =
+        await uploadDocument(
+          userId,
+          files.concessionDocument!,
+          "concession-document"
+        );
+
+      const vehicleFrontPhotoPath =
+        await uploadOptionalDocument(
+          userId,
+          files.vehicleFrontPhoto,
+          "vehicle-front"
+        );
+
+      const vehicleRearPhotoPath =
+        await uploadOptionalDocument(
+          userId,
+          files.vehicleRearPhoto,
+          "vehicle-rear"
+        );
+
+      const vehicleLeftPhotoPath =
+        await uploadOptionalDocument(
+          userId,
+          files.vehicleLeftPhoto,
+          "vehicle-left"
+        );
+
+      const vehicleRightPhotoPath =
+        await uploadOptionalDocument(
+          userId,
+          files.vehicleRightPhoto,
+          "vehicle-right"
+        );
 
       const { error } = await supabase
         .from("driver_applications")
         .upsert(
           {
             user_id: userId,
-            license_number: licenseNumber.trim(),
-            license_expiration: licenseExpiration,
+
+            license_number:
+              licenseNumber.trim(),
+
+            license_expiration:
+              licenseExpiration,
+
+            operating_state:
+              operatingState.trim(),
+
+            operating_city:
+              operatingCity.trim(),
+
+            taxi_number:
+              taxiNumber.trim(),
+
+            concession_number:
+              concessionNumber.trim(),
+
+            concession_authority:
+              concessionAuthority.trim(),
+
+            concession_holder_name:
+              concessionHolderName.trim(),
+
+            concession_expiration:
+              concessionExpiration || null,
+
+            vehicle_vin:
+              cleanVin,
+
+            concession_document_url:
+              concessionDocumentPath,
+
+            vehicle_front_photo_url:
+              vehicleFrontPhotoPath,
+
+            vehicle_rear_photo_url:
+              vehicleRearPhotoPath,
+
+            vehicle_left_photo_url:
+              vehicleLeftPhotoPath,
+
+            vehicle_right_photo_url:
+              vehicleRightPhotoPath,
+
             status: "pending",
-            profile_photo_url: profilePhotoPath,
-            selfie_url: selfiePath,
-            license_front_url: licenseFrontPath,
-            license_back_url: licenseBackPath,
-            identification_url: identificationPath,
+
+            profile_photo_url:
+              profilePhotoPath,
+
+            selfie_url:
+              selfiePath,
+
+            license_front_url:
+              licenseFrontPath,
+
+            license_back_url:
+              licenseBackPath,
+
+            identification_url:
+              identificationPath,
+
             documents_complete: true,
-            face_match_status: "pending",
-            face_match_score: null,
+
+            face_match_status:
+              "pending",
+
+            face_match_score:
+              null,
           },
           {
             onConflict: "user_id",
@@ -339,8 +507,9 @@ export default function DriverApplicationPage() {
       }
 
       setStatus("pending");
+
       setMessage(
-        "Solicitud enviada. Tus documentos quedaron pendientes de revisión."
+        "Solicitud enviada correctamente. Tus datos y documentos quedaron pendientes de revisión."
       );
     } catch (error) {
       const errorMessage =
@@ -354,503 +523,447 @@ export default function DriverApplicationPage() {
     }
   }
 
-  function updateFile(
-    field: DocumentField,
-    file: File | null
-  ) {
-    if (file && file.size > 10 * 1024 * 1024) {
-      setMessage(
-        "Cada archivo debe pesar menos de 10 MB."
-      );
-      return;
-    }
-
-    setMessage("");
-
-    setFiles((current) => ({
-      ...current,
-      [field]: file,
-    }));
-  }
-
   if (loading) {
-    return (
-      <section className="space-y-6">
-        <div className="h-72 animate-pulse rounded-[2rem] bg-slate-200" />
-
-        <div className="grid gap-6 xl:grid-cols-[1fr_0.42fr]">
-          <div className="h-[650px] animate-pulse rounded-[2rem] bg-slate-200" />
-          <div className="h-[450px] animate-pulse rounded-[2rem] bg-slate-200" />
-        </div>
-      </section>
-    );
+    return <p>Cargando solicitud...</p>;
   }
-
-  const currentStatus = statusContent[status];
-  const StatusIcon = currentStatus.icon;
-  const formDisabled =
-    saving || status === "approved" || status === "pending";
 
   return (
-    <section className="space-y-8">
-      <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.2)] sm:px-9 sm:py-10">
-        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+    <section className="mx-auto max-w-4xl">
+      <div className="mb-8">
+        <p className="mb-1 text-sm font-medium text-gray-500">
+          Registro de conductor
+        </p>
 
-        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
-              <CarIcon />
-              Registro de conductor
-            </span>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Solicitud para conducir con AXI
+        </h1>
 
-            <h1 className="mt-6 max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
-              Conduce y crece con AXI
-            </h1>
-
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Completa tus datos, sube documentos vigentes y envía tu
-              solicitud para comenzar el proceso de verificación.
-            </p>
-
-            <div className="mt-7 flex flex-wrap gap-3">
-              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <ShieldCheck size={18} className="text-yellow-400" />
-                Revisión segura
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <LockKeyhole size={18} className="text-yellow-400" />
-                Documentos protegidos
-              </span>
-            </div>
-          </div>
-
-          <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-                  Progreso de documentos
-                </p>
-
-                <p className="mt-2 text-4xl font-black">
-                  {selectedDocuments}/{documentConfiguration.length}
-                </p>
-              </div>
-
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-                <FileCheck2 size={26} />
-              </span>
-            </div>
-
-            <div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-yellow-400 transition-all duration-300"
-                style={{
-                  width: `${completionPercentage}%`,
-                }}
-              />
-            </div>
-
-            <p className="mt-3 text-sm font-semibold text-slate-300">
-              {completionPercentage}% completado
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "flex flex-col gap-4 rounded-[2rem] border p-5 sm:flex-row sm:items-center",
-          currentStatus.containerClass
-        )}
-      >
-        <span
-          className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl",
-            currentStatus.iconClass
-          )}
-        >
-          <StatusIcon size={25} />
-        </span>
-
-        <div className="flex-1">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-            Estado de tu solicitud
-          </p>
-
-          <h2 className="mt-1 text-xl font-black text-slate-950">
-            {currentStatus.label}
-          </h2>
-
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            {currentStatus.description}
-          </p>
-        </div>
-
-        {status === "approved" && (
-          <Link
-            href="/dashboard/driver/status"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 font-black text-white transition hover:bg-emerald-800"
-          >
-            Ir al panel
-            <ArrowRight size={18} />
-          </Link>
-        )}
+        <p className="mt-2 text-gray-600">
+          AXI es una plataforma exclusiva para taxis legalmente autorizados.
+        </p>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="grid gap-6 xl:grid-cols-[1fr_0.38fr]"
+        className="space-y-8 rounded-2xl bg-white p-8 shadow-sm"
       >
-        <div className="space-y-6">
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Paso 1
-                </p>
+        <section>
+          <h2 className="mb-1 text-xl font-bold">
+            Licencia del conductor
+          </h2>
 
-                <h2 className="mt-1 text-2xl font-black">
-                  Información de licencia
-                </h2>
+          <p className="mb-5 text-sm text-gray-500">
+            Ingresa los datos de tu licencia vigente.
+          </p>
 
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  La licencia debe estar vigente y coincidir con tus
-                  documentos oficiales.
-                </p>
-              </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <TextInput
+              label="Número de licencia"
+              value={licenseNumber}
+              onChange={setLicenseNumber}
+              placeholder="Ejemplo: ABC123456"
+              required
+            />
 
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
-                <IdCard size={23} />
-              </span>
-            </div>
+            <DateInput
+              label="Vencimiento de la licencia"
+              value={licenseExpiration}
+              onChange={setLicenseExpiration}
+              required
+            />
+          </div>
+        </section>
 
-            <div className="mt-7 grid gap-5 md:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="license-number"
-                  className="mb-2 block text-sm font-black text-slate-700"
-                >
-                  Número de licencia
-                </label>
+        <section className="border-t pt-8">
+          <h2 className="mb-1 text-xl font-bold">
+            Información legal del taxi
+          </h2>
 
-                <div className="relative">
-                  <IdCard
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
+          <p className="mb-5 text-sm text-gray-500">
+            Escribe los datos de la unidad y de la autorización gubernamental con la que opera.
+          </p>
 
-                  <input
-                    id="license-number"
-                    value={licenseNumber}
-                    onChange={(event) =>
-                      setLicenseNumber(event.target.value)
-                    }
-                    disabled={formDisabled}
-                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5 disabled:cursor-not-allowed disabled:opacity-60"
-                    placeholder="Ejemplo: PUE123456"
-                  />
-                </div>
-              </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <TextInput
+              label="Estado donde opera"
+              value={operatingState}
+              onChange={setOperatingState}
+              placeholder="Ejemplo: Puebla"
+              required
+            />
 
-              <div>
-                <label
-                  htmlFor="license-expiration"
-                  className="mb-2 block text-sm font-black text-slate-700"
-                >
-                  Vencimiento de la licencia
-                </label>
+            <TextInput
+              label="Ciudad o municipio"
+              value={operatingCity}
+              onChange={setOperatingCity}
+              placeholder="Ejemplo: San Andrés Cholula"
+              required
+            />
 
-                <div className="relative">
-                  <CalendarDays
-                    size={18}
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
+            <TextInput
+              label="Número económico del taxi"
+              value={taxiNumber}
+              onChange={setTaxiNumber}
+              placeholder="Ejemplo: TX-1542"
+              required
+            />
 
-                  <input
-                    id="license-expiration"
-                    type="date"
-                    value={licenseExpiration}
-                    onChange={(event) =>
-                      setLicenseExpiration(event.target.value)
-                    }
-                    disabled={formDisabled}
-                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5 disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                </div>
-              </div>
-            </div>
-          </Card>
+            <TextInput
+              label="Número de concesión o permiso"
+              value={concessionNumber}
+              onChange={setConcessionNumber}
+              placeholder="Escribe el número oficial"
+              required
+            />
 
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Paso 2
-                </p>
+            <TextInput
+              label="Autoridad emisora"
+              value={concessionAuthority}
+              onChange={setConcessionAuthority}
+              placeholder="Secretaría o autoridad que lo emitió"
+              required
+            />
 
-                <h2 className="mt-1 text-2xl font-black">
-                  Fotografías y documentos
-                </h2>
+            <TextInput
+              label="Titular de la concesión"
+              value={concessionHolderName}
+              onChange={setConcessionHolderName}
+              placeholder="Nombre completo del titular"
+              required
+            />
 
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                  Sube archivos claros, completos y sin reflejos. Cada
-                  archivo puede pesar hasta 10 MB.
-                </p>
-              </div>
+            <DateInput
+              label="Vencimiento del permiso (opcional)"
+              value={concessionExpiration}
+              onChange={setConcessionExpiration}
+            />
 
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                <UploadCloud size={23} />
-              </span>
-            </div>
-
-            <div className="mt-7 grid gap-4 md:grid-cols-2">
-              {documentConfiguration.map((document) => {
-                const selectedFile = files[document.field];
-
-                return (
-                  <DocumentInput
-                    key={document.field}
-                    title={document.title}
-                    description={document.description}
-                    accept={document.accept}
-                    icon={document.icon}
-                    file={selectedFile}
-                    disabled={formDisabled}
-                    onChange={(file) =>
-                      updateFile(document.field, file)
-                    }
-                  />
-                );
-              })}
-            </div>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="xl:sticky xl:top-28">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Resumen
-                </p>
-
-                <h2 className="mt-1 text-2xl font-black">
-                  Verificación
-                </h2>
-              </div>
-
-              <ShieldCheck size={25} className="text-yellow-600" />
-            </div>
-
-            <div className="mt-7 space-y-3">
-              {documentConfiguration.map((document) => {
-                const selected = Boolean(files[document.field]);
-
-                return (
-                  <div
-                    key={document.field}
-                    className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4"
-                  >
-                    <span
-                      className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                        selected
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-200 text-slate-500"
-                      )}
-                    >
-                      {selected ? (
-                        <Check size={17} />
-                      ) : (
-                        <FileText size={17} />
-                      )}
-                    </span>
-
-                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-700">
-                      {document.title}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 rounded-3xl bg-[#0B0F19] p-5 text-white">
-              <div className="flex items-start gap-3">
-                <LockKeyhole
-                  size={20}
-                  className="mt-0.5 shrink-0 text-yellow-400"
-                />
-
-                <div>
-                  <p className="font-black">
-                    Información protegida
-                  </p>
-
-                  <p className="mt-2 text-xs leading-6 text-slate-400">
-                    Tus documentos se guardan en el almacenamiento
-                    privado de AXI para revisión administrativa.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {message && (
-              <div
-                className={cn(
-                  "mt-5 rounded-2xl border px-4 py-3 text-sm font-semibold",
-                  message.toLowerCase().includes("enviada")
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-red-200 bg-red-50 text-red-700"
-                )}
+            <div>
+              <label
+                htmlFor="vehicleVin"
+                className="mb-2 block text-sm font-semibold"
               >
-                {message}
-              </div>
-            )}
+                VIN o número de serie
+              </label>
 
-            <button
-              type="submit"
-              disabled={formDisabled}
-              className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <LoaderCircle
-                    size={19}
-                    className="animate-spin"
-                  />
-                  Subiendo documentos...
-                </>
-              ) : status === "approved" ? (
-                <>
-                  <CheckCircle2 size={19} />
-                  Solicitud aprobada
-                </>
-              ) : status === "pending" ? (
-                <>
-                  <Clock3 size={19} />
-                  En revisión
-                </>
-              ) : (
-                <>
-                  Enviar solicitud
-                  <ArrowRight size={19} />
-                </>
-              )}
-            </button>
+              <input
+                id="vehicleVin"
+                value={vehicleVin}
+                onChange={(event) =>
+                  setVehicleVin(
+                    normalizeVin(
+                      event.target.value
+                    )
+                  )
+                }
+                minLength={17}
+                maxLength={17}
+                required
+                placeholder="17 caracteres"
+                className="w-full rounded-xl border px-4 py-3 uppercase"
+              />
 
-            <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-              Al enviar, confirmas que la información proporcionada es
-              verdadera y está vigente.
-            </p>
-          </Card>
+              <p className="mt-2 text-xs text-gray-500">
+                {normalizeVin(vehicleVin).length}/17 caracteres
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t pt-8">
+          <h2 className="mb-1 text-xl font-bold">
+            Fotografías personales
+          </h2>
+
+          <p className="mb-5 text-sm text-gray-500">
+            La selfie debe mostrar claramente el rostro del solicitante.
+          </p>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <DocumentInput
+              label="Foto de perfil"
+              accept="image/jpeg,image/png,image/webp"
+              required
+              onChange={(file) =>
+                updateFile(
+                  "profilePhoto",
+                  file
+                )
+              }
+            />
+
+            <DocumentInput
+              label="Selfie frontal"
+              accept="image/jpeg,image/png,image/webp"
+              required
+              onChange={(file) =>
+                updateFile(
+                  "selfie",
+                  file
+                )
+              }
+            />
+          </div>
+        </section>
+
+        <section className="border-t pt-8">
+          <h2 className="mb-1 text-xl font-bold">
+            Documentos oficiales
+          </h2>
+
+          <p className="mb-5 text-sm text-gray-500">
+            Los archivos deben ser claros, legibles y mostrar el documento completo.
+          </p>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <DocumentInput
+              label="Licencia — frente"
+              accept="image/jpeg,image/png,image/webp"
+              required
+              onChange={(file) =>
+                updateFile(
+                  "licenseFront",
+                  file
+                )
+              }
+            />
+
+            <DocumentInput
+              label="Licencia — reverso"
+              accept="image/jpeg,image/png,image/webp"
+              required
+              onChange={(file) =>
+                updateFile(
+                  "licenseBack",
+                  file
+                )
+              }
+            />
+
+            <DocumentInput
+              label="INE, pasaporte o identificación"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              required
+              onChange={(file) =>
+                updateFile(
+                  "identification",
+                  file
+                )
+              }
+            />
+
+            <DocumentInput
+              label="Documento de concesión o permiso"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              required
+              onChange={(file) =>
+                updateFile(
+                  "concessionDocument",
+                  file
+                )
+              }
+            />
+          </div>
+        </section>
+
+        <section className="border-t pt-8">
+          <h2 className="mb-1 text-xl font-bold">
+            Fotografías exteriores del taxi
+          </h2>
+
+          <p className="mb-5 text-sm text-gray-500">
+            Son opcionales y sirven como apoyo para validar visualmente la unidad.
+          </p>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <DocumentInput
+              label="Vista frontal (opcional)"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(file) =>
+                updateFile(
+                  "vehicleFrontPhoto",
+                  file
+                )
+              }
+            />
+
+            <DocumentInput
+              label="Vista trasera (opcional)"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(file) =>
+                updateFile(
+                  "vehicleRearPhoto",
+                  file
+                )
+              }
+            />
+
+            <DocumentInput
+              label="Lado izquierdo (opcional)"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(file) =>
+                updateFile(
+                  "vehicleLeftPhoto",
+                  file
+                )
+              }
+            />
+
+            <DocumentInput
+              label="Lado derecho (opcional)"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(file) =>
+                updateFile(
+                  "vehicleRightPhoto",
+                  file
+                )
+              }
+            />
+          </div>
+        </section>
+
+        <div className="rounded-xl bg-gray-100 p-4">
+          <p className="text-sm text-gray-500">
+            Estado de la solicitud
+          </p>
+
+          <p className="mt-1 font-semibold">
+            {status === "none" &&
+              "Sin solicitud"}
+
+            {status === "pending" &&
+              "Pendiente de revisión"}
+
+            {status === "approved" &&
+              "Aprobada"}
+
+            {status === "rejected" &&
+              "Rechazada"}
+          </p>
         </div>
+
+        {message && (
+          <div
+            className={`rounded-xl p-4 text-sm ${
+              message.includes(
+                "correctamente"
+              )
+                ? "bg-green-50 text-green-700"
+                : "bg-red-50 text-red-700"
+            }`}
+          >
+            {message}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={
+            saving ||
+            status === "approved"
+          }
+          className="w-full rounded-xl bg-black py-3 font-semibold text-white disabled:opacity-50"
+        >
+          {saving
+            ? "Subiendo documentos..."
+            : "Enviar solicitud"}
+        </button>
       </form>
     </section>
   );
 }
 
-function DocumentInput({
-  title,
-  description,
-  accept,
-  icon: Icon,
-  file,
-  disabled,
+function TextInput({
+  label,
+  value,
   onChange,
+  placeholder,
+  required = false,
 }: {
-  title: string;
-  description: string;
-  accept: string;
-  icon: typeof Camera;
-  file: File | null;
-  disabled: boolean;
-  onChange: (file: File | null) => void;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
 }) {
-  const inputId = title
-    .toLowerCase()
-    .replaceAll(" ", "-")
-    .replaceAll("—", "-");
-
   return (
-    <label
-      htmlFor={inputId}
-      className={cn(
-        "group relative flex min-h-52 cursor-pointer flex-col rounded-[1.7rem] border-2 border-dashed p-5 transition",
-        file
-          ? "border-emerald-300 bg-emerald-50"
-          : "border-slate-200 bg-slate-50 hover:border-yellow-400 hover:bg-yellow-50",
-        disabled && "pointer-events-none opacity-60"
-      )}
-    >
+    <div>
+      <label className="mb-2 block text-sm font-semibold">
+        {label}
+      </label>
+
       <input
-        id={inputId}
-        type="file"
-        accept={accept}
-        disabled={disabled}
+        value={value}
         onChange={(event) =>
-          onChange(event.target.files?.[0] ?? null)
+          onChange(event.target.value)
         }
-        className="sr-only"
+        required={required}
+        placeholder={placeholder}
+        className="w-full rounded-xl border px-4 py-3"
       />
-
-      <div className="flex items-start justify-between gap-3">
-        <span
-          className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-2xl transition",
-            file
-              ? "bg-emerald-200 text-emerald-800"
-              : "bg-white text-slate-700 shadow-sm group-hover:bg-yellow-400 group-hover:text-black"
-          )}
-        >
-          {file ? (
-            <FileCheck2 size={22} />
-          ) : (
-            <Icon size={22} />
-          )}
-        </span>
-
-        {file && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-200 px-3 py-1 text-xs font-black text-emerald-800">
-            <Check size={13} />
-            Listo
-          </span>
-        )}
-      </div>
-
-      <div className="mt-5">
-        <p className="font-black text-slate-950">
-          {title}
-        </p>
-
-        <p className="mt-2 text-xs leading-5 text-slate-500">
-          {description}
-        </p>
-      </div>
-
-      <div className="mt-auto pt-5">
-        {file ? (
-          <div className="rounded-2xl border border-emerald-200 bg-white/70 p-3">
-            <p className="truncate text-xs font-black text-slate-700">
-              {file.name}
-            </p>
-
-            <p className="mt-1 text-[11px] text-slate-500">
-              {formatFileSize(file.size)}
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-xs font-black text-slate-500 group-hover:text-slate-950">
-            <UploadCloud size={16} />
-            Seleccionar archivo
-          </div>
-        )}
-      </div>
-    </label>
+    </div>
   );
 }
 
-function CarIcon() {
-  return <BadgeCheck size={15} />;
+function DateInput({
+  label,
+  value,
+  onChange,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold">
+        {label}
+      </label>
+
+      <input
+        type="date"
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        required={required}
+        className="w-full rounded-xl border px-4 py-3"
+      />
+    </div>
+  );
+}
+
+function DocumentInput({
+  label,
+  accept,
+  required = false,
+  onChange,
+}: {
+  label: string;
+  accept: string;
+  required?: boolean;
+  onChange: (file: File | null) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold">
+        {label}
+      </label>
+
+      <input
+        type="file"
+        accept={accept}
+        required={required}
+        onChange={(event) =>
+          onChange(
+            event.target.files?.[0] ??
+              null
+          )
+        }
+        className="block w-full rounded-xl border p-3 text-sm"
+      />
+    </div>
+  );
 }

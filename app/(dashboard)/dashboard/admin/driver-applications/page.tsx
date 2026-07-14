@@ -1,64 +1,56 @@
-"use client";
+﻿"use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  BadgeCheck,
-  CalendarDays,
-  Check,
-  CheckCircle2,
-  Clock3,
-  Eye,
-  FileCheck2,
-  FileImage,
-  FileText,
-  Fingerprint,
-  IdCard,
-  LoaderCircle,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  UserCheck,
-  UserRound,
-  UsersRound,
-  X,
-  XCircle,
-} from "lucide-react";
-import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
-import { cn } from "@/utils/cn";
 
-type ApplicationStatus = "pending" | "approved" | "rejected";
+type ApplicationStatus =
+  | "pending"
+  | "approved"
+  | "rejected";
+
 type FaceStatus =
   | "pending"
   | "matched"
   | "not_matched"
   | "manual_review";
 
-type FilterStatus = "all" | ApplicationStatus;
-
 type DriverApplication = {
   id: string;
   user_id: string;
+
   license_number: string;
   license_expiration: string;
+
+  operating_state: string | null;
+  operating_city: string | null;
+  taxi_number: string | null;
+  concession_number: string | null;
+  concession_authority: string | null;
+  concession_holder_name: string | null;
+  concession_expiration: string | null;
+  vehicle_vin: string | null;
+
   status: ApplicationStatus;
   documents_complete: boolean;
   face_match_status: FaceStatus;
   face_match_score: number | null;
   rejection_reason: string | null;
+
   profile_photo_url: string | null;
   selfie_url: string | null;
   license_front_url: string | null;
   license_back_url: string | null;
   identification_url: string | null;
+  concession_document_url: string | null;
+
+  vehicle_front_photo_url: string | null;
+  vehicle_rear_photo_url: string | null;
+  vehicle_left_photo_url: string | null;
+  vehicle_right_photo_url: string | null;
+
   created_at: string;
+
   profiles:
     | {
         full_name: string | null;
@@ -77,134 +69,131 @@ type DocumentLinks = {
   licenseFront: string | null;
   licenseBack: string | null;
   identification: string | null;
+  concessionDocument: string | null;
+  vehicleFrontPhoto: string | null;
+  vehicleRearPhoto: string | null;
+  vehicleLeftPhoto: string | null;
+  vehicleRightPhoto: string | null;
 };
-
-const statusLabels: Record<ApplicationStatus, string> = {
-  pending: "Pendiente",
-  approved: "Aprobada",
-  rejected: "Rechazada",
-};
-
-const faceLabels: Record<FaceStatus, string> = {
-  pending: "Pendiente",
-  matched: "Coincide",
-  not_matched: "No coincide",
-  manual_review: "Revisión manual",
-};
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "medium",
-  }).format(new Date(value));
-}
-
-function isPdfUrl(url: string) {
-  return url.toLowerCase().includes(".pdf");
-}
 
 export default function DriverApplicationsAdminPage() {
   const router = useRouter();
 
   const [applications, setApplications] =
     useState<DriverApplication[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
   const [processingId, setProcessingId] =
     useState<string | null>(null);
+
   const [openingId, setOpeningId] =
     useState<string | null>(null);
-  const [expandedId, setExpandedId] =
-    useState<string | null>(null);
-  const [documentLinks, setDocumentLinks] = useState<
-    Record<string, DocumentLinks>
-  >({});
-  const [message, setMessage] = useState("");
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] =
-    useState<FilterStatus>("pending");
 
-  const loadApplications = useCallback(
-    async (silent = false) => {
-      if (silent) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+  const [documentLinks, setDocumentLinks] =
+    useState<Record<string, DocumentLinks>>({});
 
-      setMessage("");
+  const [message, setMessage] =
+    useState("");
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  async function loadApplications() {
+    setLoading(true);
+    setMessage("");
 
-      if (!session) {
-        router.replace("/login");
-        return;
-      }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
+    if (!session) {
+      router.replace("/login");
+      return;
+    }
 
-      if (profile?.role !== "admin") {
-        router.replace("/dashboard");
-        return;
-      }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .single();
 
-      const { data, error } = await supabase
-        .from("driver_applications")
-        .select(`
-          id,
-          user_id,
-          license_number,
-          license_expiration,
-          status,
-          documents_complete,
-          face_match_status,
-          face_match_score,
-          rejection_reason,
-          profile_photo_url,
-          selfie_url,
-          license_front_url,
-          license_back_url,
-          identification_url,
-          created_at,
-          profiles:user_id (
-            full_name,
-            role
-          )
-        `)
-        .order("created_at", { ascending: false });
+    if (profile?.role !== "admin") {
+      router.replace("/dashboard");
+      return;
+    }
 
-      if (error) {
-        setMessage(
-          `Error cargando solicitudes: ${error.message}`
-        );
-      } else {
-        setApplications(
-          (data ?? []) as DriverApplication[]
-        );
-      }
+    const { data, error } = await supabase
+      .from("driver_applications")
+      .select(`
+        id,
+        user_id,
+        license_number,
+        license_expiration,
+        operating_state,
+        operating_city,
+        taxi_number,
+        concession_number,
+        concession_authority,
+        concession_holder_name,
+        concession_expiration,
+        vehicle_vin,
+        status,
+        documents_complete,
+        face_match_status,
+        face_match_score,
+        rejection_reason,
+        profile_photo_url,
+        selfie_url,
+        license_front_url,
+        license_back_url,
+        identification_url,
+        concession_document_url,
+        vehicle_front_photo_url,
+        vehicle_rear_photo_url,
+        vehicle_left_photo_url,
+        vehicle_right_photo_url,
+        created_at,
+        profiles:user_id (
+          full_name,
+          role
+        )
+      `)
+      .order("created_at", {
+        ascending: false,
+      });
 
-      setLoading(false);
-      setRefreshing(false);
-    },
-    [router]
-  );
+    if (error) {
+      setMessage(
+        `Error cargando solicitudes: ${error.message}`
+      );
+    } else {
+      setApplications(
+        (data ?? []) as DriverApplication[]
+      );
+    }
+
+    setLoading(false);
+  }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadApplications();
-  }, [loadApplications]);
+    const timer = window.setTimeout(() => {
+      void loadApplications();
+    }, 0);
 
-  async function createSignedLink(path: string | null) {
-    if (!path) return null;
+    return () =>
+      window.clearTimeout(timer);
+  }, []);
 
-    const { data, error } = await supabase.storage
-      .from("driver-documents")
-      .createSignedUrl(path, 600);
+  async function createSignedLink(
+    path: string | null
+  ) {
+    if (!path) {
+      return null;
+    }
+
+    const { data, error } =
+      await supabase.storage
+        .from("driver-documents")
+        .createSignedUrl(path, 600);
 
     if (error) {
       throw new Error(error.message);
@@ -216,44 +205,66 @@ export default function DriverApplicationsAdminPage() {
   async function openDocuments(
     application: DriverApplication
   ) {
-    if (expandedId === application.id) {
-      setExpandedId(null);
-      return;
-    }
-
-    if (documentLinks[application.id]) {
-      setExpandedId(application.id);
-      return;
-    }
-
     setOpeningId(application.id);
     setMessage("");
 
     try {
       const links: DocumentLinks = {
-        profilePhoto: await createSignedLink(
-          application.profile_photo_url
-        ),
-        selfie: await createSignedLink(
-          application.selfie_url
-        ),
-        licenseFront: await createSignedLink(
-          application.license_front_url
-        ),
-        licenseBack: await createSignedLink(
-          application.license_back_url
-        ),
-        identification: await createSignedLink(
-          application.identification_url
-        ),
+        profilePhoto:
+          await createSignedLink(
+            application.profile_photo_url
+          ),
+
+        selfie:
+          await createSignedLink(
+            application.selfie_url
+          ),
+
+        licenseFront:
+          await createSignedLink(
+            application.license_front_url
+          ),
+
+        licenseBack:
+          await createSignedLink(
+            application.license_back_url
+          ),
+
+        identification:
+          await createSignedLink(
+            application.identification_url
+          ),
+
+        concessionDocument:
+          await createSignedLink(
+            application.concession_document_url
+          ),
+
+        vehicleFrontPhoto:
+          await createSignedLink(
+            application.vehicle_front_photo_url
+          ),
+
+        vehicleRearPhoto:
+          await createSignedLink(
+            application.vehicle_rear_photo_url
+          ),
+
+        vehicleLeftPhoto:
+          await createSignedLink(
+            application.vehicle_left_photo_url
+          ),
+
+        vehicleRightPhoto:
+          await createSignedLink(
+            application.vehicle_right_photo_url
+          ),
       };
 
       setDocumentLinks((current) => ({
         ...current,
         [application.id]: links,
       }));
-
-      setExpandedId(application.id);
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -279,7 +290,9 @@ export default function DriverApplicationsAdminPage() {
         "Escribe el porcentaje estimado de coincidencia, de 0 a 100:"
       );
 
-      if (scoreInput === null) return;
+      if (scoreInput === null) {
+        return;
+      }
 
       score = Number(scoreInput);
 
@@ -299,7 +312,9 @@ export default function DriverApplicationsAdminPage() {
       "¿Confirmas esta revisión facial?"
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     setProcessingId(applicationId);
     setMessage("");
@@ -318,8 +333,11 @@ export default function DriverApplicationsAdminPage() {
         `Error en revisión facial: ${error.message}`
       );
     } else {
-      setMessage("Revisión facial guardada.");
-      await loadApplications(true);
+      setMessage(
+        "Revisión facial guardada."
+      );
+
+      await loadApplications();
     }
 
     setProcessingId(null);
@@ -329,10 +347,12 @@ export default function DriverApplicationsAdminPage() {
     applicationId: string
   ) {
     const confirmed = window.confirm(
-      "¿Confirmas que revisaste identidad, licencia y documentos?"
+      "¿Confirmas que revisaste identidad, licencia, concesión y documentos del taxi?"
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     setProcessingId(applicationId);
     setMessage("");
@@ -345,12 +365,15 @@ export default function DriverApplicationsAdminPage() {
     );
 
     if (error) {
-      setMessage(`Error al aprobar: ${error.message}`);
+      setMessage(
+        `Error al aprobar: ${error.message}`
+      );
     } else {
       setMessage(
         "Conductor aprobado correctamente."
       );
-      await loadApplications(true);
+
+      await loadApplications();
     }
 
     setProcessingId(null);
@@ -363,7 +386,9 @@ export default function DriverApplicationsAdminPage() {
       "Escribe el motivo del rechazo:"
     );
 
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      return;
+    }
 
     setProcessingId(applicationId);
     setMessage("");
@@ -377,10 +402,15 @@ export default function DriverApplicationsAdminPage() {
     );
 
     if (error) {
-      setMessage(`Error al rechazar: ${error.message}`);
+      setMessage(
+        `Error al rechazar: ${error.message}`
+      );
     } else {
-      setMessage("Solicitud rechazada.");
-      await loadApplications(true);
+      setMessage(
+        "Solicitud rechazada."
+      );
+
+      await loadApplications();
     }
 
     setProcessingId(null);
@@ -389,366 +419,251 @@ export default function DriverApplicationsAdminPage() {
   function getApplicantName(
     application: DriverApplication
   ) {
-    const profile = Array.isArray(
-      application.profiles
-    )
-      ? application.profiles[0]
-      : application.profiles;
+    const profile =
+      Array.isArray(application.profiles)
+        ? application.profiles[0]
+        : application.profiles;
 
-    return profile?.full_name || "Usuario sin nombre";
+    return (
+      profile?.full_name ||
+      "Usuario sin nombre"
+    );
   }
 
-  const pendingCount = applications.filter(
-    (application) => application.status === "pending"
-  ).length;
+  function faceStatusLabel(
+    status: FaceStatus
+  ) {
+    const labels: Record<
+      FaceStatus,
+      string
+    > = {
+      pending: "Pendiente",
+      matched: "Coincide",
+      not_matched: "No coincide",
+      manual_review: "Revisión manual",
+    };
 
-  const approvedCount = applications.filter(
-    (application) => application.status === "approved"
-  ).length;
+    return labels[status];
+  }
 
-  const rejectedCount = applications.filter(
-    (application) => application.status === "rejected"
-  ).length;
+  function applicationStatusLabel(
+    status: ApplicationStatus
+  ) {
+    const labels: Record<
+      ApplicationStatus,
+      string
+    > = {
+      pending: "Pendiente",
+      approved: "Aprobada",
+      rejected: "Rechazada",
+    };
 
-  const filteredApplications = useMemo(() => {
-    const normalizedSearch = search
-      .trim()
-      .toLowerCase();
+    return labels[status];
+  }
 
-    return applications.filter((application) => {
-      const applicantName =
-        getApplicantName(application).toLowerCase();
+  function formatDate(
+    value: string | null
+  ) {
+    if (!value) {
+      return "No aplica";
+    }
 
-      const matchesSearch =
-        !normalizedSearch ||
-        applicantName.includes(normalizedSearch) ||
-        application.license_number
-          .toLowerCase()
-          .includes(normalizedSearch);
-
-      const matchesFilter =
-        filter === "all" ||
-        application.status === filter;
-
-      return matchesSearch && matchesFilter;
-    });
-  }, [applications, filter, search]);
+    return new Date(
+      `${value}T12:00:00`
+    ).toLocaleDateString("es-MX");
+  }
 
   if (loading) {
     return (
-      <section className="space-y-6">
-        <div className="h-72 animate-pulse rounded-[2rem] bg-slate-200" />
-
-        <div className="grid gap-5 md:grid-cols-3">
-          {[1, 2, 3].map((item) => (
-            <div
-              key={item}
-              className="h-36 animate-pulse rounded-[2rem] bg-slate-200"
-            />
-          ))}
-        </div>
-
-        <div className="h-[520px] animate-pulse rounded-[2rem] bg-slate-200" />
-      </section>
+      <p>Cargando solicitudes...</p>
     );
   }
 
   return (
-    <section className="space-y-8">
-      <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.2)] sm:px-9 sm:py-10">
-        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+    <section>
+      <div className="mb-8">
+        <p className="mb-1 text-sm font-medium text-gray-500">
+          Administración
+        </p>
 
-        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
-              <ShieldCheck size={15} />
-              Centro de verificación
-            </span>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Solicitudes de conductores
+        </h1>
 
-            <h1 className="mt-6 max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
-              Solicitudes de conductores
-            </h1>
-
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Revisa identidad, licencia, fotografías y
-              documentos antes de autorizar el acceso al
-              panel del conductor.
-            </p>
-
-            <div className="mt-7 flex flex-wrap gap-3">
-              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <UsersRound
-                  size={18}
-                  className="text-yellow-400"
-                />
-                {applications.length} solicitudes
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <Clock3
-                  size={18}
-                  className="text-amber-400"
-                />
-                {pendingCount} pendientes
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => loadApplications(true)}
-            disabled={refreshing}
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-7 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-60"
-          >
-            <RefreshCw
-              size={19}
-              className={refreshing ? "animate-spin" : ""}
-            />
-
-            {refreshing
-              ? "Actualizando..."
-              : "Actualizar solicitudes"}
-          </button>
-        </div>
+        <p className="mt-2 text-gray-600">
+          Revisa al conductor, la licencia, la concesión y los datos legales del taxi.
+        </p>
       </div>
 
       {message && (
-        <div
-          className={cn(
-            "rounded-2xl border px-5 py-4 text-sm font-semibold",
-            message.toLowerCase().includes("error")
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
-          )}
-        >
+        <div className="mb-6 rounded-xl bg-gray-100 p-4 text-sm">
           {message}
         </div>
       )}
 
-      <div className="grid gap-5 md:grid-cols-3">
-        <StatCard
-          label="Pendientes"
-          value={pendingCount}
-          description="Requieren revisión"
-          icon={Clock3}
-          iconClass="bg-amber-100 text-amber-700"
-        />
-
-        <StatCard
-          label="Aprobadas"
-          value={approvedCount}
-          description="Conductores autorizados"
-          icon={UserCheck}
-          iconClass="bg-emerald-100 text-emerald-700"
-        />
-
-        <StatCard
-          label="Rechazadas"
-          value={rejectedCount}
-          description="No cumplieron requisitos"
-          icon={XCircle}
-          iconClass="bg-red-100 text-red-700"
-        />
-      </div>
-
-      <Card className="overflow-hidden p-0">
-        <div className="border-b border-slate-100 px-5 py-6 sm:px-7">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Expedientes
-              </p>
-
-              <h2 className="mt-1 text-2xl font-black">
-                Revisión de solicitudes
-              </h2>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative">
-                <Search
-                  size={18}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
-                  placeholder="Buscar nombre o licencia..."
-                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-72"
-                />
-              </div>
-
-              <div className="flex overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                {[
-                  ["pending", "Pendientes"],
-                  ["approved", "Aprobadas"],
-                  ["rejected", "Rechazadas"],
-                  ["all", "Todas"],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() =>
-                      setFilter(value as FilterStatus)
-                    }
-                    className={cn(
-                      "whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black transition",
-                      filter === value
-                        ? "bg-slate-950 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-950"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {filteredApplications.length === 0 ? (
-          <div className="flex min-h-[420px] items-center justify-center bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.12),_transparent_32%),linear-gradient(to_bottom,_#ffffff,_#f8fafc)] px-6 py-12">
-            <div className="max-w-md text-center">
-              <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-slate-950 text-yellow-400">
-                <UsersRound size={34} />
-              </span>
-
-              <h3 className="mt-6 text-2xl font-black">
-                No hay solicitudes
-              </h3>
-
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                No encontramos expedientes que coincidan con
-                la búsqueda o el filtro seleccionado.
-              </p>
-            </div>
+      <div className="space-y-6">
+        {applications.length === 0 ? (
+          <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
+            <p className="font-semibold">
+              No hay solicitudes registradas.
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {filteredApplications.map((application) => {
-              const links =
-                documentLinks[application.id];
-              const expanded =
-                expandedId === application.id;
-              const processing =
-                processingId === application.id;
+          applications.map((application) => {
+            const links =
+              documentLinks[application.id];
 
-              return (
-                <article
-                  key={application.id}
-                  className="p-5 sm:p-7"
-                >
-                  <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="flex min-w-0 flex-1 gap-4">
-                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-yellow-400">
-                        <UserRound size={25} />
+            const processing =
+              processingId === application.id;
+
+            return (
+              <article
+                key={application.id}
+                className="rounded-2xl bg-white p-6 shadow-sm"
+              >
+                <div className="flex flex-col justify-between gap-6 xl:flex-row">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="text-xl font-bold">
+                        {getApplicantName(
+                          application
+                        )}
+                      </h2>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          application.status ===
+                          "approved"
+                            ? "bg-green-50 text-green-700"
+                            : application.status ===
+                                "rejected"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-yellow-50 text-yellow-700"
+                        }`}
+                      >
+                        {applicationStatusLabel(
+                          application.status
+                        )}
                       </span>
-
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="text-xl font-black text-slate-950">
-                            {getApplicantName(application)}
-                          </h3>
-
-                          <ApplicationBadge
-                            status={application.status}
-                          />
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-500">
-                          <span className="flex items-center gap-2">
-                            <IdCard size={16} />
-                            {application.license_number}
-                          </span>
-
-                          <span className="flex items-center gap-2">
-                            <CalendarDays size={16} />
-                            Vence{" "}
-                            {formatDate(
-                              application.license_expiration
-                            )}
-                          </span>
-
-                          <span className="flex items-center gap-2">
-                            <Clock3 size={16} />
-                            Enviada{" "}
-                            {formatDate(
-                              application.created_at
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap gap-3">
-                          <StatusPill
-                            valid={
-                              application.documents_complete
-                            }
-                            label={
-                              application.documents_complete
-                                ? "Documentos completos"
-                                : "Documentos incompletos"
-                            }
-                            icon={FileCheck2}
-                          />
-
-                          <FacePill
-                            status={
-                              application.face_match_status
-                            }
-                            score={
-                              application.face_match_score
-                            }
-                          />
-                        </div>
-                      </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openDocuments(application)
+                    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <DataItem
+                        label="Número de licencia"
+                        value={
+                          application.license_number
                         }
-                        disabled={
-                          openingId === application.id
-                        }
-                        className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white disabled:opacity-50"
-                      >
-                        {openingId === application.id ? (
-                          <>
-                            <LoaderCircle
-                              size={17}
-                              className="animate-spin"
-                            />
-                            Abriendo...
-                          </>
-                        ) : expanded ? (
-                          <>
-                            <X size={17} />
-                            Cerrar documentos
-                          </>
-                        ) : (
-                          <>
-                            <Eye size={17} />
-                            Revisar documentos
-                          </>
+                      />
+
+                      <DataItem
+                        label="Vencimiento de licencia"
+                        value={formatDate(
+                          application.license_expiration
                         )}
-                      </button>
+                      />
+
+                      <DataItem
+                        label="Estado donde opera"
+                        value={
+                          application.operating_state
+                        }
+                      />
+
+                      <DataItem
+                        label="Ciudad o municipio"
+                        value={
+                          application.operating_city
+                        }
+                      />
+
+                      <DataItem
+                        label="Número económico"
+                        value={
+                          application.taxi_number
+                        }
+                      />
+
+                      <DataItem
+                        label="Concesión o permiso"
+                        value={
+                          application.concession_number
+                        }
+                      />
+
+                      <DataItem
+                        label="Autoridad emisora"
+                        value={
+                          application.concession_authority
+                        }
+                      />
+
+                      <DataItem
+                        label="Titular de la concesión"
+                        value={
+                          application.concession_holder_name
+                        }
+                      />
+
+                      <DataItem
+                        label="Vencimiento del permiso"
+                        value={formatDate(
+                          application.concession_expiration
+                        )}
+                      />
+
+                      <DataItem
+                        label="VIN / número de serie"
+                        value={
+                          application.vehicle_vin
+                        }
+                      />
+
+                      <DataItem
+                        label="Documentos"
+                        value={
+                          application.documents_complete
+                            ? "Completos"
+                            : "Incompletos"
+                        }
+                      />
+
+                      <DataItem
+                        label="Verificación facial"
+                        value={`${faceStatusLabel(
+                          application.face_match_status
+                        )}${
+                          application.face_match_score !==
+                          null
+                            ? ` (${application.face_match_score}%)`
+                            : ""
+                        }`}
+                      />
                     </div>
                   </div>
 
-                  {application.status === "pending" && (
-                    <div className="mt-6 rounded-[1.7rem] border border-slate-200 bg-slate-50 p-4">
-                      <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                        Acciones de revisión
-                      </p>
+                  <div className="flex flex-wrap gap-3 xl:max-w-sm xl:justify-end">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openDocuments(
+                          application
+                        )
+                      }
+                      disabled={
+                        openingId ===
+                        application.id
+                      }
+                      className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                    >
+                      {openingId ===
+                      application.id
+                        ? "Abriendo..."
+                        : "Revisar documentos"}
+                    </button>
 
-                      <div className="flex flex-wrap gap-3">
+                    {application.status ===
+                      "pending" && (
+                      <>
                         <button
                           type="button"
                           onClick={() =>
@@ -758,9 +673,8 @@ export default function DriverApplicationsAdminPage() {
                             )
                           }
                           disabled={processing}
-                          className="flex h-11 items-center gap-2 rounded-2xl bg-emerald-100 px-4 text-sm font-black text-emerald-800 transition hover:bg-emerald-200 disabled:opacity-50"
+                          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                         >
-                          <CheckCircle2 size={17} />
                           Rostro coincide
                         </button>
 
@@ -773,9 +687,8 @@ export default function DriverApplicationsAdminPage() {
                             )
                           }
                           disabled={processing}
-                          className="flex h-11 items-center gap-2 rounded-2xl bg-red-100 px-4 text-sm font-black text-red-700 transition hover:bg-red-200 disabled:opacity-50"
+                          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
                         >
-                          <XCircle size={17} />
                           No coincide
                         </button>
 
@@ -788,317 +701,205 @@ export default function DriverApplicationsAdminPage() {
                             )
                           }
                           disabled={processing}
-                          className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-slate-400 disabled:opacity-50"
+                          className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
                         >
-                          <Fingerprint size={17} />
                           Revisión manual
                         </button>
 
-                        <div className="hidden flex-1 xl:block" />
-
                         <button
                           type="button"
                           onClick={() =>
-                            rejectApplication(application.id)
-                          }
-                          disabled={processing}
-                          className="flex h-11 items-center gap-2 rounded-2xl border border-red-200 bg-white px-5 text-sm font-black text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-                        >
-                          <X size={17} />
-                          Rechazar
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            approveApplication(application.id)
+                            approveApplication(
+                              application.id
+                            )
                           }
                           disabled={
                             processing ||
                             application.face_match_status !==
                               "matched" ||
-                            !application.documents_complete
+                            !application.documents_complete ||
+                            !application.concession_document_url ||
+                            !application.vehicle_vin ||
+                            !application.taxi_number ||
+                            !application.concession_number
                           }
-                          className="flex h-11 items-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-35"
+                          className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                         >
-                          {processing ? (
-                            <LoaderCircle
-                              size={17}
-                              className="animate-spin"
-                            />
-                          ) : (
-                            <BadgeCheck size={17} />
-                          )}
-                          Aprobar conductor
+                          Aprobar
                         </button>
-                      </div>
 
-                      {(application.face_match_status !==
-                        "matched" ||
-                        !application.documents_complete) && (
-                        <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-700">
-                          <AlertTriangle size={15} />
-                          Para aprobar, los documentos deben
-                          estar completos y el rostro debe
-                          coincidir.
-                        </p>
-                      )}
-                    </div>
-                  )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            rejectApplication(
+                              application.id
+                            )
+                          }
+                          disabled={processing}
+                          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
+                        >
+                          Rechazar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                  {expanded && links && (
-                    <div className="mt-6">
-                      <div className="mb-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                            Documentación privada
-                          </p>
+                {links && (
+                  <div className="mt-8">
+                    <h3 className="mb-4 text-lg font-bold">
+                      Documentos obligatorios
+                    </h3>
 
-                          <h4 className="mt-1 text-xl font-black">
-                            Expediente del solicitante
-                          </h4>
-                        </div>
-
-                        <ShieldCheck
-                          size={23}
-                          className="text-yellow-600"
-                        />
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        <DocumentCard
-                          label="Foto de perfil"
-                          url={links.profilePhoto}
-                          icon={UserRound}
-                        />
-
-                        <DocumentCard
-                          label="Selfie frontal"
-                          url={links.selfie}
-                          icon={Fingerprint}
-                        />
-
-                        <DocumentCard
-                          label="Licencia — frente"
-                          url={links.licenseFront}
-                          icon={IdCard}
-                        />
-
-                        <DocumentCard
-                          label="Licencia — reverso"
-                          url={links.licenseBack}
-                          icon={FileImage}
-                        />
-
-                        <DocumentCard
-                          label="Identificación oficial"
-                          url={links.identification}
-                          icon={FileText}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {application.rejection_reason && (
-                    <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                      <AlertTriangle
-                        size={18}
-                        className="mt-0.5 shrink-0"
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <DocumentCard
+                        label="Foto de perfil"
+                        url={links.profilePhoto}
                       />
 
-                      <div>
-                        <p className="font-black">
-                          Motivo del rechazo
-                        </p>
+                      <DocumentCard
+                        label="Selfie"
+                        url={links.selfie}
+                      />
 
-                        <p className="mt-1 leading-6">
-                          {application.rejection_reason}
-                        </p>
-                      </div>
+                      <DocumentCard
+                        label="Licencia frente"
+                        url={links.licenseFront}
+                      />
+
+                      <DocumentCard
+                        label="Licencia reverso"
+                        url={links.licenseBack}
+                      />
+
+                      <DocumentCard
+                        label="Identificación"
+                        url={links.identification}
+                      />
+
+                      <DocumentCard
+                        label="Concesión o permiso"
+                        url={
+                          links.concessionDocument
+                        }
+                        document
+                      />
                     </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
+
+                    <h3 className="mb-4 mt-8 text-lg font-bold">
+                      Fotografías opcionales del taxi
+                    </h3>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <DocumentCard
+                        label="Vista frontal"
+                        url={
+                          links.vehicleFrontPhoto
+                        }
+                      />
+
+                      <DocumentCard
+                        label="Vista trasera"
+                        url={
+                          links.vehicleRearPhoto
+                        }
+                      />
+
+                      <DocumentCard
+                        label="Lado izquierdo"
+                        url={
+                          links.vehicleLeftPhoto
+                        }
+                      />
+
+                      <DocumentCard
+                        label="Lado derecho"
+                        url={
+                          links.vehicleRightPhoto
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {application.rejection_reason && (
+                  <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                    Motivo:{" "}
+                    {
+                      application.rejection_reason
+                    }
+                  </p>
+                )}
+              </article>
+            );
+          })
         )}
-      </Card>
+      </div>
     </section>
   );
 }
 
-function StatCard({
+function DataItem({
   label,
   value,
-  description,
-  icon: Icon,
-  iconClass,
 }: {
   label: string;
-  value: number;
-  description: string;
-  icon: typeof Clock3;
-  iconClass: string;
+  value: string | null;
 }) {
   return (
-    <Card>
-      <div className="flex items-start justify-between">
-        <span
-          className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-2xl",
-            iconClass
-          )}
-        >
-          <Icon size={23} />
-        </span>
-
-        <p className="text-4xl font-black">{value}</p>
-      </div>
-
-      <p className="mt-5 font-black">{label}</p>
-      <p className="mt-1 text-sm text-slate-500">
-        {description}
+    <div className="rounded-xl bg-gray-50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+        {label}
       </p>
-    </Card>
-  );
-}
 
-function ApplicationBadge({
-  status,
-}: {
-  status: ApplicationStatus;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-3 py-1 text-xs font-black",
-        status === "approved" &&
-          "bg-emerald-100 text-emerald-700",
-        status === "pending" &&
-          "bg-amber-100 text-amber-800",
-        status === "rejected" &&
-          "bg-red-100 text-red-700"
-      )}
-    >
-      {statusLabels[status]}
-    </span>
-  );
-}
-
-function StatusPill({
-  valid,
-  label,
-  icon: Icon,
-}: {
-  valid: boolean;
-  label: string;
-  icon: typeof FileCheck2;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black",
-        valid
-          ? "bg-emerald-100 text-emerald-700"
-          : "bg-red-100 text-red-700"
-      )}
-    >
-      {valid ? <Check size={14} /> : <X size={14} />}
-      <Icon size={14} />
-      {label}
-    </span>
-  );
-}
-
-function FacePill({
-  status,
-  score,
-}: {
-  status: FaceStatus;
-  score: number | null;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black",
-        status === "matched" &&
-          "bg-emerald-100 text-emerald-700",
-        status === "pending" &&
-          "bg-slate-100 text-slate-600",
-        status === "manual_review" &&
-          "bg-blue-100 text-blue-700",
-        status === "not_matched" &&
-          "bg-red-100 text-red-700"
-      )}
-    >
-      <Fingerprint size={14} />
-      {faceLabels[status]}
-      {score !== null ? ` · ${score}%` : ""}
-    </span>
+      <p className="mt-2 break-words text-sm font-semibold text-gray-800">
+        {value || "No registrado"}
+      </p>
+    </div>
   );
 }
 
 function DocumentCard({
   label,
   url,
-  icon: Icon,
+  document = false,
 }: {
   label: string;
   url: string | null;
-  icon: typeof FileText;
+  document?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white">
-      <div className="flex items-center gap-3 border-b border-slate-100 p-4">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-          <Icon size={19} />
-        </span>
-
-        <p className="font-black">{label}</p>
-      </div>
+    <div className="rounded-xl border p-4">
+      <p className="mb-3 text-sm font-semibold">
+        {label}
+      </p>
 
       {url ? (
         <a
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="group block"
+          className="block"
         >
-          {isPdfUrl(url) ? (
-            <div className="flex h-56 flex-col items-center justify-center bg-slate-50">
-              <FileText
-                size={42}
-                className="text-red-600"
-              />
-
-              <p className="mt-4 text-sm font-black">
-                Documento PDF
-              </p>
+          {document ? (
+            <div className="flex h-52 items-center justify-center rounded-lg bg-gray-100 px-5 text-center text-sm font-semibold text-gray-700">
+              Abrir documento o imagen
             </div>
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={url}
               alt={label}
-              className="h-56 w-full bg-slate-100 object-contain transition group-hover:scale-[1.02]"
+              className="h-52 w-full rounded-lg bg-gray-100 object-contain"
             />
           )}
 
-          <div className="flex items-center justify-center gap-2 p-4 text-sm font-black text-slate-700 transition group-hover:bg-slate-50">
-            <Eye size={17} />
+          <p className="mt-3 text-center text-sm font-semibold underline">
             Abrir en tamaño completo
-          </div>
+          </p>
         </a>
       ) : (
-        <div className="flex h-72 flex-col items-center justify-center bg-slate-50 text-center">
-          <FileText
-            size={35}
-            className="text-slate-300"
-          />
-
-          <p className="mt-3 text-sm font-bold text-slate-500">
-            Documento no disponible
-          </p>
+        <div className="flex h-52 items-center justify-center rounded-lg bg-gray-100 px-4 text-center text-sm text-gray-500">
+          Archivo no disponible
         </div>
       )}
     </div>
