@@ -17,6 +17,7 @@ import {
   CircleDollarSign,
   Clock3,
   MapPin,
+  MessageCircle,
   Navigation,
   Phone,
   Radio,
@@ -973,6 +974,58 @@ export default function ActiveTripPage({
                 pin={null}
                 visibleToPassenger={role === "passenger"}
               />
+            )}
+
+          {trip.driver_id &&
+            !isCompleted &&
+            !isCancelled && (
+              <Card className="overflow-hidden border-slate-200">
+                <div className="flex items-start gap-4">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-yellow-400">
+                    <MessageCircle size={25} />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-600">
+                      Comunicación del viaje
+                    </p>
+
+                    <h2 className="mt-1 text-2xl font-black text-slate-950">
+                      Coordina de forma segura
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      Envía mensajes o fotografías sin compartir tu número
+                      personal.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <Link
+                    href={`/dashboard/trips/${trip.id}/chat`}
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300"
+                  >
+                    <MessageCircle size={19} />
+                    Abrir chat
+                  </Link>
+
+                  <Link
+                    href={`/dashboard/trips/${trip.id}/report`}
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 font-black text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <ShieldCheck size={19} />
+                    Reportar incidente
+                  </Link>
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs leading-6 text-slate-500">
+                    El chat permanece disponible durante el viaje y registra
+                    los mensajes para seguridad de ambas partes.
+                  </p>
+                </div>
+              </Card>
             )}
 
           {!isCompleted && !isCancelled && role === "passenger" && (
