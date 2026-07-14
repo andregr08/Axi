@@ -49,7 +49,7 @@ const statusLabels: Record<TripStatus, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³",
+  driver_arrived: "Conductor llegÃ³",
   in_progress: "Viaje en curso",
   completed: "Viaje completado",
   cancelled: "Viaje cancelado",
@@ -64,7 +64,7 @@ const nextDriverAction: Partial<
   },
   driver_arriving: {
     status: "driver_arrived",
-    label: "Ya lleguÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©",
+    label: "Ya lleguÃ©",
   },
   driver_arrived: {
     status: "in_progress",
@@ -263,7 +263,7 @@ export default function ActiveTripPage({
   }
 
   async function retryDispatch() {
-    setMessage("Ampliando la bÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âºsqueda de conductores...");
+    setMessage("Ampliando la bÃºsqueda de conductores...");
 
     const { data, error } = await supabase.rpc(
       "retry_trip_dispatch",
@@ -273,7 +273,7 @@ export default function ActiveTripPage({
     );
 
     if (error) {
-      setMessage(`Error en la bÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âºsqueda: ${error.message}`);
+      setMessage(`Error en la bÃºsqueda: ${error.message}`);
       return;
     }
 
@@ -285,7 +285,7 @@ export default function ActiveTripPage({
       );
     } else {
       setMessage(
-        `Intento ${result?.attempt_number}: se notificÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ a ${
+        `Intento ${result?.attempt_number}: se notificÃ³ a ${
           result?.notified_drivers ?? 0
         } conductores en un radio de ${result?.radius_km ?? 0} km.`
       );
@@ -309,7 +309,7 @@ export default function ActiveTripPage({
     }
 
     const confirmed = window.confirm(
-      "El viaje volverÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ a buscar otro conductor. ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿Confirmas la cancelaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n?"
+      "El viaje volverÃ¡ a buscar otro conductor. Â¿Confirmas la cancelaciÃ³n?"
     );
 
     if (!confirmed) return;
@@ -326,7 +326,7 @@ export default function ActiveTripPage({
       setMessage(`Error cancelando viaje: ${error.message}`);
     } else {
       setMessage(
-        "Cancelaste el viaje. El pasajero volverÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ a buscar otro conductor."
+        "Cancelaste el viaje. El pasajero volverÃ¡ a buscar otro conductor."
       );
 
       await loadTrip();
@@ -339,7 +339,7 @@ export default function ActiveTripPage({
     if (!trip) return;
 
     const confirmed = window.confirm(
-      `ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿Confirmas la acciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n "${statusLabels[nextStatus]}"?`
+      `Â¿Confirmas la acciÃ³n "${statusLabels[nextStatus]}"?`
     );
 
     if (!confirmed) return;
@@ -394,7 +394,7 @@ export default function ActiveTripPage({
           </h1>
 
           <p className="mt-2 text-gray-600">
-            La informaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n se actualiza automÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ticamente.
+            La informaciÃ³n se actualiza automÃ¡ticamente.
           </p>
         </div>
 
@@ -550,7 +550,7 @@ export default function ActiveTripPage({
               }
               className="w-full rounded-xl border px-5 py-4 text-lg font-semibold hover:bg-gray-50"
             >
-              Aplicar cupón
+              Aplicar cup?n
             </button>
           </div>
         )}
@@ -567,13 +567,13 @@ export default function ActiveTripPage({
               </p>
               <p className="mt-1">
                 {trip.cancellation_reason ||
-                  "No se registrÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ un motivo."}
+                  "No se registró un motivo."}
               </p>
             </div>
 
             <div>
               <p className="text-sm font-semibold">
-                PenalizaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n
+                Penalización
               </p>
               <p className="mt-1 text-xl font-bold">
                 ${Number(trip.cancellation_fee ?? 0).toFixed(2)}

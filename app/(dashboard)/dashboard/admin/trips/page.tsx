@@ -36,7 +36,7 @@ const statusLabels: Record<TripStatus, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegÃƒÂ³",
+  driver_arrived: "Conductor llegó",
   in_progress: "En curso",
   completed: "Completado",
   cancelled: "Cancelado",
@@ -156,7 +156,7 @@ export default function AdminTripsPage() {
     <section>
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          AdministraciÃƒÂ³n
+          Administración
         </p>
 
         <h1 className="text-3xl font-bold text-gray-900">
