@@ -457,6 +457,63 @@ export default function ActiveTripPage({
     );
   }
 
+  async function activateTripSos() {
+    if (!trip) {
+      throw new Error("No se encontró el viaje activo.");
+    }
+
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+
+    if (navigator.geolocation) {
+      try {
+        const position =
+          await new Promise<GeolocationPosition>(
+            (resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(
+                resolve,
+                reject,
+                {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 0,
+                }
+              );
+            }
+          );
+
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+      } catch {
+        latitude = null;
+        longitude = null;
+      }
+    }
+
+    const { error } = await supabase.rpc(
+      "activate_sos",
+      {
+        related_trip_id: trip.id,
+        latitude_value: latitude,
+        longitude_value: longitude,
+        message_value:
+          "Alerta activada durante un viaje desde el botón SOS.",
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        `No fue posible activar SOS: ${error.message}`
+      );
+    }
+
+    setMessage(
+      latitude !== null && longitude !== null
+        ? "Alerta SOS activada. AXI recibió tu ubicación actual."
+        : "Alerta SOS activada. No fue posible incluir tu ubicación."
+    );
+  }
+
   async function advanceStatus(nextStatus: TripStatus) {
     if (!trip) return;
 
@@ -1056,12 +1113,16 @@ export default function ActiveTripPage({
               </div>
 
               <div className="mt-6">
-                <SOSButton tripId={trip.id} />
+                <SOSButton
+                  tripId={trip.id}
+                  onActivate={activateTripSos}
+                />
               </div>
 
               <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-                La alerta se conectará después con ubicación, contactos de
-                confianza y registro de incidentes.
+                AXI registrará la alerta, el viaje y tu ubicación cuando
+                el navegador permita obtenerla. Para una emergencia inmediata,
+                también puedes llamar al 911.
               </p>
             </Card>
           )}

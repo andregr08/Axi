@@ -34,6 +34,7 @@ export function SOSButton({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [activating, setActivating] = useState(false);
   const [activated, setActivated] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const startedAtRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -92,6 +93,7 @@ export function SOSButton({
 
   async function activateEmergency() {
     setActivating(true);
+    setErrorMessage("");
 
     try {
       await onActivate?.();
@@ -99,10 +101,15 @@ export function SOSButton({
       setActivated(true);
       setConfirmOpen(false);
 
-      console.info("SOS preparado para backend", {
-        tripId: tripId ?? null,
-        activatedAt: new Date().toISOString(),
-      });
+      if ("vibrate" in navigator) {
+        navigator.vibrate([250, 120, 250]);
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No fue posible activar la alerta SOS."
+      );
     } finally {
       setActivating(false);
     }
@@ -222,6 +229,15 @@ export function SOSButton({
             </div>
 
             <div className="space-y-4 p-6 sm:p-8">
+              {errorMessage && (
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700"
+                >
+                  {errorMessage}
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={activateEmergency}
