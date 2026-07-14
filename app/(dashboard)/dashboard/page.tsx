@@ -16,6 +16,7 @@ import {
   Star,
   UserRound,
 } from "lucide-react";
+import { DriverHome } from "@/components/dashboard/DriverHome";
 import { Hero } from "@/components/dashboard/Hero";
 import { GoogleMapView } from "@/components/maps/GoogleMap";
 import { RideActionPanel } from "@/components/trips/RideActionPanel";
@@ -102,6 +103,15 @@ export default function DashboardPage() {
 
   const role = profile?.role ?? "passenger";
   const displayName = profile?.full_name || "Usuario";
+
+  if (role === "driver") {
+    return (
+      <DriverHome
+        name={displayName}
+        email={email}
+      />
+    );
+  }
 
   return (
     <section className="space-y-8">
@@ -342,7 +352,7 @@ export default function DashboardPage() {
                 <ChevronRight size={18} className="text-slate-400" />
               </Link>
 
-              {(role === "driver" || role === "admin") && (
+              {role === "admin" && (
                 <Link
                   href="/dashboard/vehicles"
                   className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 transition hover:border-slate-300 hover:bg-slate-50"
