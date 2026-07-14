@@ -69,7 +69,7 @@ export default function DriverStatusPage() {
     setMessage("");
 
     if (!navigator.geolocation) {
-      setMessage("Tu navegador no permite usar la ubicaciÃƒÂ³n.");
+      setMessage("Tu navegador no permite usar la ubicación.");
       return;
     }
 
@@ -95,14 +95,14 @@ export default function DriverStatusPage() {
         setLocating(false);
 
         if (error) {
-          setMessage(`Error actualizando ubicaciÃƒÂ³n: ${error.message}`);
+          setMessage(`Error actualizando ubicación: ${error.message}`);
           return;
         }
 
         setLatitude(newLatitude);
         setLongitude(newLongitude);
         setAccuracy(newAccuracy);
-        setMessage("UbicaciÃƒÂ³n actualizada correctamente.");
+        setMessage("Ubicación actualizada correctamente.");
       },
       (error) => {
         setLocating(false);
@@ -112,7 +112,7 @@ export default function DriverStatusPage() {
           return;
         }
 
-        setMessage("No pudimos obtener tu ubicaciÃƒÂ³n.");
+        setMessage("No pudimos obtener tu ubicación.");
       },
       {
         enableHighAccuracy: true,
@@ -140,8 +140,8 @@ export default function DriverStatusPage() {
     setOnline(nextOnline);
     setMessage(
       nextOnline
-        ? "Ya estÃƒÂ¡s en lÃƒÂ­nea y puedes recibir viajes."
-        : "Ahora estÃƒÂ¡s fuera de lÃƒÂ­nea."
+        ? "Ya estás en línea y puedes recibir viajes."
+        : "Ahora estás fuera de línea."
     );
   }
 
@@ -161,7 +161,7 @@ export default function DriverStatusPage() {
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Comparte tu ubicaciÃƒÂ³n y controla si estÃƒÂ¡s disponible para recibir viajes.
+          Comparte tu ubicación y controla si estás disponible para recibir viajes.
         </p>
       </div>
 
@@ -174,12 +174,12 @@ export default function DriverStatusPage() {
               online ? "text-green-600" : "text-gray-700"
             }`}
           >
-            {online ? "En lÃƒÂ­nea" : "Fuera de lÃƒÂ­nea"}
+            {online ? "En línea" : "Fuera de línea"}
           </p>
         </div>
 
         <div className="rounded-xl border p-5">
-          <h2 className="text-lg font-bold">UbicaciÃƒÂ³n GPS</h2>
+          <h2 className="text-lg font-bold">Ubicación GPS</h2>
 
           {latitude !== null && longitude !== null ? (
             <div className="mt-3 text-sm text-gray-600">
@@ -187,12 +187,12 @@ export default function DriverStatusPage() {
               <p>Longitud: {Number(longitude).toFixed(6)}</p>
 
               {accuracy !== null && (
-                <p>PrecisiÃƒÂ³n aproximada: {Math.round(accuracy)} metros</p>
+                <p>Precisión aproximada: {Math.round(accuracy)} metros</p>
               )}
             </div>
           ) : (
             <p className="mt-3 text-sm text-gray-500">
-              TodavÃƒÂ­a no has compartido tu ubicaciÃƒÂ³n.
+              Todavía no has compartido tu ubicación.
             </p>
           )}
 
@@ -203,8 +203,8 @@ export default function DriverStatusPage() {
             className="mt-5 w-full rounded-xl border px-5 py-3 font-semibold hover:bg-gray-50 disabled:opacity-50"
           >
             {locating
-              ? "Obteniendo ubicaciÃƒÂ³n..."
-              : "Actualizar mi ubicaciÃƒÂ³n"}
+              ? "Obteniendo ubicación..."
+              : "Actualizar mi ubicación"}
           </button>
         </div>
 
@@ -220,7 +220,7 @@ export default function DriverStatusPage() {
             disabled={processing}
             className="w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:opacity-50"
           >
-            {processing ? "Procesando..." : "Ponerme fuera de lÃƒÂ­nea"}
+            {processing ? "Procesando..." : "Ponerme fuera de línea"}
           </button>
         ) : (
           <button
@@ -228,7 +228,7 @@ export default function DriverStatusPage() {
             disabled={processing}
             className="w-full rounded-xl bg-black py-3 font-semibold text-white disabled:opacity-50"
           >
-            {processing ? "Procesando..." : "Ponerme en lÃƒÂ­nea"}
+            {processing ? "Procesando..." : "Ponerme en línea"}
           </button>
         )}
       </div>

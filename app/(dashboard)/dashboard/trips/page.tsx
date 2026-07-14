@@ -29,7 +29,7 @@ const statusName: Record<TripStatus, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegÃƒÂ³",
+  driver_arrived: "Conductor llegó",
   in_progress: "En curso",
   completed: "Completado",
   cancelled: "Cancelado",
@@ -70,7 +70,7 @@ export default function TripsPage() {
 
   async function cancelTrip(tripId: string) {
     const reason = window.prompt(
-      "Escribe el motivo de la cancelaciÃƒÂ³n:"
+      "Escribe el motivo de la cancelación:"
     );
 
     if (!reason) return;
@@ -81,7 +81,7 @@ export default function TripsPage() {
     }
 
     const confirmed = window.confirm(
-      "Ã‚Â¿Seguro que quieres cancelar este viaje?"
+      "¿Seguro que quieres cancelar este viaje?"
     );
 
     if (!confirmed) return;
@@ -104,8 +104,8 @@ export default function TripsPage() {
 
       setMessage(
         cancellationFee > 0
-          ? `Viaje cancelado. Se aplicÃƒÂ³ una penalizaciÃƒÂ³n de $${cancellationFee.toFixed(2)}.`
-          : "Viaje cancelado sin penalizaciÃƒÂ³n."
+          ? `Viaje cancelado. Se aplicó una penalización de $${cancellationFee.toFixed(2)}.`
+          : "Viaje cancelado sin penalización."
       );
 
       await loadTrips();
@@ -134,7 +134,7 @@ export default function TripsPage() {
     <section>
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          GestiÃƒÂ³n de viajes
+          Gestión de viajes
         </p>
 
         <h1 className="text-3xl font-bold text-gray-900">Mis viajes</h1>
