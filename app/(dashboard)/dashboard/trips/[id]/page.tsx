@@ -896,7 +896,28 @@ export default function ActiveTripPage({
 
       {!isSearching && (
         <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
-          <GoogleMapView />
+          <GoogleMapView
+            origin={
+              trip.origin_lat !== null &&
+              trip.origin_lng !== null
+                ? {
+                    lat: trip.origin_lat,
+                    lng: trip.origin_lng,
+                  }
+                : null
+            }
+            destination={
+              trip.destination_lat !== null &&
+              trip.destination_lng !== null
+                ? {
+                    lat: trip.destination_lat,
+                    lng: trip.destination_lng,
+                  }
+                : null
+            }
+            showUserLocation={false}
+            showRoute
+          />
 
         <div className="space-y-6">
           <Card>
