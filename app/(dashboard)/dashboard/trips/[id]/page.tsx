@@ -29,7 +29,10 @@ import {
   UserRound,
   XCircle,
 } from "lucide-react";
-import { GoogleMapView } from "@/components/maps/GoogleMap";
+import {
+  GoogleMapView,
+  type MapCoordinates,
+} from "@/components/maps/GoogleMap";
 import { SOSButton } from "@/components/safety/SOSButton";
 import {
   DriverIdentityCard,
@@ -196,6 +199,9 @@ export default function ActiveTripPage({
   const [driverName, setDriverName] = useState("");
   const [driverIdentity, setDriverIdentity] =
     useState<DriverIdentity | null>(null);
+
+  const [driverLocation, setDriverLocation] =
+    useState<MapCoordinates | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -308,6 +314,43 @@ export default function ActiveTripPage({
       }
     }
 
+    if (loadedTrip.driver_id) {
+      const {
+        data: locationData,
+        error: locationError,
+      } = await supabase
+        .from("drivers")
+        .select(
+          "current_lat, current_lng"
+        )
+        .eq(
+          "id",
+          loadedTrip.driver_id
+        )
+        .maybeSingle();
+
+      if (
+        !locationError &&
+        locationData?.current_lat !== null &&
+        locationData?.current_lat !== undefined &&
+        locationData?.current_lng !== null &&
+        locationData?.current_lng !== undefined
+      ) {
+        setDriverLocation({
+          lat: Number(
+            locationData.current_lat
+          ),
+          lng: Number(
+            locationData.current_lng
+          ),
+        });
+      } else {
+        setDriverLocation(null);
+      }
+    } else {
+      setDriverLocation(null);
+    }
+
     setLoading(false);
   }, [id]);
 
@@ -367,6 +410,56 @@ export default function ActiveTripPage({
       }
     };
   }, [id, loadTrip, router]);
+
+  useEffect(() => {
+    const driverId = trip?.driver_id;
+
+    if (!driverId) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(
+        `driver-location-${driverId}-${crypto.randomUUID()}`
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "drivers",
+          filter: `id=eq.${driverId}`,
+        },
+        (payload) => {
+          const updatedDriver =
+            payload.new as {
+              current_lat?: number | null;
+              current_lng?: number | null;
+            };
+
+          if (
+            updatedDriver.current_lat !== null &&
+            updatedDriver.current_lat !== undefined &&
+            updatedDriver.current_lng !== null &&
+            updatedDriver.current_lng !== undefined
+          ) {
+            setDriverLocation({
+              lat: Number(
+                updatedDriver.current_lat
+              ),
+              lng: Number(
+                updatedDriver.current_lng
+              ),
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [trip?.driver_id]);
 
   useEffect(() => {
     const searching =
@@ -914,6 +1007,9 @@ export default function ActiveTripPage({
                     lng: trip.destination_lng,
                   }
                 : null
+            }
+            driverLocation={
+              driverLocation
             }
             showUserLocation={false}
             showRoute

@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -69,6 +70,9 @@ export default function DriverStatusPage() {
   const [processing, setProcessing] = useState(false);
   const [refreshingStats, setRefreshingStats] = useState(false);
   const [message, setMessage] = useState("");
+
+  const locationWatchId = useRef<number | null>(null);
+  const lastLocationUpdate = useRef(0);
 
   const loadDriverStatus = useCallback(
     async (silent = false) => {
@@ -160,6 +164,102 @@ export default function DriverStatusPage() {
     void loadDriverStatus();
   }, [loadDriverStatus]);
 
+  useEffect(() => {
+    if (
+      !online ||
+      !navigator.geolocation
+    ) {
+      if (locationWatchId.current !== null) {
+        navigator.geolocation.clearWatch(
+          locationWatchId.current
+        );
+
+        locationWatchId.current = null;
+      }
+
+      return;
+    }
+
+    locationWatchId.current =
+      navigator.geolocation.watchPosition(
+        (position) => {
+          const now = Date.now();
+
+          setLatitude(
+            position.coords.latitude
+          );
+          setLongitude(
+            position.coords.longitude
+          );
+          setAccuracy(
+            position.coords.accuracy
+          );
+
+          if (
+            now -
+              lastLocationUpdate.current <
+            5000
+          ) {
+            return;
+          }
+
+          lastLocationUpdate.current = now;
+
+          void supabase
+            .rpc(
+              "update_driver_location",
+              {
+                latitude_value:
+                  position.coords.latitude,
+                longitude_value:
+                  position.coords.longitude,
+                speed_value:
+                  position.coords.speed,
+                heading_value:
+                  position.coords.heading,
+                accuracy_value:
+                  position.coords.accuracy,
+              }
+            )
+            .then(({ error }) => {
+              if (error) {
+                console.error(
+                  "Error actualizando GPS continuo:",
+                  error.message
+                );
+              }
+            });
+        },
+        (error) => {
+          if (
+            error.code ===
+            error.PERMISSION_DENIED
+          ) {
+            setMessage(
+              "Debes permitir el acceso continuo al GPS para permanecer en línea."
+            );
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 5000,
+        }
+      );
+
+    return () => {
+      if (
+        locationWatchId.current !== null
+      ) {
+        navigator.geolocation.clearWatch(
+          locationWatchId.current
+        );
+
+        locationWatchId.current = null;
+      }
+    };
+  }, [online]);
+
   function shareLocation() {
     setMessage("");
 
@@ -249,8 +349,8 @@ export default function DriverStatusPage() {
     setOnline(nextOnline);
     setMessage(
       nextOnline
-        ? "Ya estás en línea y puedes recibir viajes."
-        : "Ahora estás fuera de línea."
+        ? "Ya estás en línea. Tu ubicación se actualizará automáticamente."
+        : "Ahora estás fuera de línea y el seguimiento GPS se detuvo."
     );
   }
 
@@ -345,8 +445,9 @@ export default function DriverStatusPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Comparte tu ubicación, activa tu disponibilidad y mantén
-              actualizado tu estado para recibir solicitudes cercanas.
+              Comparte tu ubicación y activa tu disponibilidad. Mientras
+              permanezcas en línea, AXI actualizará automáticamente tu
+              posición para pasajeros y viajes activos.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
