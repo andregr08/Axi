@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
+import { InternationalPhoneInput } from "@/components/forms/InternationalPhoneInput";
 import { Logo } from "@/components/shared/Logo";
+import { normalizeInternationalPhone } from "@/lib/phone";
 import { supabase } from "@/lib/supabaseClient";
 
 type AccountType = "passenger" | "driver";
@@ -23,6 +25,7 @@ export default function RegisterPage() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [accountType, setAccountType] =
     useState<AccountType>("passenger");
@@ -35,8 +38,27 @@ export default function RegisterPage() {
     event.preventDefault();
     setErrorMessage("");
 
-    if (!fullName.trim() || !email.trim() || !password) {
-      setErrorMessage("Completa todos los campos.");
+    if (
+      !fullName.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      !password
+    ) {
+      setErrorMessage(
+        "Completa todos los campos."
+      );
+      return;
+    }
+
+    const normalizedPhone =
+      normalizeInternationalPhone(
+        phone
+      );
+
+    if (!normalizedPhone) {
+      setErrorMessage(
+        "Escribe un número de teléfono internacional válido."
+      );
       return;
     }
 
@@ -58,8 +80,10 @@ export default function RegisterPage() {
       options: {
         data: {
           full_name: fullName.trim(),
-          role: accountType === "driver" ? "passenger" : "passenger",
-          requested_account_type: accountType,
+          phone: normalizedPhone,
+          role: "passenger",
+          requested_account_type:
+            accountType,
         },
       },
     });
@@ -80,6 +104,27 @@ export default function RegisterPage() {
         "Cuenta creada. Revisa tu correo para confirmar el registro."
       );
       return;
+    }
+
+    const { error: profileError } =
+      await supabase
+        .from("profiles")
+        .update({
+          full_name:
+            fullName.trim(),
+          phone:
+            normalizedPhone,
+        })
+        .eq(
+          "id",
+          data.session.user.id
+        );
+
+    if (profileError) {
+      console.error(
+        "No fue posible guardar el teléfono:",
+        profileError.message
+      );
     }
 
     router.push(
@@ -165,6 +210,14 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
+
+            <InternationalPhoneInput
+              id="register-phone"
+              label="Teléfono internacional"
+              value={phone}
+              onChange={setPhone}
+              required
+            />
 
             <div>
               <label
