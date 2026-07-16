@@ -139,7 +139,7 @@ export default function ProfilePage() {
 
     if (phone.trim() && phone.replace(/\D/g, "").length < 10) {
       setProfileMessage(
-        "Escribe un nÃºmero de telÃ©fono vÃ¡lido de al menos 10 dÃ­gitos."
+        "Escribe un número de teléfono válido de al menos 10 dígitos."
       );
       return;
     }
@@ -181,7 +181,7 @@ export default function ProfilePage() {
 
     if (authError) {
       setProfileMessage(
-        `El perfil se guardÃ³, pero no se actualizÃ³ el nombre de autenticaciÃ³n: ${authError.message}`
+        `El perfil se guardó, pero no se actualizó el nombre de autenticación: ${authError.message}`
       );
     } else {
       setProfileMessage("Perfil actualizado correctamente.");
@@ -199,13 +199,13 @@ export default function ProfilePage() {
 
     if (newPassword.length < 8) {
       setPasswordMessage(
-        "La contraseÃ±a debe tener al menos 8 caracteres."
+        "La contraseña debe tener al menos 8 caracteres."
       );
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMessage("Las contraseÃ±as no coinciden.");
+      setPasswordMessage("Las contraseñas no coinciden.");
       return;
     }
 
@@ -217,11 +217,11 @@ export default function ProfilePage() {
 
     if (error) {
       setPasswordMessage(
-        `No fue posible cambiar la contraseÃ±a: ${error.message}`
+        `No fue posible cambiar la contraseña: ${error.message}`
       );
     } else {
       setPasswordMessage(
-        "ContraseÃ±a actualizada correctamente."
+        "Contraseña actualizada correctamente."
       );
       setNewPassword("");
       setConfirmPassword("");
@@ -321,7 +321,7 @@ export default function ProfilePage() {
 
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-md">
             <HeroMetric
-              label="CalificaciÃ³n"
+              label="Calificación"
               value={Number(profile.rating ?? 5).toFixed(1)}
               icon={Star}
             />
@@ -345,7 +345,7 @@ export default function ProfilePage() {
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  InformaciÃ³n de cuenta
+                  Información de cuenta
                 </h2>
               </div>
 
@@ -357,13 +357,13 @@ export default function ProfilePage() {
             <div className="mt-7 space-y-3">
               <AccountRow
                 icon={Mail}
-                label="Correo electrÃ³nico"
+                label="Correo electrónico"
                 value={email || "No registrado"}
               />
 
               <AccountRow
                 icon={Phone}
-                label="TelÃ©fono"
+                label="Teléfono"
                 value={profile.phone || "No registrado"}
               />
 
@@ -393,16 +393,16 @@ export default function ProfilePage() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-7 text-slate-400">
-                  Usa una contraseÃ±a Ãºnica y evita compartir tus datos de
+                  Usa una contraseña única y evita compartir tus datos de
                   acceso con otras personas.
                 </p>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              <SecurityItem label="SesiÃ³n protegida con Supabase Auth" />
-              <SecurityItem label="ContraseÃ±a cifrada" />
-              <SecurityItem label="Acceso segÃºn tu rol" />
+              <SecurityItem label="Sesión protegida con Supabase Auth" />
+              <SecurityItem label="Contraseña cifrada" />
+              <SecurityItem label="Acceso según tu rol" />
             </div>
           </Card>
         </div>
@@ -420,7 +420,7 @@ export default function ProfilePage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  MantÃ©n actualizada tu informaciÃ³n de contacto.
+                  Mantén actualizada tu información de contacto.
                 </p>
               </div>
 
@@ -464,7 +464,7 @@ export default function ProfilePage() {
                   htmlFor="phone"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  TelÃ©fono
+                  Teléfono
                 </label>
 
                 <div className="relative">
@@ -491,7 +491,7 @@ export default function ProfilePage() {
                   htmlFor="email"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Correo electrÃ³nico
+                  Correo electrónico
                 </label>
 
                 <div className="relative">
@@ -509,7 +509,7 @@ export default function ProfilePage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  El cambio de correo se habilitarÃ¡ posteriormente.
+                  El cambio de correo se habilitará posteriormente.
                 </p>
               </div>
 
@@ -548,11 +548,11 @@ export default function ProfilePage() {
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Cambiar contraseÃ±a
+                  Cambiar contraseña
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  La nueva contraseÃ±a debe tener al menos 8 caracteres.
+                  La nueva contraseña debe tener al menos 8 caracteres.
                 </p>
               </div>
 
@@ -567,7 +567,7 @@ export default function ProfilePage() {
             >
               <PasswordInput
                 id="new-password"
-                label="Nueva contraseÃ±a"
+                label="Nueva contraseña"
                 value={newPassword}
                 showPassword={showPassword}
                 onChange={setNewPassword}
@@ -578,7 +578,7 @@ export default function ProfilePage() {
 
               <PasswordInput
                 id="confirm-password"
-                label="Confirmar contraseÃ±a"
+                label="Confirmar contraseña"
                 value={confirmPassword}
                 showPassword={showPassword}
                 onChange={setConfirmPassword}
@@ -607,7 +607,7 @@ export default function ProfilePage() {
                 ) : (
                   <>
                     <KeyRound size={19} />
-                    Actualizar contraseÃ±a
+                    Actualizar contraseña
                   </>
                 )}
               </button>
@@ -708,7 +708,7 @@ function PasswordInput({
           onChange={(event) =>
             onChange(event.target.value)
           }
-          placeholder="MÃ­nimo 8 caracteres"
+          placeholder="Mínimo 8 caracteres"
           className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-14 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
         />
 
@@ -717,8 +717,8 @@ function PasswordInput({
           onClick={onToggle}
           aria-label={
             showPassword
-              ? "Ocultar contraseÃ±a"
-              : "Mostrar contraseÃ±a"
+              ? "Ocultar contraseña"
+              : "Mostrar contraseña"
           }
           className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-950"
         >
