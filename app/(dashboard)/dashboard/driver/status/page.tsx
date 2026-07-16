@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -41,6 +42,9 @@ export default function DriverStatusPage() {
   const [locating, setLocating] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
+
+  const watchIdRef = useRef<number | null>(null);
+  const lastLocationSentAtRef = useRef(0);
 
   const loadDriverStatus = useCallback(async () => {
     setLoading(true);
@@ -88,11 +92,152 @@ export default function DriverStatusPage() {
     void loadDriverStatus();
   }, [loadDriverStatus]);
 
+  async function saveDriverPosition(
+    position: GeolocationPosition,
+    showSuccessMessage = false
+  ) {
+    const now = Date.now();
+
+    // Evita mandar demasiadas escrituras a Supabase.
+    if (
+      !showSuccessMessage &&
+      now - lastLocationSentAtRef.current < 4000
+    ) {
+      return;
+    }
+
+    lastLocationSentAtRef.current = now;
+
+    const newLatitude =
+      position.coords.latitude;
+
+    const newLongitude =
+      position.coords.longitude;
+
+    const newAccuracy =
+      position.coords.accuracy;
+
+    const speedKmh =
+      position.coords.speed === null
+        ? null
+        : position.coords.speed * 3.6;
+
+    const { error } = await supabase.rpc(
+      "update_driver_location",
+      {
+        latitude_value: newLatitude,
+        longitude_value: newLongitude,
+        speed_value: speedKmh,
+        heading_value:
+          position.coords.heading,
+        accuracy_value: newAccuracy,
+      }
+    );
+
+    if (error) {
+      setMessage(
+        `Error actualizando ubicaciÃƒÂ³n: ${error.message}`
+      );
+      return;
+    }
+
+    setLatitude(newLatitude);
+    setLongitude(newLongitude);
+    setAccuracy(newAccuracy);
+
+    if (showSuccessMessage) {
+      setMessage(
+        "UbicaciÃƒÂ³n actualizada correctamente."
+      );
+    }
+  }
+
+  function stopLocationTracking() {
+    if (
+      watchIdRef.current !== null &&
+      navigator.geolocation
+    ) {
+      navigator.geolocation.clearWatch(
+        watchIdRef.current
+      );
+
+      watchIdRef.current = null;
+    }
+  }
+
+  function startLocationTracking() {
+    setMessage("");
+
+    if (!navigator.geolocation) {
+      setMessage(
+        "Tu navegador no permite utilizar la ubicaciÃƒÂ³n."
+      );
+      return;
+    }
+
+    if (watchIdRef.current !== null) {
+      return;
+    }
+
+    watchIdRef.current =
+      navigator.geolocation.watchPosition(
+        (position) => {
+          void saveDriverPosition(position);
+        },
+        (error) => {
+          if (
+            error.code ===
+            error.PERMISSION_DENIED
+          ) {
+            setMessage(
+              "Debes permitir el acceso al GPS."
+            );
+            stopLocationTracking();
+            return;
+          }
+
+          if (
+            error.code ===
+            error.POSITION_UNAVAILABLE
+          ) {
+            setMessage(
+              "La ubicaciÃƒÂ³n no estÃƒÂ¡ disponible en este momento."
+            );
+            return;
+          }
+
+          setMessage(
+            "No pudimos actualizar tu ubicaciÃƒÂ³n."
+          );
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 5000,
+        }
+      );
+  }
+
+  useEffect(() => {
+    return () => {
+      if (
+        watchIdRef.current !== null &&
+        navigator.geolocation
+      ) {
+        navigator.geolocation.clearWatch(
+          watchIdRef.current
+        );
+      }
+    };
+  }, []);
+
   function shareLocation() {
     setMessage("");
 
     if (!navigator.geolocation) {
-      setMessage("Tu navegador no permite utilizar la ubicación.");
+      setMessage(
+        "Tu navegador no permite utilizar la ubicaciÃƒÂ³n."
+      );
       return;
     }
 
@@ -100,51 +245,37 @@ export default function DriverStatusPage() {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const newLatitude = position.coords.latitude;
-        const newLongitude = position.coords.longitude;
-        const newAccuracy = position.coords.accuracy;
-
-        const { error } = await supabase.rpc(
-          "update_driver_location",
-          {
-            latitude_value: newLatitude,
-            longitude_value: newLongitude,
-            speed_value: position.coords.speed,
-            heading_value: position.coords.heading,
-            accuracy_value: newAccuracy,
-          }
+        await saveDriverPosition(
+          position,
+          true
         );
 
         setLocating(false);
-
-        if (error) {
-          setMessage(`Error actualizando ubicación: ${error.message}`);
-          return;
-        }
-
-        setLatitude(newLatitude);
-        setLongitude(newLongitude);
-        setAccuracy(newAccuracy);
-        setMessage("Ubicación actualizada correctamente.");
       },
       (error) => {
         setLocating(false);
 
-        if (error.code === error.PERMISSION_DENIED) {
-          setMessage("Debes permitir el acceso al GPS.");
+        if (
+          error.code ===
+          error.PERMISSION_DENIED
+        ) {
+          setMessage(
+            "Debes permitir el acceso al GPS."
+          );
           return;
         }
 
-        setMessage("No pudimos obtener tu ubicación.");
+        setMessage(
+          "No pudimos obtener tu ubicaciÃƒÂ³n."
+        );
       },
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 10000,
+        maximumAge: 5000,
       }
     );
   }
-
   async function changeOnlineStatus(nextOnline: boolean) {
     setProcessing(true);
     setMessage("");
@@ -155,7 +286,7 @@ export default function DriverStatusPage() {
     ) {
       setProcessing(false);
       setMessage(
-        "Actualiza tu ubicación antes de conectarte."
+        "Actualiza tu ubicaciÃƒÆ’Ã‚Â³n antes de conectarte."
       );
       return;
     }
@@ -177,8 +308,8 @@ export default function DriverStatusPage() {
     setOnline(nextOnline);
     setMessage(
       nextOnline
-        ? "Ya estás en línea y puedes recibir viajes."
-        : "Ahora estás fuera de línea."
+        ? "Ya estÃƒÆ’Ã‚Â¡s en lÃƒÆ’Ã‚Â­nea y puedes recibir viajes."
+        : "Ahora estÃƒÆ’Ã‚Â¡s fuera de lÃƒÆ’Ã‚Â­nea."
     );
   }
 
@@ -200,7 +331,7 @@ export default function DriverStatusPage() {
 
   const locationQuality =
     accuracy === null
-      ? "Sin medición"
+      ? "Sin mediciÃƒÆ’Ã‚Â³n"
       : accuracy <= 20
         ? "Excelente"
         : accuracy <= 50
@@ -256,7 +387,7 @@ export default function DriverStatusPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Comparte tu ubicación, activa tu disponibilidad y mantén
+              Comparte tu ubicaciÃƒÆ’Ã‚Â³n, activa tu disponibilidad y mantÃƒÆ’Ã‚Â©n
               actualizado tu estado para recibir solicitudes cercanas.
             </p>
 
@@ -281,7 +412,7 @@ export default function DriverStatusPage() {
                 </p>
 
                 <p className="mt-2 text-3xl font-black">
-                  {online ? "En línea" : "Fuera de línea"}
+                  {online ? "En lÃƒÆ’Ã‚Â­nea" : "Fuera de lÃƒÆ’Ã‚Â­nea"}
                 </p>
               </div>
 
@@ -312,7 +443,7 @@ export default function DriverStatusPage() {
                 ? "Procesando..."
                 : online
                   ? "Terminar jornada"
-                  : "Ponerme en línea"}
+                  : "Ponerme en lÃƒÆ’Ã‚Â­nea"}
 
               {!processing && <ArrowRight size={19} />}
             </button>
@@ -341,15 +472,15 @@ export default function DriverStatusPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Posición del conductor
+                  PosiciÃƒÆ’Ã‚Â³n del conductor
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Ubicación GPS
+                  UbicaciÃƒÆ’Ã‚Â³n GPS
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Actualiza tu ubicación antes de conectarte.
+                  Actualiza tu ubicaciÃƒÆ’Ã‚Â³n antes de conectarte.
                 </p>
               </div>
 
@@ -396,7 +527,7 @@ export default function DriverStatusPage() {
                   <Gauge size={21} className="text-blue-600" />
 
                   <p className="mt-4 text-xs font-black uppercase tracking-wider text-slate-400">
-                    Precisión
+                    PrecisiÃƒÆ’Ã‚Â³n
                   </p>
 
                   <p className="mt-2 font-black text-slate-950">
@@ -419,10 +550,10 @@ export default function DriverStatusPage() {
                 />
 
                 {locating
-                  ? "Obteniendo ubicación..."
+                  ? "Obteniendo ubicaciÃƒÆ’Ã‚Â³n..."
                   : hasLocation
-                    ? "Actualizar mi ubicación"
-                    : "Compartir mi ubicación"}
+                    ? "Actualizar mi ubicaciÃƒÆ’Ã‚Â³n"
+                    : "Compartir mi ubicaciÃƒÆ’Ã‚Â³n"}
               </button>
             </div>
           </div>
@@ -480,7 +611,7 @@ export default function DriverStatusPage() {
               </p>
 
               <p className="mt-2 text-xs text-slate-500">
-                Se actualizará con los viajes completados.
+                Se actualizarÃƒÆ’Ã‚Â¡ con los viajes completados.
               </p>
             </div>
           </Card>
@@ -511,8 +642,8 @@ export default function DriverStatusPage() {
 
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {hasLocation
-                    ? "Tu posición está lista para recibir solicitudes."
-                    : "AXI necesita tu ubicación para mostrarte viajes cercanos."}
+                    ? "Tu posiciÃƒÆ’Ã‚Â³n estÃƒÆ’Ã‚Â¡ lista para recibir solicitudes."
+                    : "AXI necesita tu ubicaciÃƒÆ’Ã‚Â³n para mostrarte viajes cercanos."}
                 </p>
               </div>
             </div>

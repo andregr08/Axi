@@ -39,6 +39,16 @@ import { cn } from "@/utils/cn";
 
 type UserRole = "admin" | "driver" | "passenger";
 
+type DriverLocation = {
+  driver_id: string;
+  latitude: number;
+  longitude: number;
+  speed_kmh: number | null;
+  heading: number | null;
+  accuracy_meters: number | null;
+  updated_at: string;
+};
+
 type TripStatus =
   | "requested"
   | "searching"
@@ -70,7 +80,7 @@ const statusLabels: Record<TripStatus, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegó",
+  driver_arrived: "Conductor llegÃƒÆ’Ã‚Â³",
   in_progress: "Viaje en curso",
   completed: "Viaje completado",
   cancelled: "Viaje cancelado",
@@ -78,12 +88,12 @@ const statusLabels: Record<TripStatus, string> = {
 
 const statusDescriptions: Record<TripStatus, string> = {
   requested: "La solicitud fue creada correctamente.",
-  searching: "AXI está buscando un conductor cercano.",
-  accepted: "Un conductor aceptó el viaje.",
+  searching: "AXI estÃƒÆ’Ã‚Â¡ buscando un conductor cercano.",
+  accepted: "Un conductor aceptÃƒÆ’Ã‚Â³ el viaje.",
   driver_arriving: "El conductor se dirige al punto de origen.",
   driver_arrived: "El conductor ya se encuentra en el punto de origen.",
   in_progress: "El viaje se encuentra en curso.",
-  completed: "El recorrido terminó correctamente.",
+  completed: "El recorrido terminÃƒÆ’Ã‚Â³ correctamente.",
   cancelled: "La solicitud fue cancelada.",
 };
 
@@ -102,7 +112,7 @@ const nextDriverAction: Partial<
   },
   driver_arriving: {
     status: "driver_arrived",
-    label: "Ya llegué",
+    label: "Ya lleguÃƒÆ’Ã‚Â©",
   },
   driver_arrived: {
     status: "in_progress",
@@ -128,7 +138,7 @@ const progressSteps: Array<{
   },
   {
     status: "driver_arrived",
-    label: "Llegó",
+    label: "LlegÃƒÆ’Ã‚Â³",
   },
   {
     status: "in_progress",
@@ -190,6 +200,12 @@ export default function ActiveTripPage({
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
+
+  const [driverLocation, setDriverLocation] =
+    useState<DriverLocation | null>(null);
+
+  const [locationConnected, setLocationConnected] =
+    useState(false);
 
   const loadTrip = useCallback(async () => {
     const { data, error } = await supabase
@@ -353,11 +369,93 @@ export default function ActiveTripPage({
     };
   }, [id, loadTrip, router]);
 
+  useEffect(() => {
+    if (!trip?.driver_id) {
+      return;
+    }
+
+    let locationChannel:
+      | ReturnType<typeof supabase.channel>
+      | null = null;
+
+    const driverId = trip.driver_id;
+
+    async function startLocationTracking() {
+      const { data, error } = await supabase
+        .from("driver_locations")
+        .select(`
+          driver_id,
+          latitude,
+          longitude,
+          speed_kmh,
+          heading,
+          accuracy_meters,
+          updated_at
+        `)
+        .eq("driver_id", driverId)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Error cargando ubicaciÃƒÂ³n del conductor:",
+          error.message
+        );
+      } else if (data) {
+        setDriverLocation(
+          data as DriverLocation
+        );
+      }
+
+      locationChannel = supabase
+        .channel(
+          `driver-location-${driverId}-${crypto.randomUUID()}`
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "driver_locations",
+            filter: `driver_id=eq.${driverId}`,
+          },
+          (payload) => {
+            if (
+              payload.eventType === "DELETE"
+            ) {
+              setDriverLocation(null);
+              return;
+            }
+
+            setDriverLocation(
+              payload.new as DriverLocation
+            );
+          }
+        )
+        .subscribe((status) => {
+          setLocationConnected(
+            status === "SUBSCRIBED"
+          );
+        });
+    }
+
+    void startLocationTracking();
+
+    return () => {
+      if (locationChannel) {
+        void supabase.removeChannel(
+          locationChannel
+        );
+      }
+
+      setLocationConnected(false);
+    };
+  }, [trip?.driver_id]);
+
   async function advanceStatus(nextStatus: TripStatus) {
     if (!trip) return;
 
     const confirmed = window.confirm(
-      `¿Confirmas la acción "${statusLabels[nextStatus]}"?`
+      `Ãƒâ€šÃ‚Â¿Confirmas la acciÃƒÆ’Ã‚Â³n "${statusLabels[nextStatus]}"?`
     );
 
     if (!confirmed) return;
@@ -576,7 +674,151 @@ export default function ActiveTripPage({
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
-        <GoogleMapView />
+                <div className="space-y-6">
+          <Card>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="relative flex h-3 w-3">
+                    {locationConnected && (
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    )}
+
+                    <span
+                      className={cn(
+                        "relative inline-flex h-3 w-3 rounded-full",
+                        locationConnected
+                          ? "bg-emerald-500"
+                          : "bg-amber-500"
+                      )}
+                    />
+                  </span>
+
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                    GPS en tiempo real
+                  </p>
+                </div>
+
+                <h2 className="mt-2 text-2xl font-black">
+                  UbicaciÃ³n del conductor
+                </h2>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  {trip.driver_id
+                    ? locationConnected
+                      ? "Recibiendo actualizaciones de ubicaciÃ³n."
+                      : "Conectando con el GPS del conductor..."
+                    : "TodavÃ­a no hay un conductor asignado."}
+                </p>
+              </div>
+
+              <span
+                className={cn(
+                  "flex h-14 w-14 items-center justify-center rounded-2xl",
+                  driverLocation
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-400"
+                )}
+              >
+                <Navigation size={25} />
+              </span>
+            </div>
+
+            {driverLocation ? (
+              <>
+                <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <LocationValue
+                    label="Latitud"
+                    value={Number(
+                      driverLocation.latitude
+                    ).toFixed(6)}
+                  />
+
+                  <LocationValue
+                    label="Longitud"
+                    value={Number(
+                      driverLocation.longitude
+                    ).toFixed(6)}
+                  />
+
+                  <LocationValue
+                    label="Velocidad"
+                    value={
+                      driverLocation.speed_kmh !== null
+                        ? `${Math.round(
+                            Number(driverLocation.speed_kmh)
+                          )} km/h`
+                        : "Sin movimiento"
+                    }
+                  />
+
+                  <LocationValue
+                    label="DirecciÃ³n GPS"
+                    value={
+                      driverLocation.heading !== null
+                        ? `${Math.round(
+                            Number(driverLocation.heading)
+                          )}Â°`
+                        : "No disponible"
+                    }
+                  />
+
+                  <LocationValue
+                    label="PrecisiÃ³n"
+                    value={
+                      driverLocation.accuracy_meters !== null
+                        ? `${Math.round(
+                            Number(
+                              driverLocation.accuracy_meters
+                            )
+                          )} m`
+                        : "No disponible"
+                    }
+                  />
+
+                  <LocationValue
+                    label="Ãšltima actualizaciÃ³n"
+                    value={new Intl.DateTimeFormat(
+                      "es-MX",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      }
+                    ).format(
+                      new Date(
+                        driverLocation.updated_at
+                      )
+                    )}
+                  />
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                  El conductor estÃ¡ compartiendo su ubicaciÃ³n durante este viaje.
+                </div>
+              </>
+            ) : (
+              <div className="mt-7 flex min-h-48 items-center justify-center rounded-3xl bg-slate-50 px-6 text-center">
+                <div>
+                  <MapPin
+                    size={34}
+                    className="mx-auto text-slate-300"
+                  />
+
+                  <p className="mt-4 font-black text-slate-700">
+                    UbicaciÃ³n no disponible
+                  </p>
+
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                    El conductor debe ponerse en lÃ­nea y permitir el acceso al GPS.
+                  </p>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <GoogleMapView />
+        </div>
 
         <div className="space-y-6">
           <Card>
@@ -734,8 +976,8 @@ export default function ActiveTripPage({
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Mantén presionado el botón SOS únicamente si existe una
-                    situación de riesgo o emergencia.
+                    MantÃƒÆ’Ã‚Â©n presionado el botÃƒÆ’Ã‚Â³n SOS ÃƒÆ’Ã‚Âºnicamente si existe una
+                    situaciÃƒÆ’Ã‚Â³n de riesgo o emergencia.
                   </p>
                 </div>
               </div>
@@ -745,7 +987,7 @@ export default function ActiveTripPage({
               </div>
 
               <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-                La alerta se conectará después con ubicación, contactos de
+                La alerta se conectarÃƒÆ’Ã‚Â¡ despuÃƒÆ’Ã‚Â©s con ubicaciÃƒÆ’Ã‚Â³n, contactos de
                 confianza y registro de incidentes.
               </p>
             </Card>
@@ -763,7 +1005,7 @@ export default function ActiveTripPage({
 
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                      Acción del conductor
+                      AcciÃƒÆ’Ã‚Â³n del conductor
                     </p>
 
                     <h2 className="mt-1 text-xl font-black">
@@ -815,7 +1057,7 @@ export default function ActiveTripPage({
                 </div>
 
                 <p className="mt-5 text-sm leading-6 text-slate-400">
-                  La información del conductor aparecerá cuando alguien acepte
+                  La informaciÃƒÆ’Ã‚Â³n del conductor aparecerÃƒÆ’Ã‚Â¡ cuando alguien acepte
                   tu viaje.
                 </p>
 
@@ -850,7 +1092,7 @@ export default function ActiveTripPage({
               </h2>
 
               <p className="mt-2 text-sm font-medium leading-6 text-black/65">
-                El recorrido terminó correctamente.
+                El recorrido terminÃƒÆ’Ã‚Â³ correctamente.
               </p>
 
               <div className="mt-6 flex gap-2">
@@ -883,5 +1125,25 @@ export default function ActiveTripPage({
         </div>
       </div>
     </section>
+  );
+}
+
+function LocationValue({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+
+      <p className="mt-2 break-words font-black text-slate-950">
+        {value}
+      </p>
+    </div>
   );
 }
