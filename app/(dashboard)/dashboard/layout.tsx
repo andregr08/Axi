@@ -8,6 +8,7 @@ import {
   Sidebar,
   type UserRole,
 } from "@/components/layout/Sidebar";
+import { PushServiceWorker } from "@/components/notifications/PushServiceWorker";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function DashboardLayout({
