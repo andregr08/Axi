@@ -1,32 +1,37 @@
-import type { AIContext } from "../prompt";
+import { getPassengerStats } from "./getPassengerStats";
 import { getProfile } from "./getProfile";
 import { getTrips } from "./getTrips";
+import type {
+  AIToolFunction,
+  AIToolInput,
+} from "./types";
 
 export type AITool =
   | "profile"
-  | "trips";
-
-type ToolFunction = (
-  context: AIContext
-) => Promise<unknown>;
+  | "trips"
+  | "passenger_stats";
 
 const registry: Record<
   AITool,
-  ToolFunction
+  AIToolFunction
 > = {
   profile: getProfile,
   trips: getTrips,
+  passenger_stats: getPassengerStats,
 };
-
-export async function executeTool(
-  tool: AITool,
-  context: AIContext
-) {
-  return registry[tool](context);
-}
 
 export function hasTool(
   tool: string
 ): tool is AITool {
-  return tool in registry;
+  return Object.prototype.hasOwnProperty.call(
+    registry,
+    tool
+  );
+}
+
+export async function executeTool(
+  tool: AITool,
+  input: AIToolInput
+) {
+  return registry[tool](input);
 }

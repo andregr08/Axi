@@ -1,6 +1,9 @@
 import { buildContext } from "./context";
+import { detectIntent } from "./intents";
 import { buildSystemPrompt } from "./prompt";
 import { GEMINI_MODEL } from "./provider";
+import { resolveTool } from "./router";
+import { executeTool } from "./tools";
 
 type HistoryMessage = {
   role: "user" | "assistant";
@@ -18,26 +21,42 @@ export async function askAI({
   message,
   history,
 }: AskAIParams) {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey =
+    process.env.GEMINI_API_KEY?.trim();
 
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY no configurada.");
+    throw new Error(
+      "GEMINI_API_KEY no configurada."
+    );
   }
 
-  const context = await buildContext(accessToken);
+  const context =
+    await buildContext(accessToken);
 
-  const systemPrompt =
-    buildSystemPrompt(context);
+  const intent = detectIntent(message);
+  const tool = resolveTool(intent);
+
+  const toolData = tool
+    ? await executeTool(tool, {
+        context,
+        accessToken,
+      })
+    : null;
+
+  const systemPrompt = buildSystemPrompt(
+    context,
+    toolData
+  );
 
   const contents = [
-    ...history.map((m) => ({
+    ...history.map((item) => ({
       role:
-        m.role === "assistant"
+        item.role === "assistant"
           ? "model"
           : "user",
       parts: [
         {
-          text: m.content,
+          text: item.content,
         },
       ],
     })),
@@ -88,8 +107,8 @@ export async function askAI({
   const text =
     json?.candidates?.[0]?.content?.parts
       ?.map(
-        (p: { text?: string }) =>
-          p.text ?? ""
+        (part: { text?: string }) =>
+          part.text ?? ""
       )
       .join("")
       .trim();
@@ -102,6 +121,9 @@ export async function askAI({
 
   return {
     context,
+    intent,
+    tool,
+    toolData,
     response: text,
   };
 }

@@ -47,7 +47,8 @@ Viaje ${index + 1}:
 }
 
 export function buildSystemPrompt(
-  context: AIContext
+  context: AIContext,
+  toolData: unknown = null
 ) {
   const tripsText =
     context.recentTrips.length > 0
@@ -70,6 +71,14 @@ DATOS DEL USUARIO AUTENTICADO
 VIAJES RECIENTES
 
 ${tripsText}
+
+DATOS OBTENIDOS POR HERRAMIENTAS
+
+${
+  toolData !== null
+    ? JSON.stringify(toolData, null, 2)
+    : "No se ejecutó ninguna herramienta para esta consulta."
+}
 
 REGLAS OBLIGATORIAS
 

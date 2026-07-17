@@ -1,7 +1,7 @@
-import type { AIContext } from "../prompt";
+import type { AIToolInput } from "./types";
 
-export async function getTrips(
-  context: AIContext
-) {
+export async function getTrips({
+  context,
+}: AIToolInput) {
   return context.recentTrips;
 }
