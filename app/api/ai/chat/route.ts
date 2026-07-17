@@ -1,29 +1,39 @@
 import { NextResponse } from "next/server";
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.5-flash";
 
 export async function POST(request: Request) {
   try {
-    const { message } = await request.json();
+    const body = await request.json();
+    const message =
+      typeof body?.message === "string"
+        ? body.message.trim()
+        : "";
 
     if (!message) {
       return NextResponse.json(
-        { error: "Mensaje requerido." },
+        {
+          success: false,
+          error: "Mensaje requerido.",
+        },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "GEMINI_API_KEY no configurada." },
+        {
+          success: false,
+          error: "GEMINI_API_KEY no configurada.",
+        },
         { status: 500 }
       );
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
         method: "POST",
         headers: {
@@ -32,22 +42,49 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           contents: [
             {
-              parts: [
-                {
-                  text: message,
-                },
-              ],
+              role: "user",
+              parts: [{ text: message }],
             },
           ],
         }),
       }
     );
 
-    const data = await response.json();
+    const data = await geminiResponse.json();
 
-    const text =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ??
-      "No pude generar una respuesta.";
+    if (!geminiResponse.ok) {
+      console.error("Gemini API error:", data);
+
+      return NextResponse.json(
+        {
+          success: false,
+          provider: "gemini",
+          error:
+            data?.error?.message ??
+            `Gemini respondió con HTTP ${geminiResponse.status}.`,
+          code: data?.error?.status ?? null,
+        },
+        { status: geminiResponse.status }
+      );
+    }
+
+    const text = data?.candidates?.[0]?.content?.parts
+      ?.map((part: { text?: string }) => part.text ?? "")
+      .join("")
+      .trim();
+
+    if (!text) {
+      console.error("Gemini sin texto:", data);
+
+      return NextResponse.json(
+        {
+          success: false,
+          provider: "gemini",
+          error: "Gemini no devolvió contenido de texto.",
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -55,16 +92,14 @@ export async function POST(request: Request) {
       response: text,
     });
   } catch (error) {
-    console.error(error);
+    console.error("AXI AI route error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: "Error interno.",
+        error: "Error interno de AXI AI.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
