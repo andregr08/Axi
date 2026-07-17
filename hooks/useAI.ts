@@ -23,12 +23,12 @@ export function useAI(role: AIUserRole) {
   const [open, setOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  const [messages, setMessages] = useState<AIMessage>([
+  const [messages, setMessages] = useState<AIMessage[]>([
     createMessage(
       "assistant",
       "Hola, soy AXI AI. ¿En qué puedo ayudarte?"
     ),
-  ] as unknown as AIMessage[]);
+  ]);
 
   const suggestions = useMemo(
     () => getSuggestions(role),
