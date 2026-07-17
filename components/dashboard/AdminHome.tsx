@@ -630,21 +630,17 @@ export function AdminHome({
         />
 
         <MetricCard
-          label="Viajes activos"
-          value={String(activeTrips.length)}
-          description={`${completedTrips.length} completados recientes`}
+          label="Viajes hoy"
+          value={String(tripsToday.length)}
+          description={`${activeTrips.length} activos · ${completedTrips.length} completados`}
           icon={Route}
           iconClass="bg-violet-100 text-violet-700"
         />
 
         <MetricCard
           label="Comisión AXI"
-          value={formatMoney(
-            platformRevenue
-          )}
-          description={`${formatMoney(
-            processedVolume
-          )} procesados`}
+          value={formatMoney(platformRevenue)}
+          description={`${formatMoney(processedVolume)} cobrados · ${formatMoney(driverRevenue)} para conductores`}
           icon={CircleDollarSign}
           iconClass="bg-emerald-100 text-emerald-700"
         />
