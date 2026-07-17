@@ -19,12 +19,37 @@ export interface AIProvider {
 
 export class MockAIProvider implements AIProvider {
   async generateResponse(
-    _request: AIProviderRequest
+    request: AIProviderRequest
   ): Promise<AIProviderResponse> {
+    const lastMessage =
+      request.messages.at(-1)?.content.toLowerCase() ?? "";
+
+    if (lastMessage.includes("hola")) {
+      return {
+        content: "¡Hola! Soy AXI AI. ¿En qué puedo ayudarte?",
+      };
+    }
+
+    if (lastMessage.includes("viaje")) {
+      return {
+        content:
+          "Puedo ayudarte con el estado de un viaje, cancelaciones o reportes.",
+      };
+    }
+
+    if (
+      lastMessage.includes("pago") ||
+      lastMessage.includes("dinero")
+    ) {
+      return {
+        content:
+          "También puedo ayudarte con pagos, reembolsos y facturación.",
+      };
+    }
+
     return {
       content:
-        "AXI AI está funcionando correctamente. Próximamente esta respuesta será generada por OpenAI.",
-      actions: [],
+        "Entendido. Esta respuesta aún es simulada. En la siguiente fase responderé usando OpenAI con información real de AXI.",
     };
   }
 }
