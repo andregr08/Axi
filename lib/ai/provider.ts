@@ -1,3 +1,4 @@
+import { getUserTrips } from "@/lib/ai/data";
 import type { AIMessage } from "@/types/ai";
 
 export interface AIProviderRequest {
@@ -21,35 +22,33 @@ export class MockAIProvider implements AIProvider {
   async generateResponse(
     request: AIProviderRequest
   ): Promise<AIProviderResponse> {
-    const lastMessage =
+    const last =
       request.messages.at(-1)?.content.toLowerCase() ?? "";
 
-    if (lastMessage.includes("hola")) {
-      return {
-        content: "¡Hola! Soy AXI AI. ¿En qué puedo ayudarte?",
-      };
-    }
-
-    if (lastMessage.includes("viaje")) {
-      return {
-        content:
-          "Puedo ayudarte con el estado de un viaje, cancelaciones o reportes.",
-      };
-    }
-
     if (
-      lastMessage.includes("pago") ||
-      lastMessage.includes("dinero")
+      last.includes("viajes") ||
+      last.includes("mis viajes") ||
+      last.includes("historial")
     ) {
-      return {
-        content:
-          "También puedo ayudarte con pagos, reembolsos y facturación.",
-      };
+      try {
+        const trips = await getUserTrips(request.userId);
+
+        return {
+          content: trips.length
+            ? `Encontré ${trips.length} viajes recientes en tu cuenta.`
+            : "No encontré viajes registrados en tu cuenta.",
+        };
+      } catch {
+        return {
+          content:
+            "No pude consultar tus viajes en este momento.",
+        };
+      }
     }
 
     return {
       content:
-        "Entendido. Esta respuesta aún es simulada. En la siguiente fase responderé usando OpenAI con información real de AXI.",
+        "Entendido. Estoy listo para ayudarte.",
     };
   }
 }
