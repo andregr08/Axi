@@ -4,14 +4,21 @@ import { useState } from "react";
 import { createConversation } from "@/lib/ai/conversation";
 import type { AIConversation } from "@/types/ai";
 
-export function useConversation() {
-  const [conversations, setConversations] = useState<AIConversation[]>([
-    createConversation(),
-  ]);
+const initialConversation: AIConversation = {
+  id: "axi-default-conversation",
+  title: "Nueva conversación",
+  status: "active",
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+  messages: [],
+};
 
-  const [currentConversationId, setCurrentConversationId] = useState(
-    conversations[0].id
-  );
+export function useConversation() {
+  const [conversations, setConversations] =
+    useState<AIConversation[]>([initialConversation]);
+
+  const [currentConversationId, setCurrentConversationId] =
+    useState(initialConversation.id);
 
   function newConversation() {
     const conversation = createConversation();
@@ -30,7 +37,8 @@ export function useConversation() {
 
   const currentConversation =
     conversations.find(
-      (conversation) => conversation.id === currentConversationId
+      (conversation) =>
+        conversation.id === currentConversationId
     ) ?? conversations[0];
 
   return {
