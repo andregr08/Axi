@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth/roles";
 
 type ApplicationStatus =
   | "pending"
@@ -97,6 +98,12 @@ export default function DriverApplicationsAdminPage() {
   const [message, setMessage] =
     useState("");
 
+  const [search, setSearch] =
+    useState("");
+
+  const [statusFilter, setStatusFilter] =
+    useState<"all" | ApplicationStatus>("all");
+
   async function loadApplications() {
     setLoading(true);
     setMessage("");
@@ -116,7 +123,7 @@ export default function DriverApplicationsAdminPage() {
       .eq("id", session.user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (!isAdmin(profile?.role)) {
       router.replace("/dashboard");
       return;
     }
@@ -346,6 +353,20 @@ export default function DriverApplicationsAdminPage() {
   async function approveApplication(
     applicationId: string
   ) {
+    const application =
+      applications.find(
+        item => item.id === applicationId
+      );
+
+    if (
+      !application ||
+      application.status !== "pending"
+    ) {
+      window.alert(
+        "Esta solicitud ya fue procesada."
+      );
+      return;
+    }
     const confirmed = window.confirm(
       "¿Confirmas que revisaste identidad, licencia, concesión y documentos del taxi?"
     );
@@ -382,6 +403,20 @@ export default function DriverApplicationsAdminPage() {
   async function rejectApplication(
     applicationId: string
   ) {
+    const application =
+      applications.find(
+        item => item.id === applicationId
+      );
+
+    if (
+      !application ||
+      application.status !== "pending"
+    ) {
+      window.alert(
+        "Esta solicitud ya fue procesada."
+      );
+      return;
+    }
     const reason = window.prompt(
       "Escribe el motivo del rechazo:"
     );
@@ -473,6 +508,23 @@ export default function DriverApplicationsAdminPage() {
     ).toLocaleDateString("es-MX");
   }
 
+  const filteredApplications =
+    applications.filter((application) => {
+      const matchesStatus =
+        statusFilter === "all" ||
+        application.status === statusFilter;
+
+      const matchesSearch =
+        getApplicantName(application)
+          .toLowerCase()
+          .includes(search.toLowerCase());
+
+      return (
+        matchesStatus &&
+        matchesSearch
+      );
+    });
+
   if (loading) {
     return (
       <p>Cargando solicitudes...</p>
@@ -501,15 +553,103 @@ export default function DriverApplicationsAdminPage() {
         </div>
       )}
 
+
+      <div className="mb-6 grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Total</p>
+          <p className="mt-2 text-3xl font-bold">
+            {applications.length}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-yellow-50 p-5 shadow-sm">
+          <p className="text-sm text-yellow-700">
+            Pendientes
+          </p>
+          <p className="mt-2 text-3xl font-bold text-yellow-700">
+            {
+              applications.filter(
+                a => a.status === "pending"
+              ).length
+            }
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-green-50 p-5 shadow-sm">
+          <p className="text-sm text-green-700">
+            Aprobadas
+          </p>
+          <p className="mt-2 text-3xl font-bold text-green-700">
+            {
+              applications.filter(
+                a => a.status === "approved"
+              ).length
+            }
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-red-50 p-5 shadow-sm">
+          <p className="text-sm text-red-700">
+            Rechazadas
+          </p>
+          <p className="mt-2 text-3xl font-bold text-red-700">
+            {
+              applications.filter(
+                a => a.status === "rejected"
+              ).length
+            }
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-6 flex flex-col gap-4 md:flex-row">
+        <input
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
+          placeholder="Buscar conductor..."
+          className="flex-1 rounded-xl border px-4 py-3"
+        />
+
+        <select
+          value={statusFilter}
+          onChange={(e) =>
+            setStatusFilter(
+              e.target.value as
+                | "all"
+                | ApplicationStatus
+            )
+          }
+          className="rounded-xl border px-4 py-3"
+        >
+          <option value="all">
+            Todas
+          </option>
+
+          <option value="pending">
+            Pendientes
+          </option>
+
+          <option value="approved">
+            Aprobadas
+          </option>
+
+          <option value="rejected">
+            Rechazadas
+          </option>
+        </select>
+      </div>
+
       <div className="space-y-6">
-        {applications.length === 0 ? (
+        {filteredApplications.length === 0 ? (
           <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
             <p className="font-semibold">
               No hay solicitudes registradas.
             </p>
           </div>
         ) : (
-          applications.map((application) => {
+          filteredApplications.map((application) => {
             const links =
               documentLinks[application.id];
 
