@@ -25,6 +25,7 @@ interface AIChatPanelProps {
   role: AIUserRole;
   messages: AIMessage[];
   suggestions: string[];
+  isStreaming: boolean;
   onClose: () => void;
   onSendMessage: (content: string) => void;
 }
@@ -40,6 +41,7 @@ export default function AIChatPanel({
   role,
   messages,
   suggestions,
+  isStreaming,
   onClose,
   onSendMessage,
 }: AIChatPanelProps) {
@@ -236,6 +238,30 @@ export default function AIChatPanel({
                 );
               })}
 
+              {isStreaming && (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500" />
+                        <span
+                          className="h-2 w-2 animate-bounce rounded-full bg-yellow-500"
+                          style={{ animationDelay: "0.15s" }}
+                        />
+                        <span
+                          className="h-2 w-2 animate-bounce rounded-full bg-yellow-500"
+                          style={{ animationDelay: "0.3s" }}
+                        />
+                      </div>
+
+                      <span className="text-sm text-slate-500">
+                        AXI AI está escribiendo...
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
 
               <div className="pt-3">
@@ -287,13 +313,14 @@ export default function AIChatPanel({
                     }
                   }}
                   rows={1}
+                  disabled={isStreaming}
                   placeholder="Escribe un mensaje..."
                   className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-950 outline-none placeholder:text-slate-400"
                 />
 
                 <button
                   type="submit"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || isStreaming}
                   aria-label="Enviar mensaje"
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-slate-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-40"
                 >

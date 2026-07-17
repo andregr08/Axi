@@ -30,6 +30,7 @@ export default function DashboardLayout({
     open,
     messages,
     suggestions,
+    isStreaming,
     openAI,
     closeAI,
     sendMessage,
@@ -116,6 +117,7 @@ export default function DashboardLayout({
         role={effectiveRole}
         messages={messages}
         suggestions={suggestions}
+        isStreaming={isStreaming}
         onClose={closeAI}
         onSendMessage={sendMessage}
       />
