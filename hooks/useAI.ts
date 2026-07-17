@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSuggestions } from "@/lib/aiSuggestions";
+import { aiProvider } from "@/lib/ai/provider";
+import { getCurrentSession } from "@/lib/ai/session";
 import type {
   AIMessage,
   AIUserRole,
@@ -21,15 +23,25 @@ function createMessage(
 
 export function useAI(role: AIUserRole) {
   const [open, setOpen] = useState(false);
+  const [userId, setUserId] = useState<string>("local");
+
+  useEffect(() => {
+    async function loadSession() {
+      const session = await getCurrentSession();
+
+      if (session) {
+        setUserId(session.user.id);
+      }
+    }
+
+    void loadSession();
+  }, []);
 
   const [messages, setMessages] = useState<AIMessage[]>([
-    {
-      id: "axi-ai-welcome",
-      role: "assistant",
-      content:
-        "Hola, soy AXI AI. Puedo ayudarte con viajes, pagos, soporte y consultas de tu cuenta.",
-      createdAt: new Date().toISOString(),
-    },
+    createMessage(
+      "assistant",
+      "Hola, soy AXI AI. ¿En qué puedo ayudarte?"
+    ),
   ]);
 
   const suggestions = useMemo(
@@ -37,22 +49,26 @@ export function useAI(role: AIUserRole) {
     [role]
   );
 
-  function openAI() {
-    setOpen(true);
-  }
+  async function sendMessage(content: string) {
+    const clean = content.trim();
 
-  function closeAI() {
-    setOpen(false);
-  }
+    if (!clean) return;
 
-  function sendMessage(content: string) {
-    const cleanContent = content.trim();
+    const userMessage = createMessage("user", clean);
+    const updated = [...messages, userMessage];
 
-    if (!cleanContent) return;
+    setMessages(updated);
 
-    setMessages((currentMessages) => [
-      ...currentMessages,
-      createMessage("user", cleanContent),
+    const response =
+      await aiProvider.generateResponse({
+        conversationId: "local",
+        userId,
+        messages: updated,
+      });
+
+    setMessages((current) => [
+      ...current,
+      createMessage("assistant", response.content),
     ]);
   }
 
@@ -60,8 +76,8 @@ export function useAI(role: AIUserRole) {
     open,
     messages,
     suggestions,
-    openAI,
-    closeAI,
+    openAI: () => setOpen(true),
+    closeAI: () => setOpen(false),
     sendMessage,
   };
 }
