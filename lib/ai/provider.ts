@@ -18,10 +18,12 @@ export interface AIProvider {
 }
 
 export class MockAIProvider implements AIProvider {
-  async generateResponse(): Promise<AIProviderResponse> {
+  async generateResponse(
+    _request: AIProviderRequest
+  ): Promise<AIProviderResponse> {
     return {
       content:
-        "AXI AI está configurado correctamente. Próximamente esta respuesta será generada por OpenAI.",
+        "AXI AI está funcionando correctamente. Próximamente esta respuesta será generada por OpenAI.",
       actions: [],
     };
   }
