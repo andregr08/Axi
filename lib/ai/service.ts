@@ -2,8 +2,7 @@ import { buildContext } from "./context";
 import { detectIntent } from "./intents";
 import { buildSystemPrompt } from "./prompt";
 import { GEMINI_MODEL } from "./provider";
-import { resolveTool } from "./router";
-import { executeTool } from "./tools";
+import { executeIntent } from "./router";
 
 type HistoryMessage = {
   role: "user" | "assistant";
@@ -34,14 +33,12 @@ export async function askAI({
     await buildContext(accessToken);
 
   const intent = detectIntent(message);
-  const tool = resolveTool(intent);
 
-  const toolData = tool
-    ? await executeTool(tool, {
-        context,
-        accessToken,
-      })
-    : null;
+  const toolData = await executeIntent(
+    intent,
+    context,
+    accessToken
+  );
 
   const systemPrompt = buildSystemPrompt(
     context,
@@ -122,7 +119,6 @@ export async function askAI({
   return {
     context,
     intent,
-    tool,
     toolData,
     response: text,
   };

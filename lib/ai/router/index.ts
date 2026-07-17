@@ -1,17 +1,23 @@
+import { registry } from "./registry";
 import type { AIIntent } from "../intents";
-import type { AITool } from "../tools";
+import { executeTool } from "../tools";
+import type { AIContext } from "../prompt";
 
-const intentToolRegistry: Partial<
-  Record<AIIntent, AITool>
-> = {
-  passenger_stats: "passenger_stats",
-  trip_history: "trips",
-  show_profile: "profile",
-  show_payments: "passenger_stats",
-};
+export async function executeIntent(
+  intent: AIIntent,
+  context: AIContext,
+  accessToken: string
+) {
+  const tools = registry[intent] ?? [];
 
-export function resolveTool(
-  intent: AIIntent
-): AITool | null {
-  return intentToolRegistry[intent] ?? null;
+  const results: Record<string, unknown> = {};
+
+  for (const tool of tools) {
+    results[tool] = await executeTool(tool, {
+      context,
+      accessToken,
+    });
+  }
+
+  return results;
 }
