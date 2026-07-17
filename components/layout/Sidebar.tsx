@@ -17,9 +17,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
+import {
+  canManageDrivers,
+  canManagePassengers,
+  canManageVehicles,
+  canViewSupport,
+  isAdmin,
+  isDriver,
+  isPassenger,
+} from "@/lib/auth/roles";
+import type { UserRole } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
-
-export type UserRole = "admin" | "driver" | "passenger";
 
 interface SidebarProps {
   role: UserRole | null;
@@ -53,31 +61,31 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       href: "/dashboard/driver/status",
       label: "Disponibilidad",
       icon: Gauge,
-      visible: role === "driver",
+      visible: isDriver(role),
     },
     {
       href: "/dashboard/driver/available-trips",
       label: "Viajes disponibles",
       icon: CarFront,
-      visible: role === "driver",
+      visible: isDriver(role),
     },
     {
       href: "/dashboard/driver/profile",
       label: "Mi rendimiento",
       icon: UserRound,
-      visible: role === "driver",
+      visible: isDriver(role),
     },
     {
       href: "/dashboard/driver-application",
       label: "Ser conductor",
       icon: ClipboardCheck,
-      visible: role === "passenger",
+      visible: isPassenger(role),
     },
     {
       href: "/dashboard/vehicles",
       label: "Mis vehículos",
       icon: CarFront,
-      visible: role === "driver" || role === "admin",
+      visible: canManageVehicles(role),
     },
     {
       href: "/dashboard/payments",
@@ -95,37 +103,37 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       href: "/dashboard/admin/driver-applications",
       label: "Solicitudes",
       icon: ClipboardCheck,
-      visible: role === "admin",
+      visible: canManageDrivers(role),
     },
     {
       href: "/dashboard/admin/drivers",
       label: "Conductores",
       icon: CarFront,
-      visible: role === "admin",
+      visible: canManageDrivers(role),
     },
     {
       href: "/dashboard/admin/passengers",
       label: "Pasajeros",
       icon: UsersRound,
-      visible: role === "admin",
+      visible: canManagePassengers(role),
     },
     {
       href: "/dashboard/admin/vehicles",
       label: "Vehículos admin",
       icon: CarFront,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/trips",
       label: "Viajes admin",
       icon: ShieldCheck,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/support",
       label: "Soporte",
       icon: Headphones,
-      visible: role === "admin",
+      visible: canViewSupport(role),
     },
   ];
 

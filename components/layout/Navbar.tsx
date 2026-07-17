@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { Bell, ChevronDown, Search } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
-import type { UserRole } from "@/components/layout/Sidebar";
+import type { UserRole } from "@/lib/auth/roles";
 
 interface NavbarProps {
   role: UserRole | null;
 }
 
 const roleNames: Record<UserRole, string> = {
+  super_admin: "Superadministrador",
   admin: "Administrador",
+  support: "Soporte",
   driver: "Conductor",
   passenger: "Pasajero",
 };

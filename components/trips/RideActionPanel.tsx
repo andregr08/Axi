@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
-import type { UserRole } from "@/components/layout/Sidebar";
+import type { UserRole } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 interface RideActionPanelProps {

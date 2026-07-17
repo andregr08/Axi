@@ -6,10 +6,8 @@ import AIFloatingButton from "@/components/ai/AIFloatingButton";
 import AIChatPanel from "@/components/ai/AIChatPanel";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Navbar } from "@/components/layout/Navbar";
-import {
-  Sidebar,
-  type UserRole,
-} from "@/components/layout/Sidebar";
+import { Sidebar } from "@/components/layout/Sidebar";
+import type { UserRole } from "@/lib/auth/roles";
 import { useAI } from "@/hooks/useAI";
 import { supabase } from "@/lib/supabaseClient";
 import type { AIUserRole } from "@/types/ai";

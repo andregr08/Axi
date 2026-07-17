@@ -18,7 +18,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import type { UserRole } from "@/components/layout/Sidebar";
+import type { UserRole } from "@/lib/auth/roles";
 import { Logo } from "@/components/shared/Logo";
 import { cn } from "@/utils/cn";
 

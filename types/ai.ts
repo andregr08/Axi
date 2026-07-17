@@ -1,7 +1,9 @@
 export type AIRole = "assistant" | "copilot";
 
 export type AIUserRole =
+  | "super_admin"
   | "admin"
+  | "support"
   | "driver"
   | "passenger";
 
