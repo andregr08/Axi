@@ -101,8 +101,7 @@ export async function askAI({
   return {
     context,
     intent,
-    toolData,
-    model,
+    toolData,    model,
     response: text,
   };
 }
