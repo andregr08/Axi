@@ -25,25 +25,34 @@ import { RideActionPanel } from "@/components/trips/RideActionPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
-
-type UserRole = "admin" | "driver" | "passenger";
+import {
+  isAdmin,
+  isSupport,
+  type UserRole,
+} from "@/lib/auth/roles";
 
 type Profile = {
   full_name: string | null;
   role: UserRole;
 };
 
+
 const roleName: Record<UserRole, string> = {
+  super_admin: "Superadministrador",
   admin: "Administrador",
+  support: "Soporte",
   driver: "Conductor",
   passenger: "Pasajero",
 };
 
 const roleDescription: Record<UserRole, string> = {
-  admin: "Control total de la plataforma",
+  super_admin: "Control total de la plataforma",
+  admin: "Control operativo de la plataforma",
+  support: "Atención y soporte a usuarios",
   driver: "Listo para recibir viajes",
   passenger: "Tu movilidad, en un solo lugar",
 };
+
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -125,12 +134,41 @@ export default function DashboardPage() {
   }
 
 
-  if (role === "admin") {
+  if (isAdmin(role)) {
     return (
       <AdminHome
         name={displayName}
         email={email}
       />
+    );
+  }
+
+  if (isSupport(role)) {
+    return (
+      <section className="space-y-6">
+        <div className="overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-10 text-white sm:px-10">
+          <p className="text-sm font-semibold text-yellow-400">
+            Centro de soporte
+          </p>
+
+          <h1 className="mt-3 text-4xl font-black tracking-tight">
+            Hola, {displayName}
+          </h1>
+
+          <p className="mt-4 max-w-2xl leading-7 text-slate-300">
+            Consulta solicitudes, incidentes, viajes reportados y conversaciones
+            que necesitan atención.
+          </p>
+
+          <Link
+            href="/dashboard/admin/support"
+            className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-black text-black transition hover:bg-yellow-300"
+          >
+            Abrir panel de soporte
+            <ArrowUpRight size={18} />
+          </Link>
+        </div>
+      </section>
     );
   }
 

@@ -24,6 +24,10 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  isAdmin,
+  type UserRole,
+} from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type AdminHomeProps = {
@@ -41,7 +45,7 @@ type Driver = {
 type Passenger = {
   id: string;
   full_name: string | null;
-  active: boolean | null;
+  account_active: boolean | null;
 };
 
 type Trip = {
@@ -53,16 +57,12 @@ type Trip = {
   status: string;
   estimated_price: number | null;
   final_price: number | null;
+  platform_commission: number | null;
+  driver_earnings: number | null;
+  payment_status: string | null;
   requested_at: string;
-};
-
-type Payment = {
-  id: string;
-  status: string;
-  total_amount: number;
-  platform_commission: number;
-  driver_earnings: number;
-  created_at: string;
+  completed_at: string | null;
+  paid_at: string | null;
 };
 
 type DriverApplication = {
@@ -87,7 +87,7 @@ type AdminData = {
   drivers: Driver[];
   passengers: Passenger[];
   trips: Trip[];
-  payments: Payment[];
+  payments: Trip[];
   applications: DriverApplication[];
   vehicles: Vehicle[];
   alerts: SosAlert[];
@@ -167,7 +167,7 @@ export function AdminHome({
         driversResult,
         passengersResult,
         tripsResult,
-        paymentsResult,
+
         applicationsResult,
         vehiclesResult,
         alertsResult,
@@ -187,7 +187,7 @@ export function AdminHome({
         supabase
           .from("profiles")
           .select(
-            "id, full_name, active"
+            "id, full_name, account_active"
           )
           .eq("role", "passenger"),
 
@@ -202,24 +202,14 @@ export function AdminHome({
             status,
             estimated_price,
             final_price,
-            requested_at
-          `)
-          .order("requested_at", {
-            ascending: false,
-          })
-          .limit(8),
-
-        supabase
-          .from("payment_transactions")
-          .select(`
-            id,
-            status,
-            total_amount,
             platform_commission,
             driver_earnings,
-            created_at
+            payment_status,
+            requested_at,
+            completed_at,
+            paid_at
           `)
-          .order("created_at", {
+          .order("requested_at", {
             ascending: false,
           }),
 
@@ -248,9 +238,14 @@ export function AdminHome({
           }),
       ]);
 
+      const currentRole =
+        profileResult.data?.role as
+          | UserRole
+          | undefined;
+
       if (
         profileResult.error ||
-        profileResult.data?.role !== "admin"
+        !isAdmin(currentRole)
       ) {
         setMessage(
           "No tienes permisos para consultar este panel."
@@ -264,7 +259,7 @@ export function AdminHome({
         driversResult,
         passengersResult,
         tripsResult,
-        paymentsResult,
+
         applicationsResult,
         vehiclesResult,
         alertsResult,
@@ -283,8 +278,8 @@ export function AdminHome({
         trips:
           (tripsResult.data ?? []) as Trip[],
         payments:
-          (paymentsResult.data ??
-            []) as Payment[],
+          (tripsResult.data ??
+            []) as Trip[],
         applications:
           (applicationsResult.data ??
             []) as DriverApplication[],
@@ -417,7 +412,7 @@ export function AdminHome({
   const activePassengers =
     data.passengers.filter(
       (passenger) =>
-        passenger.active !== false
+        passenger.account_active !== false
     ).length;
 
   const activeTrips =
@@ -452,27 +447,33 @@ export function AdminHome({
         alert.status === "acknowledged"
     ).length;
 
-  const paidTransactions =
+  const paidTrips =
     data.payments.filter(
-      (payment) =>
-        payment.status === "paid"
+      (trip) =>
+        trip.payment_status === "paid"
     );
 
   const processedVolume =
-    paidTransactions.reduce(
-      (total, payment) =>
+    paidTrips.reduce(
+      (total, trip) =>
         total +
-        Number(payment.total_amount ?? 0),
+        Number(trip.final_price ?? 0),
       0
     );
 
   const platformRevenue =
-    paidTransactions.reduce(
-      (total, payment) =>
+    paidTrips.reduce(
+      (total, trip) =>
         total +
-        Number(
-          payment.platform_commission ?? 0
-        ),
+        Number(trip.platform_commission ?? 0),
+      0
+    );
+
+  const driverRevenue =
+    paidTrips.reduce(
+      (total, trip) =>
+        total +
+        Number(trip.driver_earnings ?? 0),
       0
     );
 
