@@ -3,13 +3,18 @@ import type {
   AIMessage,
 } from "@/types/ai";
 
-export function createConversation(): AIConversation {
+export function createConversation(
+  userId = ""
+): AIConversation {
+  const now = new Date().toISOString();
+
   return {
     id: crypto.randomUUID(),
+    userId,
     title: "Nueva conversación",
     status: "active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     messages: [],
   };
 }
@@ -21,7 +26,10 @@ export function addMessage(
   return {
     ...conversation,
     updatedAt: new Date().toISOString(),
-    messages: [...conversation.messages, message],
+    messages: [
+      ...conversation.messages,
+      message,
+    ],
   };
 }
 

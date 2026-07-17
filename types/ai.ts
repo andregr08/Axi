@@ -37,6 +37,7 @@ export interface AIMessage {
 
 export interface AIConversation {
   id: string;
+  userId: string;
   title: string;
   status: AIConversationStatus;
   createdAt: string;
