@@ -3,17 +3,55 @@ export const GEMINI_MODELS = [
   "gemini-3.1-flash-lite",
 ] as const;
 
-type GeminiRequestBody = {
-  systemInstruction: {
+type GeminiPart = {
+  text?: string;
+  functionCall?: {
+    name: string;
+    args?: Record<string, unknown>;
+  };
+  functionResponse?: {
+    name: string;
+    response: Record<string, unknown>;
+  };
+};
+
+export type GeminiContent = {
+  role: "user" | "model";
+  parts: GeminiPart[];
+};
+
+export type GeminiFunctionDeclaration = {
+  name: string;
+  description: string;
+  parameters?: {
+    type: "OBJECT";
+    properties?: Record<
+      string,
+      {
+        type: string;
+        description?: string;
+      }
+    >;
+    required?: string[];
+  };
+};
+
+export type GeminiRequestBody = {
+  systemInstruction?: {
     parts: Array<{ text: string }>;
   };
-  contents: Array<{
-    role: string;
-    parts: Array<{ text: string }>;
+  contents: GeminiContent[];
+  tools?: Array<{
+    functionDeclarations: GeminiFunctionDeclaration[];
   }>;
-  generationConfig: {
-    temperature: number;
-    maxOutputTokens: number;
+  toolConfig?: {
+    functionCallingConfig: {
+      mode: "AUTO" | "ANY" | "NONE";
+    };
+  };
+  generationConfig?: {
+    temperature?: number;
+    maxOutputTokens?: number;
   };
 };
 
@@ -43,7 +81,8 @@ export async function generateGeminiContent(
         }
       );
 
-      const json = await response.json().catch(() => null);
+      const json =
+        await response.json().catch(() => null);
 
       if (response.ok) {
         return {
