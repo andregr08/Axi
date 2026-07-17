@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getSuggestions } from "@/lib/aiSuggestions";
-import { aiProvider } from "@/lib/ai/provider";
-import { getCurrentSession } from "@/lib/ai/session";
 import type {
   AIMessage,
   AIUserRole,
@@ -23,27 +21,14 @@ function createMessage(
 
 export function useAI(role: AIUserRole) {
   const [open, setOpen] = useState(false);
-  const [userId, setUserId] = useState("local");
   const [isStreaming, setIsStreaming] = useState(false);
 
-  useEffect(() => {
-    async function loadSession() {
-      const session = await getCurrentSession();
-
-      if (session) {
-        setUserId(session.user.id);
-      }
-    }
-
-    void loadSession();
-  }, []);
-
-  const [messages, setMessages] = useState<AIMessage[]>([
+  const [messages, setMessages] = useState<AIMessage>([
     createMessage(
       "assistant",
       "Hola, soy AXI AI. ¿En qué puedo ayudarte?"
     ),
-  ]);
+  ] as unknown as AIMessage[]);
 
   const suggestions = useMemo(
     () => getSuggestions(role),
@@ -56,26 +41,40 @@ export function useAI(role: AIUserRole) {
     if (!clean || isStreaming) return;
 
     const userMessage = createMessage("user", clean);
+
     const updated = [...messages, userMessage];
 
     setMessages(updated);
     setIsStreaming(true);
 
     try {
-      const response =
-        await aiProvider.generateResponse({
-          conversationId: "local",
-          userId,
-          messages: updated,
-        });
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: clean,
+        }),
+      });
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, 600)
-      );
+      const data = await response.json();
 
       setMessages((current) => [
         ...current,
-        createMessage("assistant", response.content),
+        createMessage(
+          "assistant",
+          data.response ??
+            "No pude responder."
+        ),
+      ]);
+    } catch {
+      setMessages((current) => [
+        ...current,
+        createMessage(
+          "assistant",
+          "Ocurrió un error al conectar con AXI AI."
+        ),
       ]);
     } finally {
       setIsStreaming(false);
