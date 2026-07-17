@@ -41,11 +41,14 @@ export function useAI(role: AIUserRole) {
 
     if (!clean || isStreaming) return;
 
+    const previousMessages = messages;
     const userMessage = createMessage("user", clean);
 
-    const updated = [...messages, userMessage];
+    setMessages((current) => [
+      ...current,
+      userMessage,
+    ]);
 
-    setMessages(updated);
     setIsStreaming(true);
 
     try {
@@ -59,14 +62,29 @@ export function useAI(role: AIUserRole) {
         );
       }
 
+      const conversationHistory =
+        previousMessages
+          .filter(
+            (message) =>
+              message.role === "user" ||
+              message.role === "assistant"
+          )
+          .slice(-12)
+          .map((message) => ({
+            role: message.role,
+            content: message.content,
+          }));
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization:
+            `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           message: clean,
+          history: conversationHistory,
         }),
       });
 
@@ -86,12 +104,17 @@ export function useAI(role: AIUserRole) {
           data.response
         ),
       ]);
-    } catch {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error al conectar con AXI AI.";
+
       setMessages((current) => [
         ...current,
         createMessage(
           "assistant",
-          "Ocurrió un error al conectar con AXI AI."
+          errorMessage
         ),
       ]);
     } finally {

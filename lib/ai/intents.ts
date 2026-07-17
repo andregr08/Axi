@@ -1,59 +1,44 @@
 export type AIIntent =
-  | "active_trip"
-  | "trip_history"
-  | "payments"
-  | "support"
-  | "driver"
-  | "admin"
-  | "general";
+  | "chat"
+  | "cancel_trip"
+  | "create_trip"
+  | "show_profile"
+  | "show_payments";
 
-export function detectIntent(message: string): AIIntent {
+export function detectIntent(
+  message: string
+): AIIntent {
   const text = message.toLowerCase();
 
   if (
-    text.includes("viaje actual") ||
-    text.includes("mi viaje") ||
-    text.includes("conductor")
+    text.includes("cancel") ||
+    text.includes("cancelar")
   ) {
-    return "active_trip";
+    return "cancel_trip";
   }
 
   if (
-    text.includes("historial") ||
-    text.includes("mis viajes")
+    text.includes("pedir viaje") ||
+    text.includes("solicitar viaje") ||
+    text.includes("crear viaje")
   ) {
-    return "trip_history";
+    return "create_trip";
+  }
+
+  if (
+    text.includes("perfil") ||
+    text.includes("mi cuenta")
+  ) {
+    return "show_profile";
   }
 
   if (
     text.includes("pago") ||
-    text.includes("reembolso") ||
-    text.includes("factura")
+    text.includes("tarjeta") ||
+    text.includes("recibo")
   ) {
-    return "payments";
+    return "show_payments";
   }
 
-  if (
-    text.includes("soporte") ||
-    text.includes("ayuda") ||
-    text.includes("ticket")
-  ) {
-    return "support";
-  }
-
-  if (
-    text.includes("conductor") ||
-    text.includes("chofer")
-  ) {
-    return "driver";
-  }
-
-  if (
-    text.includes("admin") ||
-    text.includes("administrador")
-  ) {
-    return "admin";
-  }
-
-  return "general";
+  return "chat";
 }

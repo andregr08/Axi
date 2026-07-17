@@ -3,6 +3,61 @@ import { buildContext } from "@/lib/ai/context";
 import { GEMINI_MODEL } from "@/lib/ai/provider";
 import { buildSystemPrompt } from "@/lib/ai/prompt";
 
+type IncomingHistoryMessage = {
+  role?: unknown;
+  content?: unknown;
+};
+
+type GeminiContent = {
+  role: "user" | "model";
+  parts: Array<{
+    text: string;
+  }>;
+};
+
+function parseHistory(
+  value: unknown
+): GeminiContent[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .slice(-12)
+    .map((item: IncomingHistoryMessage) => {
+      const role =
+        item?.role === "assistant"
+          ? "model"
+          : item?.role === "user"
+            ? "user"
+            : null;
+
+      const content =
+        typeof item?.content === "string"
+          ? item.content.trim()
+          : "";
+
+      if (!role || !content) {
+        return null;
+      }
+
+      return {
+        role,
+        parts: [
+          {
+            text: content.slice(0, 4000),
+          },
+        ],
+      } satisfies GeminiContent;
+    })
+    .filter(
+      (
+        item
+      ): item is GeminiContent =>
+        item !== null
+    );
+}
+
 export async function POST(request: Request) {
   try {
     const authorization =
@@ -60,6 +115,21 @@ export async function POST(request: Request) {
     const systemPrompt =
       buildSystemPrompt(context);
 
+    const history =
+      parseHistory(body?.history);
+
+    const contents: GeminiContent[] = [
+      ...history,
+      {
+        role: "user",
+        parts: [
+          {
+            text: message.slice(0, 4000),
+          },
+        ],
+      },
+    ];
+
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
@@ -76,16 +146,7 @@ export async function POST(request: Request) {
               },
             ],
           },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: message,
-                },
-              ],
-            },
-          ],
+          contents,
           generationConfig: {
             temperature: 0.2,
             maxOutputTokens: 700,

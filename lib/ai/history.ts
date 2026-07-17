@@ -1,25 +1,18 @@
-import type { AIConversation } from "@/types/ai";
+import type { AIMessage } from "@/types/ai";
 
-const conversations = new Map<string, AIConversation>();
-
-export function saveConversation(
-  conversation: AIConversation
+export function buildConversationHistory(
+  messages: AIMessage[],
+  maxMessages = 12
 ) {
-  conversations.set(conversation.id, conversation);
-}
+  return messages
+    .slice(-maxMessages)
+    .map((message) => {
+      const role =
+        message.role === "assistant"
+          ? "Asistente"
+          : "Usuario";
 
-export function getConversation(id: string) {
-  return conversations.get(id) ?? null;
-}
-
-export function getAllConversations() {
-  return Array.from(conversations.values()).sort(
-    (a, b) =>
-      new Date(b.updatedAt).getTime() -
-      new Date(a.updatedAt).getTime()
-  );
-}
-
-export function deleteConversation(id: string) {
-  conversations.delete(id);
+      return `${role}: ${message.content}`;
+    })
+    .join("\n\n");
 }
