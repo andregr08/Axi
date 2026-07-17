@@ -34,11 +34,12 @@ export async function askAI({
 
   const intent = detectIntent(message);
 
-  const toolData = await executeIntent(
+  const toolData = await executeIntent({
     intent,
     context,
-    accessToken
-  );
+    accessToken,
+    message,
+  });
 
   const systemPrompt = buildSystemPrompt(
     context,
