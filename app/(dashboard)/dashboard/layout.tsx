@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AIFloatingButton from "@/components/ai/AIFloatingButton";
+import AIChatPanel from "@/components/ai/AIChatPanel";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Navbar } from "@/components/layout/Navbar";
 import {
   Sidebar,
   type UserRole,
 } from "@/components/layout/Sidebar";
+import { useAI } from "@/hooks/useAI";
 import { supabase } from "@/lib/supabaseClient";
+import type { AIUserRole } from "@/types/ai";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +22,18 @@ export default function DashboardLayout({
   const router = useRouter();
   const [role, setRole] = useState<UserRole | null>(null);
   const [loadingRole, setLoadingRole] = useState(true);
+
+  const effectiveRole: AIUserRole =
+    role ?? "passenger";
+
+  const {
+    open,
+    messages,
+    suggestions,
+    openAI,
+    closeAI,
+    sendMessage,
+  } = useAI(effectiveRole);
 
   useEffect(() => {
     async function loadRole() {
@@ -37,10 +53,15 @@ export default function DashboardLayout({
         .single();
 
       if (error) {
-        console.error("Error cargando rol:", error.message);
+        console.error(
+          "Error cargando rol:",
+          error.message
+        );
         setRole("passenger");
       } else {
-        setRole((data?.role as UserRole) ?? "passenger");
+        setRole(
+          (data?.role as UserRole) ?? "passenger"
+        );
       }
 
       setLoadingRole(false);
@@ -59,6 +80,7 @@ export default function DashboardLayout({
       <div className="flex min-h-screen items-center justify-center bg-[#F4F6F8]">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-yellow-400" />
+
           <p className="mt-4 text-sm font-semibold text-slate-500">
             Cargando AXI...
           </p>
@@ -69,7 +91,10 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#F4F6F8] text-slate-950">
-      <Sidebar role={role} onLogout={handleLogout} />
+      <Sidebar
+        role={role}
+        onLogout={handleLogout}
+      />
 
       <div className="min-h-screen lg:ml-72">
         <Navbar role={role} />
@@ -79,7 +104,21 @@ export default function DashboardLayout({
         </main>
       </div>
 
-      <MobileNav role={role} onLogout={handleLogout} />
+      <MobileNav
+        role={role}
+        onLogout={handleLogout}
+      />
+
+      <AIFloatingButton onClick={openAI} />
+
+      <AIChatPanel
+        open={open}
+        role={effectiveRole}
+        messages={messages}
+        suggestions={suggestions}
+        onClose={closeAI}
+        onSendMessage={sendMessage}
+      />
     </div>
   );
 }
