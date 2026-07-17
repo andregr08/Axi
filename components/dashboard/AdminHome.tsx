@@ -477,6 +477,16 @@ export function AdminHome({
       0
     );
 
+  const today = new Date().toISOString().slice(0,10);
+
+  const tripsToday =
+    data.trips.filter(
+      trip =>
+        trip.requested_at?.startsWith(today)
+    );
+
+
+
   return (
     <section className="space-y-8">
       <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-9 text-white shadow-[0_25px_80px_rgba(15,23,42,0.22)] sm:px-9 lg:px-12 lg:py-12">
