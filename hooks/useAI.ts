@@ -23,7 +23,8 @@ function createMessage(
 
 export function useAI(role: AIUserRole) {
   const [open, setOpen] = useState(false);
-  const [userId, setUserId] = useState<string>("local");
+  const [userId, setUserId] = useState("local");
+  const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
     async function loadSession() {
@@ -52,30 +53,40 @@ export function useAI(role: AIUserRole) {
   async function sendMessage(content: string) {
     const clean = content.trim();
 
-    if (!clean) return;
+    if (!clean || isStreaming) return;
 
     const userMessage = createMessage("user", clean);
     const updated = [...messages, userMessage];
 
     setMessages(updated);
+    setIsStreaming(true);
 
-    const response =
-      await aiProvider.generateResponse({
-        conversationId: "local",
-        userId,
-        messages: updated,
-      });
+    try {
+      const response =
+        await aiProvider.generateResponse({
+          conversationId: "local",
+          userId,
+          messages: updated,
+        });
 
-    setMessages((current) => [
-      ...current,
-      createMessage("assistant", response.content),
-    ]);
+      await new Promise((resolve) =>
+        setTimeout(resolve, 600)
+      );
+
+      setMessages((current) => [
+        ...current,
+        createMessage("assistant", response.content),
+      ]);
+    } finally {
+      setIsStreaming(false);
+    }
   }
 
   return {
     open,
     messages,
     suggestions,
+    isStreaming,
     openAI: () => setOpen(true),
     closeAI: () => setOpen(false),
     sendMessage,
