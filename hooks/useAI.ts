@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { getSuggestions } from "@/lib/aiSuggestions";
+import { supabase } from "@/lib/supabaseClient";
 import type {
   AIMessage,
   AIUserRole,
@@ -48,10 +49,21 @@ export function useAI(role: AIUserRole) {
     setIsStreaming(true);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error(
+          "No existe una sesión activa."
+        );
+      }
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           message: clean,
@@ -60,12 +72,18 @@ export function useAI(role: AIUserRole) {
 
       const data = await response.json();
 
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error ??
+            "AXI AI no pudo responder."
+        );
+      }
+
       setMessages((current) => [
         ...current,
         createMessage(
           "assistant",
-          data.response ??
-            "No pude responder."
+          data.response
         ),
       ]);
     } catch {
