@@ -2,18 +2,31 @@ import type { AIContext } from "../prompt";
 import { getProfile } from "./getProfile";
 import { getTrips } from "./getTrips";
 
+export type AITool =
+  | "profile"
+  | "trips";
+
+type ToolFunction = (
+  context: AIContext
+) => Promise<unknown>;
+
+const registry: Record<
+  AITool,
+  ToolFunction
+> = {
+  profile: getProfile,
+  trips: getTrips,
+};
+
 export async function executeTool(
-  tool: string,
+  tool: AITool,
   context: AIContext
 ) {
-  switch (tool) {
-    case "profile":
-      return await getProfile(context);
+  return registry[tool](context);
+}
 
-    case "trips":
-      return await getTrips(context);
-
-    default:
-      return null;
-  }
+export function hasTool(
+  tool: string
+): tool is AITool {
+  return tool in registry;
 }
