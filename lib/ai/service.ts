@@ -1,7 +1,7 @@
 import { buildContext } from "./context";
 import { detectIntent } from "./intents";
 import { buildSystemPrompt } from "./prompt";
-import { GEMINI_MODEL } from "./provider";
+import { generateGeminiContent } from "./provider";
 import { executeIntent } from "./router";
 
 type HistoryMessage = {
@@ -67,39 +67,21 @@ export async function askAI({
     },
   ];
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/json",
+  const { json, model } =
+    await generateGeminiContent(apiKey, {
+      systemInstruction: {
+        parts: [
+          {
+            text: systemPrompt,
+          },
+        ],
       },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [
-            {
-              text: systemPrompt,
-            },
-          ],
-        },
-        contents,
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 700,
-        },
-      }),
-    }
-  );
-
-  const json = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      json?.error?.message ??
-        "Gemini error"
-    );
-  }
+      contents,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 700,
+      },
+    });
 
   const text =
     json?.candidates?.[0]?.content?.parts
@@ -120,6 +102,7 @@ export async function askAI({
     context,
     intent,
     toolData,
+    model,
     response: text,
   };
 }
