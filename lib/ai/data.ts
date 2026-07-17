@@ -24,3 +24,24 @@ export async function getUserTrips(userId: string) {
 
   return data ?? [];
 }
+
+export async function getActiveTrip(userId: string) {
+  const { data, error } = await supabase
+    .from("trips")
+    .select("*")
+    .eq("passenger_id", userId)
+    .in("status", [
+      "requested",
+      "searching",
+      "accepted",
+      "driver_arriving",
+      "driver_arrived",
+      "in_progress",
+    ])
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data;
+}
