@@ -106,3 +106,55 @@ export async function createManualAdjustment(payload: {
 
   return data;
 }
+
+export async function approveRefund(id: string) {
+  const { data, error } = await supabase.rpc(
+    "approve_refund",
+    {
+      refund_id: id,
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function rejectRefund(
+  id: string,
+  reason: string
+) {
+  const { error } = await supabase.rpc(
+    "reject_refund",
+    {
+      refund_id: id,
+      rejection_reason: reason,
+    }
+  );
+
+  if (error) throw error;
+}
+
+
+export async function registerCashDebtPayment(payload: {
+  driverId: string;
+  amount: number;
+  paymentMethod?: string;
+  reference?: string;
+  notes?: string;
+}) {
+  const { data, error } = await supabase.rpc(
+    "register_cash_debt_payment",
+    {
+      p_driver_id: payload.driverId,
+      p_amount: payload.amount,
+      p_payment_method: payload.paymentMethod ?? "cash",
+      p_reference: payload.reference ?? null,
+      p_notes: payload.notes ?? null,
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}

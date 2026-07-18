@@ -94,3 +94,89 @@ export async function getPendingIncentives() {
 
   return data ?? [];
 }
+
+export async function getPendingRefunds() {
+  const { data: refunds, error } = await supabase
+    .from("refund_requests")
+    .select(`
+      *,
+      trips(
+        id,
+        origin_address,
+        destination_address
+      )
+    `)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const passengerIds = [
+    ...new Set(
+      (refunds ?? [])
+        .map((refund) => refund.passenger_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  if (passengerIds.length === 0) {
+    return refunds ?? [];
+  }
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", passengerIds);
+
+  if (profilesError) throw profilesError;
+
+  const profilesById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile])
+  );
+
+  return (refunds ?? []).map((refund) => ({
+    ...refund,
+    profiles: profilesById.get(refund.passenger_id) ?? null,
+  }));
+}
+
+export async function getDrivers() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(`
+      id,
+      full_name,
+      email
+    `)
+    .eq("role", "driver")
+    .order("full_name");
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+
+
+export async function getFinanceAuditLogs() {
+  const { data, error } = await supabase
+    .from("finance_audit_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+
+
+export async function getCashDebts() {
+  const { data, error } = await supabase
+    .from("cash_debts_view")
+    .select("*")
+    .order("cash_debt", { ascending: false });
+
+  if (error) throw error;
+
+  return data ?? [];
+}
