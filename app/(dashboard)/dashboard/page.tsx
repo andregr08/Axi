@@ -22,6 +22,7 @@ import { RideActionPanel } from "@/components/trips/RideActionPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type UserRole = "admin" | "driver" | "passenger";
 
@@ -30,13 +31,13 @@ type Profile = {
   role: UserRole;
 };
 
-const roleName: Record<UserRole, string> = {
+const roleNameKey: Record<UserRole, string> = {
   admin: "Administrador",
   driver: "Conductor",
   passenger: "Pasajero",
 };
 
-const roleDescription: Record<UserRole, string> = {
+const roleDescriptionKey: Record<UserRole, string> = {
   admin: "Control total de la plataforma",
   driver: "Listo para recibir viajes",
   passenger: "Tu movilidad, en un solo lugar",
@@ -47,6 +48,8 @@ export default function DashboardPage() {
   const [email, setEmail] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const { t } = useLanguage();
 
   useEffect(() => {
     async function loadDashboard() {
@@ -101,7 +104,7 @@ export default function DashboardPage() {
   }
 
   const role = profile?.role ?? "passenger";
-  const displayName = profile?.full_name || "Usuario";
+  const displayName = profile?.full_name || t("common.user");
 
   return (
     <section className="space-y-8">
@@ -117,7 +120,7 @@ export default function DashboardPage() {
                 <Route size={23} />
               </span>
 
-              <Badge variant="warning">Este mes</Badge>
+              <Badge variant="warning">{t("dashboard.thisMonth")}</Badge>
             </div>
 
             <p className="mt-6 text-sm font-semibold text-slate-500">
@@ -125,7 +128,7 @@ export default function DashboardPage() {
             </p>
             <p className="mt-1 text-4xl font-black tracking-tight">0</p>
             <p className="mt-3 text-sm text-slate-400">
-              Tu historial aparecerá aquí
+              Tu historial aparecerÃƒÆ’Ã‚Â¡ aquÃƒÆ’Ã‚Â­
             </p>
           </div>
         </Card>
@@ -139,7 +142,7 @@ export default function DashboardPage() {
                 <Clock3 size={23} />
               </span>
 
-              <Badge>Ahora</Badge>
+              <Badge>{t("dashboard.now")}</Badge>
             </div>
 
             <p className="mt-6 text-sm font-semibold text-slate-500">
@@ -147,7 +150,7 @@ export default function DashboardPage() {
             </p>
             <p className="mt-1 text-4xl font-black tracking-tight">0</p>
             <p className="mt-3 text-sm text-slate-400">
-              Ningún viaje en curso
+              NingÃƒÆ’Ã‚Âºn viaje en curso
             </p>
           </div>
         </Card>
@@ -161,11 +164,11 @@ export default function DashboardPage() {
                 <Star size={23} />
               </span>
 
-              <Badge variant="success">Excelente</Badge>
+              <Badge variant="success">{t("dashboard.excellent")}</Badge>
             </div>
 
             <p className="mt-6 text-sm font-semibold text-slate-500">
-              Calificación
+              CalificaciÃƒÆ’Ã‚Â³n
             </p>
             <p className="mt-1 text-4xl font-black tracking-tight">5.0</p>
             <p className="mt-3 text-sm text-slate-400">
@@ -183,7 +186,7 @@ export default function DashboardPage() {
                 <CircleCheck size={23} />
               </span>
 
-              <Badge variant="success">En línea</Badge>
+              <Badge variant="success">En lÃƒÆ’Ã‚Â­nea</Badge>
             </div>
 
             <p className="mt-6 text-sm font-semibold text-slate-500">
@@ -204,13 +207,13 @@ export default function DashboardPage() {
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Operación en vivo
+              OperaciÃƒÆ’Ã‚Â³n en vivo
             </p>
             <h2 className="mt-1 text-2xl font-black text-slate-950">
               Mapa de movilidad
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Aquí aparecerán conductores, rutas y viajes activos.
+              AquÃƒÆ’Ã‚Â­ aparecerÃƒÆ’Ã‚Â¡n conductores, rutas y viajes activos.
             </p>
           </div>
 
@@ -237,7 +240,7 @@ export default function DashboardPage() {
                 Viajes recientes
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Consulta los movimientos más recientes de tu cuenta.
+                Consulta los movimientos mÃƒÆ’Ã‚Â¡s recientes de tu cuenta.
               </p>
             </div>
 
@@ -260,12 +263,12 @@ export default function DashboardPage() {
               </span>
 
               <h3 className="mt-6 text-xl font-black text-slate-900">
-                Todavía no hay actividad
+                TodavÃƒÆ’Ã‚Â­a no hay actividad
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Cuando realices o recibas tu primer viaje, aparecerá en esta
-                sección.
+                Cuando realices o recibas tu primer viaje, aparecerÃƒÆ’Ã‚Â¡ en esta
+                secciÃƒÆ’Ã‚Â³n.
               </p>
 
               <Link
@@ -290,7 +293,7 @@ export default function DashboardPage() {
                 </span>
 
                 <Badge className="bg-white/10 text-white">
-                  {roleName[role]}
+                  {t(roleNameKey[role])}
                 </Badge>
               </div>
 
@@ -298,7 +301,7 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-slate-400">{email}</p>
 
               <p className="mt-5 text-sm leading-6 text-slate-300">
-                {roleDescription[role]}
+                {t(roleDescriptionKey[role])}
               </p>
 
               <Link
@@ -315,7 +318,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Accesos rápidos
+                  Accesos rÃƒÆ’Ã‚Â¡pidos
                 </p>
                 <h2 className="mt-1 text-xl font-black">Tu cuenta AXI</h2>
               </div>
@@ -333,9 +336,9 @@ export default function DashboardPage() {
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="block font-bold">Pagos</span>
+                  <span className="block font-bold">{t("dashboard.payments")}</span>
                   <span className="block truncate text-sm text-slate-500">
-                    Métodos de pago y movimientos
+                    MÃƒÆ’Ã‚Â©todos de pago y movimientos
                   </span>
                 </span>
 
@@ -352,7 +355,7 @@ export default function DashboardPage() {
                   </span>
 
                   <span className="min-w-0 flex-1">
-                    <span className="block font-bold">Vehículos</span>
+                    <span className="block font-bold">VehÃƒÆ’Ã‚Â­culos</span>
                     <span className="block truncate text-sm text-slate-500">
                       Administra tu unidad o flotilla
                     </span>

@@ -231,7 +231,18 @@ export default function DriverStatusPage() {
     };
   }, []);
 
-function shareLocation() {
+  useEffect(() => {
+    if (online) {
+      startLocationTracking();
+    } else {
+      stopLocationTracking();
+    }
+
+    // El seguimiento depende únicamente del estado online.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online]);
+
+  function shareLocation() {
     setMessage("");
 
     if (!navigator.geolocation) {
@@ -306,12 +317,6 @@ function shareLocation() {
     }
 
     setOnline(nextOnline);
-
-    if (nextOnline) {
-      startLocationTracking();
-    } else {
-      stopLocationTracking();
-    }
     setMessage(
       nextOnline
         ? "Ya estÃƒÆ’Ã‚Â¡s en lÃƒÆ’Ã‚Â­nea y puedes recibir viajes."
