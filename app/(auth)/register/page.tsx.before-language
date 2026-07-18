@@ -15,15 +15,11 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
 import { supabase } from "@/lib/supabaseClient";
-import { useLanguage } from "@/hooks/useLanguage";
-import type { Locale } from "@/i18n/config";
 
 type AccountType = "passenger" | "driver";
 
 export default function RegisterPage() {
   const router = useRouter();
-const { t, setLocale } = useLanguage();
-  const [language, setLanguage] = useState<"es" | "en">("es");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,17 +36,17 @@ const { t, setLocale } = useLanguage();
     setErrorMessage("");
 
     if (!fullName.trim() || !email.trim() || !password) {
-      setErrorMessage(t("register.fillFields"));
+      setErrorMessage("Completa todos los campos.");
       return;
     }
 
     if (password.length < 6) {
-      setErrorMessage(t("register.passwordLength"));
+      setErrorMessage("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
 
     if (!acceptTerms) {
-      setErrorMessage(t("register.acceptTerms"));
+      setErrorMessage("Debes aceptar los términos y el aviso de privacidad.");
       return;
     }
 
@@ -64,7 +60,6 @@ const { t, setLocale } = useLanguage();
           full_name: fullName.trim(),
           role: accountType === "driver" ? "passenger" : "passenger",
           requested_account_type: accountType,
-          language,
         },
       },
     });
@@ -73,7 +68,7 @@ const { t, setLocale } = useLanguage();
       setLoading(false);
       setErrorMessage(
         error.message === "User already registered"
-          ? t("register.alreadyRegistered")
+          ? "Ya existe una cuenta con este correo."
           : error.message
       );
       return;
@@ -82,7 +77,7 @@ const { t, setLocale } = useLanguage();
     if (!data.session) {
       setLoading(false);
       setErrorMessage(
-        t("register.confirmEmail")
+        "Cuenta creada. Revisa tu correo para confirmar el registro."
       );
       return;
     }
@@ -105,7 +100,7 @@ const { t, setLocale } = useLanguage();
 
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-600">
-              ÃƒÅ¡nete a AXI
+              Únete a AXI
             </p>
 
             <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
@@ -113,7 +108,7 @@ const { t, setLocale } = useLanguage();
             </h1>
 
             <p className="mt-4 text-base leading-7 text-slate-500">
-              RegÃƒÂ­strate como pasajero o inicia tu solicitud para convertirte
+              Regístrate como pasajero o inicia tu solicitud para convertirte
               en conductor.
             </p>
           </div>
@@ -150,7 +145,7 @@ const { t, setLocale } = useLanguage();
                 htmlFor="email"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                Correo electrÃƒÂ³nico
+                Correo electrónico
               </label>
 
               <div className="relative">
@@ -176,7 +171,7 @@ const { t, setLocale } = useLanguage();
                 htmlFor="password"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                ContraseÃƒÂ±a
+                Contraseña
               </label>
 
               <div className="relative">
@@ -189,7 +184,7 @@ const { t, setLocale } = useLanguage();
                   id="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
-                  placeholder="MÃƒÂ­nimo 6 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-12 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/5"
@@ -199,7 +194,7 @@ const { t, setLocale } = useLanguage();
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
                   aria-label={
-                    showPassword ? "Ocultar contraseÃƒÂ±a" : "Mostrar contraseÃƒÂ±a"
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
                   }
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-950"
                 >
@@ -210,7 +205,7 @@ const { t, setLocale } = useLanguage();
 
             <div>
               <p className="mb-3 text-sm font-bold text-slate-700">
-                Ã‚Â¿CÃƒÂ³mo usarÃƒÂ¡s AXI?
+                ¿Cómo usarás AXI?
               </p>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -288,38 +283,6 @@ const { t, setLocale } = useLanguage();
               </div>
             </div>
 
-            <div>
-              <p className="mb-3 text-sm font-bold text-slate-700">
-                Idioma
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setLanguage("es")}
-                  className={`h-14 rounded-2xl border font-black transition ${
-                    language === "es"
-                      ? "border-yellow-400 bg-yellow-50 text-slate-950 ring-2 ring-yellow-400/20"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
-                  }`}
-                >
-                  EspaÃ±ol
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setLanguage("en")}
-                  className={`h-14 rounded-2xl border font-black transition ${
-                    language === "en"
-                      ? "border-yellow-400 bg-yellow-50 text-slate-950 ring-2 ring-yellow-400/20"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
-                  }`}
-                >
-                  English
-                </button>
-              </div>
-            </div>
-
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
               <input
                 type="checkbox"
@@ -329,7 +292,7 @@ const { t, setLocale } = useLanguage();
               />
 
               <span className="text-sm leading-6 text-slate-500">
-                Acepto los tÃƒÂ©rminos de uso y el aviso de privacidad de AXI.
+                Acepto los términos de uso y el aviso de privacidad de AXI.
               </span>
             </label>
 
@@ -350,19 +313,19 @@ const { t, setLocale } = useLanguage();
               disabled={loading}
               className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#0B0F19] px-6 font-black text-white shadow-xl shadow-slate-950/10 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-60"
             >
-              {loading ? t("register.creating") : t("register.create")}
+              {loading ? "Creando cuenta..." : "Crear cuenta"}
 
               {!loading && <ArrowRight size={19} />}
             </button>
           </form>
 
           <p className="mt-7 text-center text-sm text-slate-500">
-            Ã‚Â¿Ya tienes una cuenta?{" "}
+            ¿Ya tienes una cuenta?{" "}
             <Link
               href="/login"
               className="font-black text-slate-950 hover:underline"
             >
-              Inicia sesiÃƒÂ³n
+              Inicia sesión
             </Link>
           </p>
         </div>
@@ -380,7 +343,7 @@ const { t, setLocale } = useLanguage();
             </span>
 
             <h2 className="mt-7 text-6xl font-black leading-[1.02] tracking-tight">
-              MuÃƒÂ©vete.
+              Muévete.
               <br />
               Conduce.
               <br />
@@ -388,14 +351,14 @@ const { t, setLocale } = useLanguage();
             </h2>
 
             <p className="mt-6 max-w-lg text-lg leading-8 text-slate-300">
-              DiseÃƒÂ±ado para conectar pasajeros y conductores mediante una
+              Diseñado para conectar pasajeros y conductores mediante una
               plataforma moderna, segura y sencilla.
             </p>
 
             <div className="mt-10 space-y-4">
               {[
-                "Seguimiento y gestiÃƒÂ³n de viajes",
-                "Conductores y vehÃƒÂ­culos verificados",
+                "Seguimiento y gestión de viajes",
+                "Conductores y vehículos verificados",
                 "Pagos y actividad desde una sola cuenta",
               ].map((benefit) => (
                 <div
@@ -421,5 +384,3 @@ const { t, setLocale } = useLanguage();
     </main>
   );
 }
-
-

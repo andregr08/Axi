@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   FormEvent,
@@ -28,6 +28,7 @@ import {
 import { PushNotificationsCard } from "@/components/notifications/PushNotificationsCard";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
 type UserRole = "admin" | "driver" | "passenger";
@@ -42,6 +43,7 @@ type Profile = {
   total_trips: number;
   account_active: boolean;
   created_at: string;
+  language: "es" | "en";
 };
 
 const roleLabels: Record<UserRole, string> = {
@@ -58,11 +60,13 @@ function formatDate(value: string) {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { setLocale } = useLanguage();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+const [language, setLanguage] = useState<"es" | "en">("es");
 
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -118,6 +122,7 @@ export default function ProfilePage() {
     setProfile(loadedProfile);
     setName(loadedProfile.full_name ?? "");
     setPhone(loadedProfile.phone ?? "");
+setLanguage(loadedProfile.language ?? "es");
     setLoading(false);
   }, [router]);
 
@@ -139,7 +144,7 @@ export default function ProfilePage() {
 
     if (phone.trim() && phone.replace(/\D/g, "").length < 10) {
       setProfileMessage(
-        "Escribe un número de teléfono válido de al menos 10 dígitos."
+        "Escribe un nÃºmero de telÃ©fono vÃ¡lido de al menos 10 dÃ­gitos."
       );
       return;
     }
@@ -161,6 +166,7 @@ export default function ProfilePage() {
       .update({
         full_name: name.trim(),
         phone: phone.trim() || null,
+        language,
       })
       .eq("id", session.user.id);
 
@@ -181,7 +187,7 @@ export default function ProfilePage() {
 
     if (authError) {
       setProfileMessage(
-        `El perfil se guardó, pero no se actualizó el nombre de autenticación: ${authError.message}`
+        `El perfil se guardÃ³, pero no se actualizÃ³ el nombre de autenticaciÃ³n: ${authError.message}`
       );
     } else {
       setProfileMessage("Perfil actualizado correctamente.");
@@ -199,13 +205,13 @@ export default function ProfilePage() {
 
     if (newPassword.length < 8) {
       setPasswordMessage(
-        "La contraseña debe tener al menos 8 caracteres."
+        "La contraseÃ±a debe tener al menos 8 caracteres."
       );
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMessage("Las contraseñas no coinciden.");
+      setPasswordMessage("Las contraseÃ±as no coinciden.");
       return;
     }
 
@@ -217,11 +223,11 @@ export default function ProfilePage() {
 
     if (error) {
       setPasswordMessage(
-        `No fue posible cambiar la contraseña: ${error.message}`
+        `No fue posible cambiar la contraseÃ±a: ${error.message}`
       );
     } else {
       setPasswordMessage(
-        "Contraseña actualizada correctamente."
+        "ContraseÃ±a actualizada correctamente."
       );
       setNewPassword("");
       setConfirmPassword("");
@@ -321,7 +327,7 @@ export default function ProfilePage() {
 
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-md">
             <HeroMetric
-              label="Calificación"
+              label="CalificaciÃ³n"
               value={Number(profile.rating ?? 5).toFixed(1)}
               icon={Star}
             />
@@ -345,7 +351,7 @@ export default function ProfilePage() {
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Información de cuenta
+                  InformaciÃ³n de cuenta
                 </h2>
               </div>
 
@@ -357,13 +363,13 @@ export default function ProfilePage() {
             <div className="mt-7 space-y-3">
               <AccountRow
                 icon={Mail}
-                label="Correo electrónico"
+                label="Correo electrÃ³nico"
                 value={email || "No registrado"}
               />
 
               <AccountRow
                 icon={Phone}
-                label="Teléfono"
+                label="TelÃ©fono"
                 value={profile.phone || "No registrado"}
               />
 
@@ -393,16 +399,16 @@ export default function ProfilePage() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-7 text-slate-400">
-                  Usa una contraseña única y evita compartir tus datos de
+                  Usa una contraseÃ±a Ãºnica y evita compartir tus datos de
                   acceso con otras personas.
                 </p>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              <SecurityItem label="Sesión protegida con Supabase Auth" />
-              <SecurityItem label="Contraseña cifrada" />
-              <SecurityItem label="Acceso según tu rol" />
+              <SecurityItem label="SesiÃ³n protegida con Supabase Auth" />
+              <SecurityItem label="ContraseÃ±a cifrada" />
+              <SecurityItem label="Acceso segÃºn tu rol" />
             </div>
           </Card>
         </div>
@@ -420,7 +426,7 @@ export default function ProfilePage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Mantén actualizada tu información de contacto.
+                  MantÃ©n actualizada tu informaciÃƒÂ³n de contacto.
                 </p>
               </div>
 
@@ -464,7 +470,7 @@ export default function ProfilePage() {
                   htmlFor="phone"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Teléfono
+                  TelÃ©fono
                 </label>
 
                 <div className="relative">
@@ -484,14 +490,38 @@ export default function ProfilePage() {
                     className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                   />
                 </div>
+              </div>              <div>
+                <label
+                  htmlFor="language"
+                  className="mb-2 block text-sm font-black text-slate-700"
+                >
+                  Idioma
+                </label>
+
+                <select
+                  id="language"
+                  value={language}
+                  onChange={(event) =>
+                    setLanguage(event.target.value as "es" | "en")
+                  }
+                  className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
+                >
+                  <option value="es">Español</option>
+                  <option value="en">English</option>
+                </select>
+
+                <p className="mt-2 text-xs text-slate-400">
+                  El idioma se aplicará a toda tu cuenta.
+                </p>
               </div>
+
 
               <div>
                 <label
                   htmlFor="email"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Correo electrónico
+                  Correo electrÃ³nico
                 </label>
 
                 <div className="relative">
@@ -509,7 +539,7 @@ export default function ProfilePage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  El cambio de correo se habilitará posteriormente.
+                  El cambio de correo se habilitarÃ¡ posteriormente.
                 </p>
               </div>
 
@@ -548,11 +578,11 @@ export default function ProfilePage() {
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Cambiar contraseña
+                  Cambiar contraseÃ±a
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  La nueva contraseña debe tener al menos 8 caracteres.
+                  La nueva contraseÃ±a debe tener al menos 8 caracteres.
                 </p>
               </div>
 
@@ -567,7 +597,7 @@ export default function ProfilePage() {
             >
               <PasswordInput
                 id="new-password"
-                label="Nueva contraseña"
+                label="Nueva contraseÃ±a"
                 value={newPassword}
                 showPassword={showPassword}
                 onChange={setNewPassword}
@@ -578,7 +608,7 @@ export default function ProfilePage() {
 
               <PasswordInput
                 id="confirm-password"
-                label="Confirmar contraseña"
+                label="Confirmar contraseÃ±a"
                 value={confirmPassword}
                 showPassword={showPassword}
                 onChange={setConfirmPassword}
@@ -607,12 +637,14 @@ export default function ProfilePage() {
                 ) : (
                   <>
                     <KeyRound size={19} />
-                    Actualizar contraseña
+                    Actualizar contraseÃ±a
                   </>
                 )}
               </button>
             </form>
           </Card>
+        
+          <PushNotificationsCard />
         </div>
       </div>
     </section>
@@ -708,7 +740,7 @@ function PasswordInput({
           onChange={(event) =>
             onChange(event.target.value)
           }
-          placeholder="Mínimo 8 caracteres"
+          placeholder="MÃ­nimo 8 caracteres"
           className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-14 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
         />
 
@@ -717,8 +749,8 @@ function PasswordInput({
           onClick={onToggle}
           aria-label={
             showPassword
-              ? "Ocultar contraseña"
-              : "Mostrar contraseña"
+              ? "Ocultar contraseÃ±a"
+              : "Mostrar contraseÃ±a"
           }
           className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-950"
         >
@@ -773,3 +805,8 @@ function SecurityItem({
     </div>
   );
 }
+
+
+
+
+
