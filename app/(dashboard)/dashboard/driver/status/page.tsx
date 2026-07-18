@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { isDriver } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type DriverStats = {
@@ -99,7 +100,7 @@ export default function DriverStatusPage() {
         .eq("id", session.user.id)
         .single();
 
-      if (profile?.role !== "driver") {
+      if (!isDriver(profile?.role)) {
         router.replace("/dashboard");
         return;
       }

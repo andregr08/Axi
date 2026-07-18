@@ -622,8 +622,8 @@ export default function ActiveTripPage({
     const { error } = await supabase.rpc(
       "advance_trip_status",
       {
-        trip_id: trip.id,
-        next_status: nextStatus,
+        p_trip_id: trip.id,
+        p_next_status: nextStatus,
       }
     );
 

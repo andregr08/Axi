@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth/roles";
 
 type PaymentTransaction = {
   id: string;
@@ -38,7 +39,7 @@ export default function AdminPaymentsPage() {
       .eq("id", session.user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (!isAdmin(profile?.role)) {
       router.replace("/dashboard");
       return;
     }

@@ -26,11 +26,11 @@ export function isSupport(role: UserRole | null | undefined) {
 }
 
 export function isDriver(role: UserRole | null | undefined) {
-  return role === ROLES.DRIVER;
+  return role === ROLES.DRIVER || isAdmin(role);
 }
 
 export function isPassenger(role: UserRole | null | undefined) {
-  return role === ROLES.PASSENGER;
+  return role === ROLES.PASSENGER || isAdmin(role);
 }
 
 export function canManageDrivers(role: UserRole | null | undefined) {

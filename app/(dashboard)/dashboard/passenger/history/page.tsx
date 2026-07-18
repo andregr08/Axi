@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { isPassenger } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type PassengerActivity = {
@@ -227,7 +228,7 @@ export default function PassengerHistoryPage() {
 
       if (
         profileError ||
-        profile?.role !== "passenger"
+        !isPassenger(profile?.role)
       ) {
         router.replace("/dashboard");
         return;

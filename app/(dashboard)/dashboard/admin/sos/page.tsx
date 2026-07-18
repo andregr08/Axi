@@ -24,6 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type SosStatus =
@@ -96,7 +97,7 @@ export default function AdminSOSPage() {
         .eq("id", session.user.id)
         .single();
 
-      if (profile?.role !== "admin") {
+      if (!isAdmin(profile?.role)) {
         router.replace("/dashboard");
         return;
       }

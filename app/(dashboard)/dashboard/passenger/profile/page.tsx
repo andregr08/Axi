@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { isPassenger } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type PlaceType =
@@ -177,7 +178,7 @@ export default function PassengerProfilePage() {
       if (
         profileResult.error ||
         !profileResult.data ||
-        profileResult.data.role !== "passenger"
+        !isPassenger(profileResult.data.role)
       ) {
         router.replace("/dashboard");
         return;

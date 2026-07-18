@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth/roles";
 
 type DiscountType =
   | "percentage"
