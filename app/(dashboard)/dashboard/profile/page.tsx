@@ -52,15 +52,21 @@ const roleLabels: Record<UserRole, string> = {
   passenger: "Pasajero",
 };
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "long",
-  }).format(new Date(value));
+function formatDate(
+  value: string,
+  locale: "es" | "en"
+) {
+  return new Intl.DateTimeFormat(
+    locale === "es" ? "es-MX" : "en-US",
+    {
+      dateStyle: "long",
+    }
+  ).format(new Date(value));
 }
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { setLocale } = useLanguage();
+  const { locale, setLocale, t } = useLanguage();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState("");
@@ -382,7 +388,7 @@ setLanguage(loadedProfile.language ?? "es");
               <AccountRow
                 icon={CalendarDays}
                 label="Miembro desde"
-                value={formatDate(profile.created_at)}
+                value={formatDate(profile.created_at, locale)}
               />
             </div>
           </Card>
@@ -805,6 +811,7 @@ function SecurityItem({
     </div>
   );
 }
+
 
 
 
