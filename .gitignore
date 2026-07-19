@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Respaldos y auditorias locales
+*.bak
+*.bak-*
+*.backup
+*.before-*
+*.language-backup
+*.i18n-roto
+*.exact-fix-backup
+*.driver-i18n-backup
+.i18n-used-keys.txt
+i18n-audit.txt
+i18n-next-audit.txt
+revision-*.txt
+register-page.txt
+trip-detail-i18n.txt

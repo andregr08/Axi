@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type ApplicationStatus =
   | "pending"
@@ -78,6 +79,7 @@ type DocumentLinks = {
 
 export default function DriverApplicationsAdminPage() {
   const router = useRouter();
+  const { locale, t } = useLanguage();
 
   const [applications, setApplications] =
     useState<DriverApplication[]>([]);
@@ -163,7 +165,7 @@ export default function DriverApplicationsAdminPage() {
 
     if (error) {
       setMessage(
-        `Error cargando solicitudes: ${error.message}`
+        `${t("driverApplications.loadError")} ${error.message}`
       );
     } else {
       setApplications(
@@ -268,8 +270,8 @@ export default function DriverApplicationsAdminPage() {
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? `Error abriendo documentos: ${error.message}`
-          : "No se pudieron abrir los documentos."
+          ? `${t("driverApplications.openDocumentsError")} ${error.message}`
+          : t("driverApplications.documentsUnavailable")
       );
     } finally {
       setOpeningId(null);
@@ -287,7 +289,7 @@ export default function DriverApplicationsAdminPage() {
 
     if (reviewStatus === "matched") {
       const scoreInput = window.prompt(
-        "Escribe el porcentaje estimado de coincidencia, de 0 a 100:"
+        t("driverApplications.faceScorePrompt")
       );
 
       if (scoreInput === null) {
@@ -302,14 +304,14 @@ export default function DriverApplicationsAdminPage() {
         score > 100
       ) {
         window.alert(
-          "Escribe un número válido entre 0 y 100."
+          t("driverApplications.invalidScore")
         );
         return;
       }
     }
 
     const confirmed = window.confirm(
-      "¿Confirmas esta revisión facial?"
+      t("driverApplications.confirmFaceReview")
     );
 
     if (!confirmed) {
@@ -330,11 +332,11 @@ export default function DriverApplicationsAdminPage() {
 
     if (error) {
       setMessage(
-        `Error en revisión facial: ${error.message}`
+        `${t("driverApplications.faceReviewError")} ${error.message}`
       );
     } else {
       setMessage(
-        "Revisión facial guardada."
+        t("driverApplications.faceReviewSaved")
       );
 
       await loadApplications();
@@ -347,7 +349,7 @@ export default function DriverApplicationsAdminPage() {
     applicationId: string
   ) {
     const confirmed = window.confirm(
-      "¿Confirmas que revisaste identidad, licencia, concesión y documentos del taxi?"
+      t("driverApplications.confirmApprove")
     );
 
     if (!confirmed) {
@@ -366,11 +368,11 @@ export default function DriverApplicationsAdminPage() {
 
     if (error) {
       setMessage(
-        `Error al aprobar: ${error.message}`
+        `${t("driverApplications.approveError")} ${error.message}`
       );
     } else {
       setMessage(
-        "Conductor aprobado correctamente."
+        t("driverApplications.approved")
       );
 
       await loadApplications();
@@ -383,7 +385,7 @@ export default function DriverApplicationsAdminPage() {
     applicationId: string
   ) {
     const reason = window.prompt(
-      "Escribe el motivo del rechazo:"
+      t("driverApplications.rejectReasonPrompt")
     );
 
     if (!reason?.trim()) {
@@ -403,11 +405,11 @@ export default function DriverApplicationsAdminPage() {
 
     if (error) {
       setMessage(
-        `Error al rechazar: ${error.message}`
+        `${t("driverApplications.rejectError")} ${error.message}`
       );
     } else {
       setMessage(
-        "Solicitud rechazada."
+        t("driverApplications.rejected")
       );
 
       await loadApplications();
@@ -426,7 +428,7 @@ export default function DriverApplicationsAdminPage() {
 
     return (
       profile?.full_name ||
-      "Usuario sin nombre"
+      t("driverApplications.unnamedUser")
     );
   }
 
@@ -437,10 +439,10 @@ export default function DriverApplicationsAdminPage() {
       FaceStatus,
       string
     > = {
-      pending: "Pendiente",
-      matched: "Coincide",
-      not_matched: "No coincide",
-      manual_review: "Revisión manual",
+      pending: t("driverApplications.pending"),
+      matched: t("driverApplications.matched"),
+      not_matched: t("driverApplications.notMatched"),
+      manual_review: t("driverApplications.manualReview"),
     };
 
     return labels[status];
@@ -453,9 +455,9 @@ export default function DriverApplicationsAdminPage() {
       ApplicationStatus,
       string
     > = {
-      pending: "Pendiente",
-      approved: "Aprobada",
-      rejected: "Rechazada",
+      pending: t("driverApplications.pending"),
+      approved: t("driverApplications.approvedStatus"),
+      rejected: t("driverApplications.rejectedStatus"),
     };
 
     return labels[status];
@@ -465,17 +467,17 @@ export default function DriverApplicationsAdminPage() {
     value: string | null
   ) {
     if (!value) {
-      return "No aplica";
+      return t("driverApplications.notApplicable");
     }
 
     return new Date(
       `${value}T12:00:00`
-    ).toLocaleDateString("es-MX");
+    ).toLocaleDateString(locale === "es" ? "es-MX" : "en-US");
   }
 
   if (loading) {
     return (
-      <p>Cargando solicitudes...</p>
+      <p>{t("driverApplications.loading")}</p>
     );
   }
 
@@ -491,7 +493,7 @@ export default function DriverApplicationsAdminPage() {
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Revisa al conductor, la licencia, la concesión y los datos legales del taxi.
+          {t("driverApplications.subtitle")}
         </p>
       </div>
 
@@ -505,7 +507,7 @@ export default function DriverApplicationsAdminPage() {
         {applications.length === 0 ? (
           <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
             <p className="font-semibold">
-              No hay solicitudes registradas.
+              {t("driverApplications.empty")}
             </p>
           </div>
         ) : (
@@ -549,86 +551,86 @@ export default function DriverApplicationsAdminPage() {
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                       <DataItem
-                        label="Número de licencia"
+                        label={t("driverApplications.licenseNumber")}
                         value={
                           application.license_number
                         }
                       />
 
                       <DataItem
-                        label="Vencimiento de licencia"
+                        label={t("driverApplications.licenseExpiration")}
                         value={formatDate(
                           application.license_expiration
                         )}
                       />
 
                       <DataItem
-                        label="Estado donde opera"
+                        label={t("driverApplications.operatingState")}
                         value={
                           application.operating_state
                         }
                       />
 
                       <DataItem
-                        label="Ciudad o municipio"
+                        label={t("driverApplications.operatingCity")}
                         value={
                           application.operating_city
                         }
                       />
 
                       <DataItem
-                        label="Número económico"
+                        label={t("driverApplications.taxiNumber")}
                         value={
                           application.taxi_number
                         }
                       />
 
                       <DataItem
-                        label="Concesión o permiso"
+                        label={t("driverApplications.concessionNumber")}
                         value={
                           application.concession_number
                         }
                       />
 
                       <DataItem
-                        label="Autoridad emisora"
+                        label={t("driverApplications.concessionAuthority")}
                         value={
                           application.concession_authority
                         }
                       />
 
                       <DataItem
-                        label="Titular de la concesión"
+                        label={t("driverApplications.concessionHolder")}
                         value={
                           application.concession_holder_name
                         }
                       />
 
                       <DataItem
-                        label="Vencimiento del permiso"
+                        label={t("driverApplications.concessionExpiration")}
                         value={formatDate(
                           application.concession_expiration
                         )}
                       />
 
                       <DataItem
-                        label="VIN / número de serie"
+                        label={t("driverApplications.vehicleVin")}
                         value={
                           application.vehicle_vin
                         }
                       />
 
                       <DataItem
-                        label="Documentos"
+                        label={t("driverApplications.documents")}
                         value={
                           application.documents_complete
-                            ? "Completos"
-                            : "Incompletos"
+                            ? t("driverApplications.complete")
+                            : t("driverApplications.incomplete")
                         }
                       />
 
                       <DataItem
-                        label="Verificación facial"
+                        label={t("driverApplications.faceVerification")}
                         value={`${faceStatusLabel(
                           application.face_match_status
                         )}${
@@ -657,8 +659,8 @@ export default function DriverApplicationsAdminPage() {
                     >
                       {openingId ===
                       application.id
-                        ? "Abriendo..."
-                        : "Revisar documentos"}
+                        ? t("driverApplications.opening")
+                        : t("driverApplications.reviewDocuments")}
                     </button>
 
                     {application.status ===
@@ -674,9 +676,7 @@ export default function DriverApplicationsAdminPage() {
                           }
                           disabled={processing}
                           className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                        >
-                          Rostro coincide
-                        </button>
+                        >{t("driverApplications.faceMatches")}</button>
 
                         <button
                           type="button"
@@ -688,9 +688,7 @@ export default function DriverApplicationsAdminPage() {
                           }
                           disabled={processing}
                           className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
-                        >
-                          No coincide
-                        </button>
+                        >{t("driverApplications.notMatched")}</button>
 
                         <button
                           type="button"
@@ -702,9 +700,7 @@ export default function DriverApplicationsAdminPage() {
                           }
                           disabled={processing}
                           className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
-                        >
-                          Revisión manual
-                        </button>
+                        >{t("driverApplications.manualReview")}</button>
 
                         <button
                           type="button"
@@ -724,9 +720,7 @@ export default function DriverApplicationsAdminPage() {
                             !application.concession_number
                           }
                           className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-                        >
-                          Aprobar
-                        </button>
+                        >{t("driverApplications.approve")}</button>
 
                         <button
                           type="button"
@@ -737,9 +731,7 @@ export default function DriverApplicationsAdminPage() {
                           }
                           disabled={processing}
                           className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
-                        >
-                          Rechazar
-                        </button>
+                        >{t("driverApplications.reject")}</button>
                       </>
                     )}
                   </div>
@@ -747,38 +739,36 @@ export default function DriverApplicationsAdminPage() {
 
                 {links && (
                   <div className="mt-8">
-                    <h3 className="mb-4 text-lg font-bold">
-                      Documentos obligatorios
-                    </h3>
+                    <h3 className="mb-4 text-lg font-bold">{t("driverApplications.requiredDocuments")}</h3>
 
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                       <DocumentCard
-                        label="Foto de perfil"
+                        label={t("driverApplications.profilePhoto")}
                         url={links.profilePhoto}
                       />
 
                       <DocumentCard
-                        label="Selfie"
+                        label={t("driverApplications.selfie")}
                         url={links.selfie}
                       />
 
                       <DocumentCard
-                        label="Licencia frente"
+                        label={t("driverApplications.licenseFront")}
                         url={links.licenseFront}
                       />
 
                       <DocumentCard
-                        label="Licencia reverso"
+                        label={t("driverApplications.licenseBack")}
                         url={links.licenseBack}
                       />
 
                       <DocumentCard
-                        label="Identificación"
+                        label={t("driverApplications.identification")}
                         url={links.identification}
                       />
 
                       <DocumentCard
-                        label="Concesión o permiso"
+                        label={t("driverApplications.concessionDocument")}
                         url={
                           links.concessionDocument
                         }
@@ -786,34 +776,32 @@ export default function DriverApplicationsAdminPage() {
                       />
                     </div>
 
-                    <h3 className="mb-4 mt-8 text-lg font-bold">
-                      Fotografías opcionales del taxi
-                    </h3>
+                    <h3 className="mb-4 mt-8 text-lg font-bold">{t("driverApplications.optionalTaxiPhotos")}</h3>
 
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                       <DocumentCard
-                        label="Vista frontal"
+                        label={t("driverApplications.frontView")}
                         url={
                           links.vehicleFrontPhoto
                         }
                       />
 
                       <DocumentCard
-                        label="Vista trasera"
+                        label={t("driverApplications.rearView")}
                         url={
                           links.vehicleRearPhoto
                         }
                       />
 
                       <DocumentCard
-                        label="Lado izquierdo"
+                        label={t("driverApplications.leftSide")}
                         url={
                           links.vehicleLeftPhoto
                         }
                       />
 
                       <DocumentCard
-                        label="Lado derecho"
+                        label={t("driverApplications.rightSide")}
                         url={
                           links.vehicleRightPhoto
                         }
@@ -824,7 +812,7 @@ export default function DriverApplicationsAdminPage() {
 
                 {application.rejection_reason && (
                   <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                    Motivo:{" "}
+                    {t("driverApplications.reason")}:{" "}
                     {
                       application.rejection_reason
                     }
@@ -846,6 +834,8 @@ function DataItem({
   label: string;
   value: string | null;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="rounded-xl bg-gray-50 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -853,7 +843,7 @@ function DataItem({
       </p>
 
       <p className="mt-2 break-words text-sm font-semibold text-gray-800">
-        {value || "No registrado"}
+        {value || t("driverApplications.notRegistered")}
       </p>
     </div>
   );
@@ -868,6 +858,8 @@ function DocumentCard({
   url: string | null;
   document?: boolean;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="rounded-xl border p-4">
       <p className="mb-3 text-sm font-semibold">
@@ -883,7 +875,7 @@ function DocumentCard({
         >
           {document ? (
             <div className="flex h-52 items-center justify-center rounded-lg bg-gray-100 px-5 text-center text-sm font-semibold text-gray-700">
-              Abrir documento o imagen
+              {t("driverApplications.openDocument")}
             </div>
           ) : (
             <img
@@ -894,14 +886,16 @@ function DocumentCard({
           )}
 
           <p className="mt-3 text-center text-sm font-semibold underline">
-            Abrir en tamaño completo
+            {t("driverApplications.openFullSize")}
           </p>
         </a>
       ) : (
         <div className="flex h-52 items-center justify-center rounded-lg bg-gray-100 px-4 text-center text-sm text-gray-500">
-          Archivo no disponible
+          {t("driverApplications.fileUnavailable")}
         </div>
       )}
     </div>
   );
 }
+
+

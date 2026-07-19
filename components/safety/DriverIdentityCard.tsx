@@ -8,6 +8,7 @@ import {
   Star,
   UserRound,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 export type DriverIdentity = {
   name: string;
@@ -25,6 +26,8 @@ export function DriverIdentityCard({
 }: {
   driver: DriverIdentity;
 }) {
+  const { t } = useLanguage();
+
   const initial =
     driver.name.trim().charAt(0).toUpperCase() || "A";
 
@@ -34,11 +37,11 @@ export function DriverIdentityCard({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-              Tu conductor AXI
+              {t("driverIdentity.section")}
             </p>
 
             <h2 className="mt-1 text-2xl font-black">
-              Verifica antes de abordar
+              {t("driverIdentity.heading")}
             </h2>
           </div>
 
@@ -74,7 +77,9 @@ export function DriverIdentityCard({
                 <BadgeCheck
                   size={20}
                   className="shrink-0 text-blue-600"
-                  aria-label="Conductor verificado"
+                  aria-label={t(
+                    "driverIdentity.verifiedDriver"
+                  )}
                 />
               )}
             </div>
@@ -87,13 +92,13 @@ export function DriverIdentityCard({
 
               {driver.rating !== null
                 ? driver.rating.toFixed(1)
-                : "Sin calificación"}
+                : t("driverIdentity.noRating")}
             </div>
 
             <p className="mt-2 text-xs font-semibold text-emerald-700">
               {driver.verified
-                ? "Identidad validada por AXI"
-                : "Verificación pendiente"}
+                ? t("driverIdentity.identityVerified")
+                : t("driverIdentity.verificationPending")}
             </p>
           </div>
         </div>
@@ -106,27 +111,34 @@ export function DriverIdentityCard({
 
             <div>
               <p className="text-xs font-black uppercase tracking-wider text-slate-500">
-                Vehículo
+                {t("driverIdentity.vehicle")}
               </p>
 
               <p className="mt-1 font-black">
                 {[driver.vehicleBrand, driver.vehicleModel]
                   .filter(Boolean)
-                  .join(" ") || "Vehículo pendiente"}
+                  .join(" ") ||
+                  t("driverIdentity.vehiclePending")}
               </p>
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <VehicleData
-              label="Color"
-              value={driver.vehicleColor || "Pendiente"}
+              label={t("driverIdentity.color")}
+              value={
+                driver.vehicleColor ||
+                t("driverIdentity.pending")
+              }
               icon={<CarFront size={17} />}
             />
 
             <VehicleData
-              label="Placas"
-              value={driver.vehiclePlates || "Pendientes"}
+              label={t("driverIdentity.plates")}
+              value={
+                driver.vehiclePlates ||
+                t("driverIdentity.pendingPlural")
+              }
               icon={<Hash size={17} />}
             />
           </div>
@@ -139,8 +151,7 @@ export function DriverIdentityCard({
           />
 
           <p className="text-xs leading-6 text-amber-800">
-            No abordes si la fotografía, el vehículo o las placas no
-            coinciden con los datos mostrados en AXI.
+            {t("driverIdentity.warning")}
           </p>
         </div>
       </div>

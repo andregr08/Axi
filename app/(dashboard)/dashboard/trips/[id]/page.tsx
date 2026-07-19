@@ -35,6 +35,7 @@ import { ShareTripCard } from "@/components/trips/ShareTripCard";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
 type UserRole = "admin" | "driver" | "passenger";
@@ -75,26 +76,26 @@ type Trip = {
   completed_at: string | null;
 };
 
-const statusLabels: Record<TripStatus, string> = {
-  requested: "Solicitado",
-  searching: "Buscando conductor",
-  accepted: "Aceptado",
-  driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegÃƒÆ’Ã‚Â³",
-  in_progress: "Viaje en curso",
-  completed: "Viaje completado",
-  cancelled: "Viaje cancelado",
+const statusLabelKeys: Record<TripStatus, string> = {
+  requested: "tripDetail.status.requested",
+  searching: "tripDetail.status.searching",
+  accepted: "tripDetail.status.accepted",
+  driver_arriving: "tripDetail.status.driverArriving",
+  driver_arrived: "tripDetail.status.driverArrived",
+  in_progress: "tripDetail.status.inProgress",
+  completed: "tripDetail.status.completed",
+  cancelled: "tripDetail.status.cancelled",
 };
 
-const statusDescriptions: Record<TripStatus, string> = {
-  requested: "La solicitud fue creada correctamente.",
-  searching: "AXI estÃƒÆ’Ã‚Â¡ buscando un conductor cercano.",
-  accepted: "Un conductor aceptÃƒÆ’Ã‚Â³ el viaje.",
-  driver_arriving: "El conductor se dirige al punto de origen.",
-  driver_arrived: "El conductor ya se encuentra en el punto de origen.",
-  in_progress: "El viaje se encuentra en curso.",
-  completed: "El recorrido terminÃƒÆ’Ã‚Â³ correctamente.",
-  cancelled: "La solicitud fue cancelada.",
+const statusDescriptionKeys: Record<TripStatus, string> = {
+  requested: "tripDetail.description.requested",
+  searching: "tripDetail.description.searching",
+  accepted: "tripDetail.description.accepted",
+  driver_arriving: "tripDetail.description.driverArriving",
+  driver_arrived: "tripDetail.description.driverArrived",
+  in_progress: "tripDetail.description.inProgress",
+  completed: "tripDetail.description.completed",
+  cancelled: "tripDetail.description.cancelled",
 };
 
 const nextDriverAction: Partial<
@@ -102,70 +103,83 @@ const nextDriverAction: Partial<
     TripStatus,
     {
       status: TripStatus;
-      label: string;
+      labelKey: string;
     }
   >
 > = {
   accepted: {
     status: "driver_arriving",
-    label: "Voy en camino",
+    labelKey: "tripDetail.actions.onMyWay",
   },
   driver_arriving: {
     status: "driver_arrived",
-    label: "Ya lleguÃƒÆ’Ã‚Â©",
+    labelKey: "tripDetail.actions.arrived",
   },
   driver_arrived: {
     status: "in_progress",
-    label: "Iniciar viaje",
+    labelKey: "tripDetail.actions.startTrip",
   },
   in_progress: {
     status: "completed",
-    label: "Finalizar viaje",
+    labelKey: "tripDetail.actions.finishTrip",
   },
 };
 
 const progressSteps: Array<{
   status: TripStatus;
-  label: string;
+  labelKey: string;
 }> = [
   {
     status: "accepted",
-    label: "Aceptado",
+    labelKey: "tripDetail.progress.accepted",
   },
   {
     status: "driver_arriving",
-    label: "En camino",
+    labelKey: "tripDetail.progress.onTheWay",
   },
   {
     status: "driver_arrived",
-    label: "LlegÃƒÆ’Ã‚Â³",
+    labelKey: "tripDetail.progress.arrived",
   },
   {
     status: "in_progress",
-    label: "En curso",
+    labelKey: "tripDetail.progress.inProgress",
   },
   {
     status: "completed",
-    label: "Completado",
+    labelKey: "tripDetail.progress.completed",
   },
 ];
 
-function formatCurrency(value: number | null) {
-  if (value === null) return "Por calcular";
+function formatCurrency(
+  value: number | null,
+  locale: "es" | "en"
+) {
+  if (value === null) {
+    return locale === "es" ? "Por calcular" : "Pending";
+  }
 
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(value);
+  return new Intl.NumberFormat(
+    locale === "es" ? "es-MX" : "en-US",
+    {
+      style: "currency",
+      currency: "MXN",
+    }
+  ).format(value);
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "long",
-    timeStyle: "short",
-  }).format(new Date(value));
+function formatDate(
+  value: string,
+  locale: "es" | "en"
+) {
+  return new Intl.DateTimeFormat(
+    locale === "es" ? "es-MX" : "en-US",
+    {
+      dateStyle: "long",
+      timeStyle: "short",
+    }
+  ).format(new Date(value));
 }
-
 function getStatusVariant(
   status: TripStatus
 ): "default" | "success" | "warning" | "danger" {
@@ -190,6 +204,7 @@ export default function ActiveTripPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { t, locale } = useLanguage();
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
@@ -230,8 +245,8 @@ export default function ActiveTripPage({
 
     if (error || !data) {
       setMessage(
-        `No fue posible cargar el viaje: ${
-          error?.message ?? "Viaje no encontrado"
+        `${t("tripDetail.errors.loadTrip")}: ${
+          error?.message ?? t("tripDetail.errors.notFound")
         }`
       );
       setLoading(false);
@@ -261,13 +276,13 @@ export default function ActiveTripPage({
       );
 
       setPassengerName(
-        passenger?.full_name || "Pasajero sin nombre"
+        passenger?.full_name || t("tripDetail.participants.unnamedPassenger")
       );
 
       const resolvedDriverName =
         loadedTrip.driver_id
-          ? driver?.full_name || "Conductor sin nombre"
-          : "Sin asignar";
+          ? driver?.full_name || t("tripDetail.participants.unnamedDriver")
+          : t("tripDetail.participants.unassigned");
 
       setDriverName(resolvedDriverName);
 
@@ -332,7 +347,7 @@ export default function ActiveTripPage({
         .single();
 
       if (profileError || !profile) {
-        setMessage("No fue posible cargar tu perfil.");
+        setMessage(t("tripDetail.errors.profile"));
         setLoading(false);
         return;
       }
@@ -397,7 +412,7 @@ export default function ActiveTripPage({
 
       if (error) {
         console.error(
-          "Error cargando ubicaciÃƒÂ³n del conductor:",
+          "Error loading driver location:",
           error.message
         );
       } else if (data) {
@@ -455,7 +470,9 @@ export default function ActiveTripPage({
     if (!trip) return;
 
     const confirmed = window.confirm(
-      `Ãƒâ€šÃ‚Â¿Confirmas la acciÃƒÆ’Ã‚Â³n "${statusLabels[nextStatus]}"?`
+      `${t("tripDetail.confirmAction")} "${t(
+        statusLabelKeys[nextStatus]
+      )}"?`
     );
 
     if (!confirmed) return;
@@ -472,9 +489,9 @@ export default function ActiveTripPage({
     );
 
     if (error) {
-      setMessage(`Error actualizando viaje: ${error.message}`);
+      setMessage(`${t("tripDetail.updateError")}: ${error.message}`);
     } else {
-      setMessage("Estado del viaje actualizado correctamente.");
+      setMessage(t("tripDetail.updateSuccess"));
       await loadTrip();
     }
 
@@ -505,11 +522,11 @@ export default function ActiveTripPage({
           </span>
 
           <h1 className="mt-6 text-3xl font-black">
-            Viaje no disponible
+            {t("tripDetail.notAvailable.title")}
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-500">
-            {message || "No fue posible cargar el viaje."}
+            {message || t("tripDetail.notAvailable.description")}
           </p>
 
           <Link
@@ -517,7 +534,7 @@ export default function ActiveTripPage({
             className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white"
           >
             <ArrowLeft size={18} />
-            Volver a mis viajes
+            {t("tripDetail.backToTrips")}
           </Link>
         </Card>
       </section>
@@ -548,12 +565,12 @@ export default function ActiveTripPage({
           className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
         >
           <ArrowLeft size={18} />
-          Volver a mis viajes
+          {t("tripDetail.backToTrips")}
         </Link>
 
         <span className="flex items-center gap-2 text-sm font-semibold text-slate-500">
           <CalendarDays size={16} />
-          {formatDate(trip.requested_at)}
+          {formatDate(trip.requested_at, locale)}
         </span>
       </div>
 
@@ -575,29 +592,29 @@ export default function ActiveTripPage({
               variant={getStatusVariant(trip.status)}
               className="border border-white/10"
             >
-              {statusLabels[trip.status]}
+              {t(statusLabelKeys[trip.status])}
             </Badge>
 
             <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
               {isCancelled
-                ? "Este viaje fue cancelado"
+                ? t("tripDetail.hero.cancelled")
                 : isCompleted
-                  ? "Llegaste a tu destino"
-                  : "Tu viaje con AXI"}
+                  ? t("tripDetail.hero.completed")
+                  : t("tripDetail.hero.active")}
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              {statusDescriptions[trip.status]}
+              {t(statusDescriptionKeys[trip.status])}
             </p>
           </div>
 
           <div className="min-w-64 rounded-3xl border border-white/10 bg-white/10 px-6 py-5 backdrop-blur-xl">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-              Precio del viaje
+              {t("tripDetail.price.title")}
             </p>
 
             <p className="mt-2 text-4xl font-black">
-              {formatCurrency(displayPrice)}
+              {formatCurrency(displayPrice, locale)}
             </p>
           </div>
         </div>
@@ -614,11 +631,11 @@ export default function ActiveTripPage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Seguimiento en vivo
+                {t("tripDetail.tracking.eyebrow")}
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
-                Progreso del viaje
+                {t("tripDetail.tracking.title")}
               </h2>
             </div>
 
@@ -664,7 +681,7 @@ export default function ActiveTripPage({
                         : "text-slate-400"
                     )}
                   >
-                    {step.label}
+                    {t(step.labelKey)}
                   </p>
                 </div>
               );
@@ -695,20 +712,20 @@ export default function ActiveTripPage({
                   </span>
 
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                    GPS en tiempo real
+                    {t("tripDetail.gps.eyebrow")}
                   </p>
                 </div>
 
                 <h2 className="mt-2 text-2xl font-black">
-                  UbicaciÃ³n del conductor
+                  {t("tripDetail.gps.title")}
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
                   {trip.driver_id
                     ? locationConnected
-                      ? "Recibiendo actualizaciones de ubicaciÃ³n."
-                      : "Conectando con el GPS del conductor..."
-                    : "TodavÃ­a no hay un conductor asignado."}
+                      ? t("tripDetail.gps.receivingUpdates")
+                      : t("tripDetail.gps.connecting")
+                    : t("tripDetail.gps.noDriverAssigned")}
                 </p>
               </div>
 
@@ -728,43 +745,43 @@ export default function ActiveTripPage({
               <>
                 <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <LocationValue
-                    label="Latitud"
+                    label={t("tripDetail.gps.latitude")}
                     value={Number(
                       driverLocation.latitude
                     ).toFixed(6)}
                   />
 
                   <LocationValue
-                    label="Longitud"
+                    label={t("tripDetail.gps.longitude")}
                     value={Number(
                       driverLocation.longitude
                     ).toFixed(6)}
                   />
 
                   <LocationValue
-                    label="Velocidad"
+                    label={t("tripDetail.gps.speed")}
                     value={
                       driverLocation.speed_kmh !== null
                         ? `${Math.round(
                             Number(driverLocation.speed_kmh)
                           )} km/h`
-                        : "Sin movimiento"
+                        : t("tripDetail.gps.notMoving")
                     }
                   />
 
                   <LocationValue
-                    label="DirecciÃ³n GPS"
+                    label={t("tripDetail.gps.heading")}
                     value={
                       driverLocation.heading !== null
                         ? `${Math.round(
                             Number(driverLocation.heading)
-                          )}Â°`
-                        : "No disponible"
+                          )}\u00B0`
+                        : t("tripDetail.gps.notAvailable")
                     }
                   />
 
                   <LocationValue
-                    label="PrecisiÃ³n"
+                    label={t("tripDetail.gps.accuracy")}
                     value={
                       driverLocation.accuracy_meters !== null
                         ? `${Math.round(
@@ -772,14 +789,14 @@ export default function ActiveTripPage({
                               driverLocation.accuracy_meters
                             )
                           )} m`
-                        : "No disponible"
+                        : t("tripDetail.gps.notAvailable")
                     }
                   />
 
                   <LocationValue
-                    label="Ãšltima actualizaciÃ³n"
+                    label={t("tripDetail.gps.lastUpdate")}
                     value={new Intl.DateTimeFormat(
-                      "es-MX",
+                      locale === "es" ? "es-MX" : "en-US",
                       {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -794,7 +811,7 @@ export default function ActiveTripPage({
                 </div>
 
                 <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-                  El conductor estÃ¡ compartiendo su ubicaciÃ³n durante este viaje.
+                  {t("tripDetail.gps.sharingLocation")}
                 </div>
               </>
             ) : (
@@ -806,11 +823,11 @@ export default function ActiveTripPage({
                   />
 
                   <p className="mt-4 font-black text-slate-700">
-                    UbicaciÃ³n no disponible
+                    {t("tripDetail.gps.locationUnavailable")}
                   </p>
 
                   <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-                    El conductor debe ponerse en lÃ­nea y permitir el acceso al GPS.
+                    {t("tripDetail.gps.permissionRequired")}
                   </p>
                 </div>
               </div>
@@ -824,7 +841,7 @@ export default function ActiveTripPage({
           <Card>
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-black">
-                Recorrido
+                {t("tripDetail.route.title")}
               </h2>
 
               <Route className="text-yellow-600" size={25} />
@@ -846,7 +863,7 @@ export default function ActiveTripPage({
               <div className="min-w-0 flex-1 space-y-8">
                 <div>
                   <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Punto de partida
+                    {t("tripDetail.route.pickup")}
                   </p>
 
                   <p className="mt-2 font-black text-slate-950">
@@ -856,7 +873,7 @@ export default function ActiveTripPage({
 
                 <div>
                   <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Destino
+                    {t("tripDetail.route.destination")}
                   </p>
 
                   <p className="mt-2 font-black text-slate-950">
@@ -874,11 +891,11 @@ export default function ActiveTripPage({
                 />
 
                 <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Estimado
+                  {t("tripDetail.route.estimated")}
                 </p>
 
                 <p className="mt-1 font-black">
-                  {formatCurrency(trip.estimated_price)}
+                  {formatCurrency(trip.estimated_price, locale)}
                 </p>
               </div>
 
@@ -886,11 +903,11 @@ export default function ActiveTripPage({
                 <Clock3 size={20} className="text-blue-600" />
 
                 <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Estado
+                  {t("tripDetail.route.status")}
                 </p>
 
                 <p className="mt-1 font-black">
-                  {statusLabels[trip.status]}
+                  {t(statusLabelKeys[trip.status])}
                 </p>
               </div>
             </div>
@@ -899,7 +916,7 @@ export default function ActiveTripPage({
           <Card>
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-black">
-                Participantes
+                {t("tripDetail.participants.title")}
               </h2>
 
               <UserRound size={24} className="text-slate-400" />
@@ -913,7 +930,7 @@ export default function ActiveTripPage({
 
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Pasajero
+                    {t("tripDetail.participants.passenger")}
                   </p>
 
                   <p className="mt-1 font-black">
@@ -929,7 +946,7 @@ export default function ActiveTripPage({
 
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Conductor
+                    {t("tripDetail.participants.driver")}
                   </p>
 
                   <p className="mt-1 truncate font-black">
@@ -968,16 +985,15 @@ export default function ActiveTripPage({
 
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-red-600">
-                    Seguridad durante el viaje
+                    {t("tripDetail.safety.title")}
                   </p>
 
                   <h2 className="mt-1 text-xl font-black text-slate-950">
-                    Ayuda inmediata
+                    {t("tripDetail.safety.immediateHelp")}
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    MantÃƒÆ’Ã‚Â©n presionado el botÃƒÆ’Ã‚Â³n SOS ÃƒÆ’Ã‚Âºnicamente si existe una
-                    situaciÃƒÆ’Ã‚Â³n de riesgo o emergencia.
+                    {t("tripDetail.safety.instructions")}
                   </p>
                 </div>
               </div>
@@ -987,8 +1003,7 @@ export default function ActiveTripPage({
               </div>
 
               <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-                La alerta se conectarÃƒÆ’Ã‚Â¡ despuÃƒÆ’Ã‚Â©s con ubicaciÃƒÆ’Ã‚Â³n, contactos de
-                confianza y registro de incidentes.
+                {t("tripDetail.safety.alertInfo")}
               </p>
             </Card>
           )}
@@ -1005,18 +1020,17 @@ export default function ActiveTripPage({
 
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                      AcciÃƒÆ’Ã‚Â³n del conductor
+                      {t("tripDetail.driverActions.eyebrow")}
                     </p>
 
                     <h2 className="mt-1 text-xl font-black">
-                      Actualiza el viaje
+                      {t("tripDetail.driverActions.title")}
                     </h2>
                   </div>
                 </div>
 
                 <p className="mt-5 text-sm leading-6 text-slate-400">
-                  Confirma el siguiente paso para mantener informado al
-                  pasajero en tiempo real.
+                  {t("tripDetail.driverActions.description")}
                 </p>
 
                 <button
@@ -1028,8 +1042,8 @@ export default function ActiveTripPage({
                   className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-50"
                 >
                   {processing
-                    ? "Actualizando..."
-                    : driverAction.label}
+                    ? t("tripDetail.driverActions.updating")
+                    : t(driverAction.labelKey)}
 
                   {!processing && <ArrowRight size={19} />}
                 </button>
@@ -1047,18 +1061,17 @@ export default function ActiveTripPage({
 
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                      Conductor AXI
+                      {t("tripDetail.participants.driver")} AXI
                     </p>
 
                     <h2 className="mt-1 text-xl font-black">
-                      Buscando conductor
+                      {t("tripDetail.searchingDriver.title")}
                     </h2>
                   </div>
                 </div>
 
                 <p className="mt-5 text-sm leading-6 text-slate-400">
-                  La informaciÃƒÆ’Ã‚Â³n del conductor aparecerÃƒÆ’Ã‚Â¡ cuando alguien acepte
-                  tu viaje.
+                  {t("tripDetail.searchingDriver.description")}
                 </p>
 
                 <div className="mt-6 grid grid-cols-2 gap-3">
@@ -1068,7 +1081,7 @@ export default function ActiveTripPage({
                     className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-sm font-bold text-slate-500"
                   >
                     <Phone size={17} />
-                    Llamar
+                    {t("tripDetail.searchingDriver.call")}
                   </button>
 
                   <button
@@ -1077,7 +1090,7 @@ export default function ActiveTripPage({
                     className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-sm font-bold text-slate-500"
                   >
                     <ShieldCheck size={17} />
-                    Seguridad
+                    {t("tripDetail.searchingDriver.safety")}
                   </button>
                 </div>
               </Card>
@@ -1088,11 +1101,11 @@ export default function ActiveTripPage({
               <Star size={28} />
 
               <h2 className="mt-5 text-2xl font-black">
-                Viaje completado
+                {t("tripDetail.completed.title")}
               </h2>
 
               <p className="mt-2 text-sm font-medium leading-6 text-black/65">
-                El recorrido terminÃƒÆ’Ã‚Â³ correctamente.
+                {t("tripDetail.completed.description")}
               </p>
 
               <div className="mt-6 flex gap-2">
@@ -1114,11 +1127,11 @@ export default function ActiveTripPage({
               <Route size={27} className="text-red-600" />
 
               <h2 className="mt-5 text-2xl font-black text-red-800">
-                Viaje cancelado
+                {t("tripDetail.cancelled.title")}
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-red-700">
-                Este viaje ya no se encuentra activo.
+                {t("tripDetail.cancelled.description")}
               </p>
             </Card>
           )}

@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
 
 type SosAlert = {
@@ -27,6 +28,7 @@ type SosAlert = {
 export default function AdminSOSPage() {
 
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [alerts,setAlerts] =
     useState<SosAlert[]>([]);
@@ -184,8 +186,7 @@ export default function AdminSOSPage() {
   );
 
   function formatDate(value: string) {
-    return new Date(value).toLocaleString(
-      "es-MX",
+    return new Date(value).toLocaleString(undefined,
       {
         dateStyle: "medium",
         timeStyle: "short",
@@ -202,29 +203,29 @@ export default function AdminSOSPage() {
   }
 
   if (loading) {
-    return <p>Cargando alertas SOS...</p>;
+    return <p>{t("adminSos.loading")}</p>;
   }
 
   return (
     <section>
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          Seguridad AXI
+          {t("adminSos.eyebrow")}
         </p>
 
         <h1 className="text-3xl font-bold text-gray-900">
-          Alertas SOS
+          {t("adminSos.title")}
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Revisa y atiende emergencias reportadas por pasajeros y conductores.
+          {t("adminSos.description")}
         </p>
       </div>
 
       <div className="mb-8 grid gap-5 md:grid-cols-3">
         <div className="rounded-2xl bg-red-600 p-6 text-white">
           <p className="text-sm text-red-100">
-            Alertas activas
+            {t("adminSos.stats.active")}
           </p>
 
           <p className="mt-3 text-3xl font-bold">
@@ -234,7 +235,7 @@ export default function AdminSOSPage() {
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-sm text-gray-500">
-            En atención
+            {t("adminSos.stats.acknowledged")}
           </p>
 
           <p className="mt-3 text-3xl font-bold">
@@ -244,7 +245,7 @@ export default function AdminSOSPage() {
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-sm text-gray-500">
-            Cerradas
+            {t("adminSos.stats.closed")}
           </p>
 
           <p className="mt-3 text-3xl font-bold">
@@ -262,7 +263,7 @@ export default function AdminSOSPage() {
       {alerts.length === 0 ? (
         <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
           <p className="font-semibold text-gray-700">
-            No hay alertas SOS registradas.
+            {t("adminSos.empty")}
           </p>
         </div>
       ) : (
@@ -287,7 +288,7 @@ export default function AdminSOSPage() {
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="text-xl font-bold">
                         {profile?.full_name ||
-                          "Usuario AXI"}
+                          t("adminSos.fallbackUser")}
                       </h2>
 
                       <span
@@ -296,47 +297,47 @@ export default function AdminSOSPage() {
                         )}`}
                       >
                         {alert.status === "active" &&
-                          "Activa"}
+                          t("adminSos.status.active")}
 
                         {alert.status ===
                           "acknowledged" &&
-                          "En atención"}
+                          t("adminSos.status.acknowledged")}
 
                         {alert.status ===
                           "resolved" &&
-                          "Resuelta"}
+                          t("adminSos.status.resolved")}
 
                         {alert.status ===
                           "false_alarm" &&
-                          "Falsa alarma"}
+                          t("adminSos.status.falseAlarm")}
                       </span>
                     </div>
 
                     <div className="mt-4 grid gap-2 text-sm text-gray-600">
                       <p>
-                        Teléfono:{" "}
+                        {t("adminSos.details.phone")}:{" "}
                         {profile?.phone ||
-                          "No registrado"}
+                          t("adminSos.notRegistered")}
                       </p>
 
                       <p>
-                        Fecha:{" "}
+                        {t("adminSos.details.date")}:{" "}
                         {formatDate(
                           alert.created_at
                         )}
                       </p>
 
                       <p>
-                        Viaje relacionado:{" "}
+                        {t("adminSos.details.relatedTrip")}:{" "}
                         {alert.trip_id ||
-                          "Sin viaje relacionado"}
+                          t("adminSos.noRelatedTrip")}
                       </p>
                     </div>
 
                     {alert.message && (
                       <div className="mt-5 rounded-xl bg-red-50 p-4">
                         <p className="text-sm font-semibold text-red-700">
-                          Mensaje del usuario
+                          {t("adminSos.details.userMessage")}
                         </p>
 
                         <p className="mt-1 whitespace-pre-wrap text-sm text-red-700">
@@ -349,18 +350,18 @@ export default function AdminSOSPage() {
                       alert.longitude !== null && (
                         <div className="mt-5 rounded-xl bg-gray-50 p-4">
                           <p className="text-sm font-semibold text-gray-700">
-                            Ubicación registrada
+                            {t("adminSos.location.title")}
                           </p>
 
                           <p className="mt-1 text-sm text-gray-600">
-                            Latitud:{" "}
+                            {t("adminSos.location.latitude")}:{" "}
                             {Number(
                               alert.latitude
                             ).toFixed(6)}
                           </p>
 
                           <p className="mt-1 text-sm text-gray-600">
-                            Longitud:{" "}
+                            {t("adminSos.location.longitude")}:{" "}
                             {Number(
                               alert.longitude
                             ).toFixed(6)}
@@ -372,7 +373,7 @@ export default function AdminSOSPage() {
                             rel="noreferrer"
                             className="mt-3 inline-block text-sm font-semibold text-blue-600"
                           >
-                            Abrir ubicación
+                            {t("adminSos.location.open")}
                           </a>
                         </div>
                       )}
@@ -431,7 +432,7 @@ export default function AdminSOSPage() {
                         disabled={isProcessing}
                         className="mt-3 w-full rounded-xl border border-gray-300 px-4 py-3 font-semibold disabled:opacity-50"
                       >
-                        Marcar falsa alarma
+                        {t("adminSos.actions.falseAlarm")}
                       </button>
                     )}
 
@@ -445,7 +446,7 @@ export default function AdminSOSPage() {
                         }
                         className="mt-3 w-full rounded-xl border px-4 py-3 font-semibold"
                       >
-                        Ver viaje
+                        {t("adminSos.actions.viewTrip")}
                       </button>
                     )}
                   </div>

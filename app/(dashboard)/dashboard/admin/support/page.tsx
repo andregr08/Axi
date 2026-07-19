@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
 type TicketFilter =
@@ -37,6 +38,7 @@ type TicketFilter =
 
 export default function AdminSupportPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -110,16 +112,15 @@ export default function AdminSupportPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
               <Sparkles size={15} />
-              Centro de atención
+              {t("adminSupport.hero.badge")}
             </span>
 
             <h1 className="mt-6 max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
-              Soporte AXI
+              {t("adminSupport.hero.title")}
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Aquí se atenderán reportes de viajes, problemas de cuenta,
-              pagos, seguridad y solicitudes de pasajeros y conductores.
+              {t("adminSupport.hero.description")}
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -128,7 +129,7 @@ export default function AdminSupportPage() {
                   size={18}
                   className="text-yellow-400"
                 />
-                Atención centralizada
+                {t("adminSupport.hero.centralized")}
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
@@ -136,7 +137,7 @@ export default function AdminSupportPage() {
                   size={18}
                   className="text-emerald-400"
                 />
-                Reportes protegidos
+                {t("adminSupport.hero.protected")}
               </span>
             </div>
           </div>
@@ -145,11 +146,11 @@ export default function AdminSupportPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-                  Sistema de tickets
+                  {t("adminSupport.hero.ticketSystem")}
                 </p>
 
                 <p className="mt-2 text-2xl font-black">
-                  Preparado
+                  {t("adminSupport.hero.ready")}
                 </p>
               </div>
 
@@ -167,12 +168,11 @@ export default function AdminSupportPage() {
 
                 <div>
                   <p className="text-sm font-black">
-                    Conexión pendiente
+                    {t("adminSupport.hero.pendingConnection")}
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-slate-400">
-                    Gali conectará posteriormente las tablas de tickets,
-                    respuestas y archivos adjuntos.
+                    {t("adminSupport.hero.pendingDescription")}
                   </p>
                 </div>
               </div>
@@ -183,33 +183,33 @@ export default function AdminSupportPage() {
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Tickets abiertos"
+          label={t("adminSupport.metrics.open.label")}
           value={0}
-          description="Sin reportes pendientes"
+          description={t("adminSupport.metrics.open.description")}
           icon={Inbox}
           iconClass="bg-blue-100 text-blue-700"
         />
 
         <MetricCard
-          label="En atención"
+          label={t("adminSupport.metrics.inProgress.label")}
           value={0}
-          description="Sin casos asignados"
+          description={t("adminSupport.metrics.inProgress.description")}
           icon={Headphones}
           iconClass="bg-amber-100 text-amber-800"
         />
 
         <MetricCard
-          label="Urgentes"
+          label={t("adminSupport.metrics.urgent.label")}
           value={0}
-          description="Sin alertas críticas"
+          description={t("adminSupport.metrics.urgent.description")}
           icon={AlertTriangle}
           iconClass="bg-red-100 text-red-700"
         />
 
         <MetricCard
-          label="Resueltos"
+          label={t("adminSupport.metrics.resolved.label")}
           value={0}
-          description="Sin historial registrado"
+          description={t("adminSupport.metrics.resolved.description")}
           icon={CheckCircle2}
           iconClass="bg-emerald-100 text-emerald-700"
         />
@@ -220,11 +220,11 @@ export default function AdminSupportPage() {
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Bandeja de atención
+                {t("adminSupport.inbox.badge")}
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
-                Tickets de soporte
+                {t("adminSupport.inbox.title")}
               </h2>
 
               <p className="mt-2 text-sm text-slate-500">
@@ -246,7 +246,7 @@ export default function AdminSupportPage() {
                   onChange={(event) =>
                     setSearch(event.target.value)
                   }
-                  placeholder="Buscar ticket o usuario..."
+                  placeholder={t("adminSupport.search.placeholder")}
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-72"
                 />
               </div>
@@ -263,19 +263,19 @@ export default function AdminSupportPage() {
                 />
 
                 {refreshing
-                  ? "Actualizando..."
-                  : "Actualizar"}
+                  ? t("adminSupport.actions.refreshing")
+                  : t("adminSupport.actions.refresh")}
               </button>
             </div>
           </div>
 
           <div className="mt-5 flex max-w-full overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-1">
             {[
-              ["all", "Todos"],
-              ["open", "Abiertos"],
-              ["in-progress", "En atención"],
-              ["urgent", "Urgentes"],
-              ["resolved", "Resueltos"],
+              ["all", t("adminSupport.filters.all")],
+              ["open", t("adminSupport.filters.open")],
+              ["in-progress", t("adminSupport.filters.inProgress")],
+              ["urgent", t("adminSupport.filters.urgent")],
+              ["resolved", t("adminSupport.filters.resolved")],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -305,13 +305,11 @@ export default function AdminSupportPage() {
             </span>
 
             <h3 className="mt-7 text-3xl font-black text-slate-950">
-              No hay tickets registrados
+              {t("adminSupport.empty.title")}
             </h3>
 
             <p className="mt-4 text-sm leading-7 text-slate-500">
-              La interfaz ya está preparada. Cuando se conecte la base de datos,
-              aquí aparecerán los reportes, prioridades, usuarios, mensajes y
-              responsables de atención.
+              {t("adminSupport.empty.description")}
             </p>
           </div>
         </div>
@@ -319,22 +317,22 @@ export default function AdminSupportPage() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <SupportCategory
-          title="Problemas de viaje"
-          description="Cancelaciones, rutas, conductores o pasajeros."
+          title={t("adminSupport.categories.trip.title")}
+          description={t("adminSupport.categories.trip.description")}
           icon={Zap}
           iconClass="bg-yellow-100 text-yellow-800"
         />
 
         <SupportCategory
-          title="Cuenta y seguridad"
-          description="Acceso, bloqueos, verificación y reportes."
+          title={t("adminSupport.categories.account.title")}
+          description={t("adminSupport.categories.account.description")}
           icon={LockKeyhole}
           iconClass="bg-blue-100 text-blue-700"
         />
 
         <SupportCategory
-          title="Pagos y cargos"
-          description="Cobros, reembolsos y comprobantes."
+          title={t("adminSupport.categories.payments.title")}
+          description={t("adminSupport.categories.payments.description")}
           icon={TicketCheck}
           iconClass="bg-emerald-100 text-emerald-700"
         />
@@ -395,6 +393,8 @@ function SupportCategory({
   icon: LucideIcon;
   iconClass: string;
 }) {
+  const { t } = useLanguage();
+
   return (
     <Card>
       <span
@@ -416,8 +416,10 @@ function SupportCategory({
 
       <div className="mt-5 flex items-center gap-2 text-xs font-black text-slate-400">
         <HelpCircle size={15} />
-        Disponible cuando se conecte soporte
+        {t("adminSupport.categories.available")}
       </div>
     </Card>
   );
 }
+
+

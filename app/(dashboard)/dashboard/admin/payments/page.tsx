@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
 
 type PaymentTransaction = {
@@ -17,6 +18,7 @@ type PaymentTransaction = {
 
 export default function AdminPaymentsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [payments, setPayments] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,9 @@ export default function AdminPaymentsPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      setMessage(`Error cargando pagos: ${error.message}`);
+      setMessage(
+        `${t("adminPayments.loadError")}: ${error.message}`
+      );
     } else {
       setPayments((data ?? []) as PaymentTransaction[]);
     }
@@ -75,22 +79,22 @@ export default function AdminPaymentsPage() {
   }, []);
 
   if (loading) {
-    return <p>Cargando pagos...</p>;
+    return <p>{t("adminPayments.loading")}</p>;
   }
 
   return (
     <section>
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          Administración financiera
+          {t("adminPayments.eyebrow")}
         </p>
 
         <h1 className="text-3xl font-bold text-gray-900">
-          Transacciones
+          {t("adminPayments.title")}
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Consulta los pagos registrados en AXI.
+          {t("adminPayments.description")}
         </p>
       </div>
 
@@ -103,7 +107,7 @@ export default function AdminPaymentsPage() {
       {payments.length === 0 ? (
         <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
           <p className="font-semibold">
-            No hay transacciones registradas.
+            {t("adminPayments.empty")}
           </p>
         </div>
       ) : (
@@ -114,29 +118,30 @@ export default function AdminPaymentsPage() {
               className="rounded-2xl bg-white p-6 shadow-sm"
             >
               <p className="font-semibold">
-                Método: {payment.method}
+                {t("adminPayments.method")}: {payment.method}
               </p>
 
               <p className="mt-1 text-sm text-gray-500">
-                Estado: {payment.status}
+                {t("adminPayments.status")}: {payment.status}
               </p>
 
               <p className="mt-1 text-sm text-gray-500">
-                Total: ${Number(payment.total_amount).toFixed(2)} MXN
+                {t("adminPayments.total")}: $
+                {Number(payment.total_amount).toFixed(2)} MXN
               </p>
 
               <p className="mt-1 text-sm text-gray-500">
-                Comisión AXI: $
+                {t("adminPayments.platformCommission")}: $
                 {Number(payment.platform_commission).toFixed(2)}
               </p>
 
               <p className="mt-1 text-sm text-gray-500">
-                Ganancia conductor: $
+                {t("adminPayments.driverEarnings")}: $
                 {Number(payment.driver_earnings).toFixed(2)}
               </p>
 
               <p className="mt-1 text-xs text-gray-400">
-                {new Date(payment.created_at).toLocaleString("es-MX")}
+                {new Date(payment.created_at).toLocaleString()}
               </p>
             </article>
           ))}

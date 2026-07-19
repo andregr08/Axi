@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
 
 type DiscountType =
@@ -32,6 +33,7 @@ type PromoCode = {
 
 export default function AdminPromotionsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [promotions, setPromotions] =
     useState<PromoCode[]>([]);
@@ -136,7 +138,7 @@ export default function AdminPromotionsPage() {
 
     if (error) {
       setMessage(
-        `Error cargando promociones: ${error.message}`
+        `${t("adminPromotions.errors.loading")}: ${error.message}`
       );
     } else {
       setPromotions(
@@ -188,14 +190,14 @@ export default function AdminPromotionsPage() {
 
     if (cleanCode.length < 2) {
       setMessage(
-        "El código debe tener al menos 2 caracteres."
+        t("adminPromotions.validation.code")
       );
       return;
     }
 
     if (cleanName.length < 2) {
       setMessage(
-        "El nombre debe tener al menos 2 caracteres."
+        t("adminPromotions.validation.name")
       );
       return;
     }
@@ -205,7 +207,7 @@ export default function AdminPromotionsPage() {
       parsedDiscount <= 0
     ) {
       setMessage(
-        "Escribe un descuento válido."
+        t("adminPromotions.validation.discount")
       );
       return;
     }
@@ -215,7 +217,7 @@ export default function AdminPromotionsPage() {
       parsedDiscount > 100
     ) {
       setMessage(
-        "El porcentaje no puede superar 100%."
+        t("adminPromotions.validation.percentage")
       );
       return;
     }
@@ -228,7 +230,7 @@ export default function AdminPromotionsPage() {
       )
     ) {
       setMessage(
-        "El descuento máximo no es válido."
+        t("adminPromotions.validation.maximumDiscount")
       );
       return;
     }
@@ -238,7 +240,7 @@ export default function AdminPromotionsPage() {
       parsedMinimum < 0
     ) {
       setMessage(
-        "El monto mínimo no es válido."
+        t("adminPromotions.validation.minimumAmount")
       );
       return;
     }
@@ -251,7 +253,7 @@ export default function AdminPromotionsPage() {
       )
     ) {
       setMessage(
-        "El límite total debe ser mayor a cero."
+        t("adminPromotions.validation.totalLimit")
       );
       return;
     }
@@ -261,7 +263,7 @@ export default function AdminPromotionsPage() {
       parsedUserLimit < 1
     ) {
       setMessage(
-        "El límite por usuario debe ser mayor a cero."
+        t("adminPromotions.validation.userLimit")
       );
       return;
     }
@@ -313,7 +315,7 @@ export default function AdminPromotionsPage() {
 
     if (error) {
       setMessage(
-        `Error creando cupón: ${error.message}`
+        `${t("adminPromotions.errors.creating")}: ${error.message}`
       );
       return;
     }
@@ -330,7 +332,7 @@ export default function AdminPromotionsPage() {
     setExpiresAt("");
 
     setMessage(
-      "Cupón creado correctamente."
+      t("adminPromotions.messages.created")
     );
 
     await loadPromotions();
@@ -344,8 +346,8 @@ export default function AdminPromotionsPage() {
 
     const confirmed = window.confirm(
       nextStatus
-        ? `¿Activar el cupón ${promotion.code}?`
-        : `¿Desactivar el cupón ${promotion.code}?`
+        ? `${t("adminPromotions.confirm.activate")} ${promotion.code}?`
+        : `${t("adminPromotions.confirm.deactivate")} ${promotion.code}?`
     );
 
     if (!confirmed) {
@@ -366,7 +368,7 @@ export default function AdminPromotionsPage() {
 
     if (error) {
       setMessage(
-        `Error actualizando cupón: ${error.message}`
+        `${t("adminPromotions.errors.updating")}: ${error.message}`
       );
     } else {
       setPromotions((current) =>
@@ -396,12 +398,10 @@ export default function AdminPromotionsPage() {
     value: string | null
   ) {
     if (!value) {
-      return "Sin vencimiento";
+      return t("adminPromotions.noExpiration");
     }
 
-    return new Date(value).toLocaleString(
-      "es-MX",
-      {
+    return new Date(value).toLocaleString(undefined, {
         dateStyle: "medium",
         timeStyle: "short",
       }
@@ -423,29 +423,29 @@ export default function AdminPromotionsPage() {
     );
 
   if (loading) {
-    return <p>Cargando promociones...</p>;
+    return <p>{t("adminPromotions.loading")}</p>;
   }
 
   return (
     <section>
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          Administración comercial
+          {t("adminPromotions.eyebrow")}
         </p>
 
         <h1 className="text-3xl font-bold text-gray-900">
-          Promociones
+          {t("adminPromotions.title")}
         </h1>
 
         <p className="mt-2 text-gray-600">
-          Crea cupones, establece límites y controla su uso.
+          {t("adminPromotions.description")}
         </p>
       </div>
 
       <div className="mb-8 grid gap-5 md:grid-cols-3">
         <div className="rounded-2xl bg-black p-6 text-white">
           <p className="text-sm text-gray-300">
-            Cupones creados
+            {t("adminPromotions.stats.created")}
           </p>
 
           <p className="mt-3 text-3xl font-bold">
@@ -455,7 +455,7 @@ export default function AdminPromotionsPage() {
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-sm text-gray-500">
-            Cupones activos
+            {t("adminPromotions.stats.active")}
           </p>
 
           <p className="mt-3 text-3xl font-bold">
@@ -465,7 +465,7 @@ export default function AdminPromotionsPage() {
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-sm text-gray-500">
-            Canjes totales
+            {t("adminPromotions.stats.redemptions")}
           </p>
 
           <p className="mt-3 text-3xl font-bold">
@@ -477,7 +477,7 @@ export default function AdminPromotionsPage() {
       {message && (
         <div
           className={`mb-6 rounded-xl p-4 text-sm ${
-            message.includes("correctamente")
+            message === t("adminPromotions.messages.created")
               ? "bg-green-50 text-green-700"
               : "bg-red-50 text-red-700"
           }`}
@@ -493,11 +493,11 @@ export default function AdminPromotionsPage() {
         >
           <div>
             <h2 className="text-xl font-bold">
-              Crear cupón
+              {t("adminPromotions.form.title")}
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
-              Configura el descuento y sus condiciones.
+              {t("adminPromotions.form.description")}
             </p>
           </div>
 
@@ -506,7 +506,7 @@ export default function AdminPromotionsPage() {
               htmlFor="code"
               className="mb-2 block text-sm font-semibold"
             >
-              Código
+              {t("adminPromotions.form.code")}
             </label>
 
             <input
@@ -518,7 +518,7 @@ export default function AdminPromotionsPage() {
                 )
               }
               maxLength={40}
-              placeholder="Ejemplo: AXI20"
+              placeholder={t("adminPromotions.form.codePlaceholder")}
               className="w-full rounded-xl border px-4 py-3 uppercase outline-none focus:border-black"
             />
           </div>
@@ -528,7 +528,7 @@ export default function AdminPromotionsPage() {
               htmlFor="name"
               className="mb-2 block text-sm font-semibold"
             >
-              Nombre de la promoción
+              {t("adminPromotions.form.name")}
             </label>
 
             <input
@@ -538,7 +538,7 @@ export default function AdminPromotionsPage() {
                 setName(event.target.value)
               }
               maxLength={120}
-              placeholder="Ejemplo: Bienvenida AXI"
+              placeholder={t("adminPromotions.form.namePlaceholder")}
               className="w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
             />
           </div>
@@ -548,7 +548,7 @@ export default function AdminPromotionsPage() {
               htmlFor="description"
               className="mb-2 block text-sm font-semibold"
             >
-              Descripción
+              {t("adminPromotions.form.promotionDescription")}
             </label>
 
             <textarea
@@ -559,7 +559,7 @@ export default function AdminPromotionsPage() {
               }
               rows={3}
               maxLength={500}
-              placeholder="Descripción opcional..."
+              placeholder={t("adminPromotions.form.descriptionPlaceholder")}
               className="w-full resize-none rounded-xl border px-4 py-3 outline-none focus:border-black"
             />
           </div>
@@ -569,7 +569,7 @@ export default function AdminPromotionsPage() {
               htmlFor="discountType"
               className="mb-2 block text-sm font-semibold"
             >
-              Tipo de descuento
+              {t("adminPromotions.form.discountType")}
             </label>
 
             <select
@@ -583,11 +583,11 @@ export default function AdminPromotionsPage() {
               className="w-full rounded-xl border px-4 py-3"
             >
               <option value="percentage">
-                Porcentaje
+                {t("adminPromotions.form.percentage")}
               </option>
 
               <option value="fixed">
-                Cantidad fija
+                {t("adminPromotions.form.fixed")}
               </option>
             </select>
           </div>
@@ -598,8 +598,8 @@ export default function AdminPromotionsPage() {
               className="mb-2 block text-sm font-semibold"
             >
               {discountType === "percentage"
-                ? "Porcentaje de descuento"
-                : "Cantidad de descuento"}
+                ? t("adminPromotions.form.discountPercentage")
+                : t("adminPromotions.form.discountAmount")}
             </label>
 
             <input
@@ -620,7 +620,7 @@ export default function AdminPromotionsPage() {
               }
               placeholder={
                 discountType === "percentage"
-                  ? "Ejemplo: 20"
+                  ? t("adminPromotions.form.percentagePlaceholder")
                   : "Ejemplo: 50"
               }
               className="w-full rounded-xl border px-4 py-3"
@@ -633,7 +633,7 @@ export default function AdminPromotionsPage() {
                 htmlFor="maximumDiscount"
                 className="mb-2 block text-sm font-semibold"
               >
-                Descuento máximo
+                {t("adminPromotions.form.maximumDiscount")}
               </label>
 
               <input
@@ -647,7 +647,7 @@ export default function AdminPromotionsPage() {
                     event.target.value
                   )
                 }
-                placeholder="Sin límite"
+                placeholder={t("adminPromotions.noLimit")}
                 className="w-full rounded-xl border px-4 py-3"
               />
             </div>
@@ -658,7 +658,7 @@ export default function AdminPromotionsPage() {
               htmlFor="minimumAmount"
               className="mb-2 block text-sm font-semibold"
             >
-              Monto mínimo del viaje
+              {t("adminPromotions.form.minimumTripAmount")}
             </label>
 
             <input
@@ -682,7 +682,7 @@ export default function AdminPromotionsPage() {
                 htmlFor="totalUsageLimit"
                 className="mb-2 block text-sm font-semibold"
               >
-                Límite total
+                {t("adminPromotions.form.totalUsageLimit")}
               </label>
 
               <input
@@ -695,7 +695,7 @@ export default function AdminPromotionsPage() {
                     event.target.value
                   )
                 }
-                placeholder="Sin límite"
+                placeholder={t("adminPromotions.noLimit")}
                 className="w-full rounded-xl border px-4 py-3"
               />
             </div>
@@ -705,7 +705,7 @@ export default function AdminPromotionsPage() {
                 htmlFor="usageLimitPerUser"
                 className="mb-2 block text-sm font-semibold"
               >
-                Límite por usuario
+                {t("adminPromotions.form.userLimit")}
               </label>
 
               <input
@@ -728,7 +728,7 @@ export default function AdminPromotionsPage() {
               htmlFor="expiresAt"
               className="mb-2 block text-sm font-semibold"
             >
-              Fecha de vencimiento
+              {t("adminPromotions.form.expiration")}
             </label>
 
             <input
@@ -750,26 +750,26 @@ export default function AdminPromotionsPage() {
             className="w-full rounded-xl bg-black px-5 py-3 font-semibold text-white disabled:opacity-50"
           >
             {saving
-              ? "Creando..."
-              : "Crear cupón"}
+              ? t("adminPromotions.form.creating")
+              : t("adminPromotions.form.create")}
           </button>
         </form>
 
         <div>
           <div className="mb-5">
             <h2 className="text-xl font-bold">
-              Cupones registrados
+              {t("adminPromotions.list.title")}
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
-              Consulta condiciones, usos y disponibilidad.
+              {t("adminPromotions.list.description")}
             </p>
           </div>
 
           {promotions.length === 0 ? (
             <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
               <p className="font-semibold text-gray-700">
-                Todavía no existen promociones.
+                {t("adminPromotions.list.empty")}
               </p>
             </div>
           ) : (
@@ -780,8 +780,8 @@ export default function AdminPromotionsPage() {
 
                 const usageText =
                   promotion.total_usage_limit === null
-                    ? `${promotion.current_usage_count} usos`
-                    : `${promotion.current_usage_count} de ${promotion.total_usage_limit} usos`;
+                    ? `${promotion.current_usage_count} ${t("adminPromotions.uses")}`
+                    : `${promotion.current_usage_count} ${t("adminPromotions.of")} ${promotion.total_usage_limit} ${t("adminPromotions.uses")}`;
 
                 return (
                   <article
@@ -803,8 +803,8 @@ export default function AdminPromotionsPage() {
                             }`}
                           >
                             {promotion.active
-                              ? "Activo"
-                              : "Inactivo"}
+                              ? t("adminPromotions.status.active")
+                              : t("adminPromotions.status.inactive")}
                           </span>
                         </div>
 
@@ -820,7 +820,7 @@ export default function AdminPromotionsPage() {
 
                         <div className="mt-5 grid gap-2 text-sm text-gray-500 md:grid-cols-2">
                           <p>
-                            Descuento:{" "}
+                            {t("adminPromotions.details.discount")}:{" "}
                             {promotion.discount_type ===
                             "percentage"
                               ? `${Number(
@@ -832,35 +832,35 @@ export default function AdminPromotionsPage() {
                           </p>
 
                           <p>
-                            Monto mínimo:{" "}
+                            {t("adminPromotions.details.minimumAmount")}:{" "}
                             {formatMoney(
                               promotion.minimum_trip_amount
                             )}
                           </p>
 
                           <p>
-                            Máximo:{" "}
+                            {t("adminPromotions.details.maximum")}:{" "}
                             {promotion.maximum_discount ===
                             null
-                              ? "Sin límite"
+                              ? t("adminPromotions.noLimit")
                               : formatMoney(
                                   promotion.maximum_discount
                                 )}
                           </p>
 
                           <p>
-                            Límite por usuario:{" "}
+                            {t("adminPromotions.form.userLimit")}:{" "}
                             {
                               promotion.usage_limit_per_user
                             }
                           </p>
 
                           <p>
-                            Uso: {usageText}
+                            {t("adminPromotions.details.usage")}: {usageText}
                           </p>
 
                           <p>
-                            Vence:{" "}
+                            {t("adminPromotions.details.expires")}:{" "}
                             {formatDate(
                               promotion.expires_at
                             )}
@@ -876,7 +876,7 @@ export default function AdminPromotionsPage() {
                         </p>
 
                         <p className="mt-1 text-sm text-gray-500">
-                          canjes
+                          {t("adminPromotions.redemptions")}
                         </p>
 
                         <button
@@ -894,10 +894,10 @@ export default function AdminPromotionsPage() {
                           }`}
                         >
                           {processing
-                            ? "Actualizando..."
+                            ? t("adminPromotions.actions.updating")
                             : promotion.active
-                              ? "Desactivar"
-                              : "Activar"}
+                              ? t("adminPromotions.actions.deactivate")
+                              : t("adminPromotions.actions.activate")}
                         </button>
                       </div>
                     </div>

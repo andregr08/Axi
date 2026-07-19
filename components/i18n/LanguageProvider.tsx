@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -26,8 +27,11 @@ type LanguageContextValue = {
 export const LanguageContext =
   createContext<LanguageContextValue | null>(null);
 
-function isValidLocale(value: string | null): value is Locale {
-  return locales.includes(value as Locale);
+function isValidLocale(value: unknown): value is Locale {
+  return (
+    typeof value === "string" &&
+    locales.includes(value as Locale)
+  );
 }
 
 export function LanguageProvider({
@@ -35,46 +39,58 @@ export function LanguageProvider({
 }: {
   children: ReactNode;
 }) {
-  const [locale, setLocaleState] =
-    useState<Locale>(defaultLocale);
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window === "undefined") {
+      return defaultLocale;
+    }
 
-  useEffect(() => {
     const savedLocale =
       window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
 
-    if (isValidLocale(savedLocale)) {
-      setLocaleState(savedLocale);
-    }
-  }, []);
+    return isValidLocale(savedLocale)
+      ? savedLocale
+      : defaultLocale;
+  });
 
   useEffect(() => {
-    window.localStorage.setItem(
-      LANGUAGE_STORAGE_KEY,
-      locale
-    );
-
-    document.documentElement.lang =
-      locale === "es" ? "es-MX" : "en-US";
+    document.documentElement.lang = locale;
   }, [locale]);
 
-  function setLocale(newLocale: Locale) {
-    setLocaleState(newLocale);
-  }
+  const setLocale = useCallback(
+    (nextLocale: Locale) => {
+      if (!isValidLocale(nextLocale)) {
+        return;
+      }
 
-  function toggleLocale() {
-    setLocaleState((currentLocale) =>
-      currentLocale === "es" ? "en" : "es"
-    );
-  }
+      setLocaleState(nextLocale);
 
-  const value = useMemo<LanguageContextValue>(
+      window.localStorage.setItem(
+        LANGUAGE_STORAGE_KEY,
+        nextLocale
+      );
+
+      document.documentElement.lang = nextLocale;
+    },
+    []
+  );
+
+  const toggleLocale = useCallback(() => {
+    setLocale(locale === "es" ? "en" : "es");
+  }, [locale, setLocale]);
+
+  const t = useCallback(
+    (key: string) => translate(locale, key),
+    [locale]
+  );
+
+  const value = useMemo(
     () => ({
       locale,
       setLocale,
       toggleLocale,
-      t: (key: string) => translate(locale, key),
+      t,
     }),
-    [locale]
+    [locale, setLocale, toggleLocale, t]
   );
 
   return (
@@ -83,3 +99,4 @@ export function LanguageProvider({
     </LanguageContext.Provider>
   );
 }
+

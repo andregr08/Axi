@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -17,8 +17,11 @@ import {
   WalletCards,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/hooks/useLanguage";
 
 export default function PaymentsPage() {
+  const { t } = useLanguage();
+
   return (
     <section className="space-y-8">
       <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.2)] sm:px-9 sm:py-10">
@@ -29,27 +32,32 @@ export default function PaymentsPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
               <Sparkles size={15} />
-              Finanzas AXI
+              {t("payments.finance")}
             </span>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
-              Pagos claros y seguros
+              {t("payments.title")}
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta cargos, recibos y métodos de pago desde un solo lugar.
-              La conexión con Mercado Pago se agregará en la etapa final.
+              {t("payments.description")}
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <ShieldCheck size={18} className="text-yellow-400" />
-                Operación protegida
+                <ShieldCheck
+                  size={18}
+                  className="text-yellow-400"
+                />
+                {t("payments.protectedOperation")}
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <ReceiptText size={18} className="text-emerald-400" />
-                Recibos digitales
+                <ReceiptText
+                  size={18}
+                  className="text-emerald-400"
+                />
+                {t("payments.digitalReceipts")}
               </span>
             </div>
           </div>
@@ -58,11 +66,11 @@ export default function PaymentsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-                  Estado del sistema
+                  {t("payments.systemStatus")}
                 </p>
 
                 <p className="mt-2 text-2xl font-black">
-                  Preparado
+                  {t("payments.ready")}
                 </p>
               </div>
 
@@ -80,12 +88,11 @@ export default function PaymentsPage() {
 
                 <div>
                   <p className="text-sm font-black">
-                    Integración pendiente
+                    {t("payments.integrationPending")}
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-slate-400">
-                    Mercado Pago se conectará después de terminar el resto del
-                    MVP.
+                    {t("payments.integrationDescription")}
                   </p>
                 </div>
               </div>
@@ -96,33 +103,33 @@ export default function PaymentsPage() {
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Total pagado"
+          label={t("payments.totalPaid")}
           value="$0.00"
-          description="Sin pagos registrados"
+          description={t("payments.noPayments")}
           icon={CircleDollarSign}
           iconClass="bg-emerald-100 text-emerald-700"
         />
 
         <MetricCard
-          label="Pagos pendientes"
+          label={t("payments.pendingPayments")}
           value="$0.00"
-          description="No existen cargos pendientes"
+          description={t("payments.noPendingCharges")}
           icon={Clock3}
           iconClass="bg-amber-100 text-amber-800"
         />
 
         <MetricCard
-          label="Métodos de pago"
+          label={t("payments.paymentMethods")}
           value="0"
-          description="Sin tarjetas registradas"
+          description={t("payments.noCards")}
           icon={CreditCard}
           iconClass="bg-blue-100 text-blue-700"
         />
 
         <MetricCard
-          label="Recibos"
+          label={t("payments.receipts")}
           value="0"
-          description="Sin comprobantes emitidos"
+          description={t("payments.noReceipts")}
           icon={FileText}
           iconClass="bg-violet-100 text-violet-700"
         />
@@ -133,15 +140,15 @@ export default function PaymentsPage() {
           <div className="flex flex-col gap-5 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Movimientos
+                {t("payments.movements")}
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
-                Historial de pagos
+                {t("payments.paymentHistory")}
               </h2>
 
               <p className="mt-2 text-sm text-slate-500">
-                Aquí aparecerán los cargos y recibos asociados a tus viajes.
+                {t("payments.historyDescription")}
               </p>
             </div>
 
@@ -151,7 +158,7 @@ export default function PaymentsPage() {
               className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white opacity-50"
             >
               <Plus size={18} />
-              Agregar método
+              {t("payments.addMethod")}
             </button>
           </div>
 
@@ -164,19 +171,18 @@ export default function PaymentsPage() {
               </span>
 
               <h3 className="mt-7 text-3xl font-black text-slate-950">
-                Todavía no hay movimientos
+                {t("payments.noMovements")}
               </h3>
 
               <p className="mt-4 text-sm leading-7 text-slate-500">
-                Cuando se conecte el sistema de cobros, tus pagos y recibos
-                aparecerán automáticamente en esta sección.
+                {t("payments.noMovementsDescription")}
               </p>
 
               <Link
                 href="/dashboard/trips"
                 className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
               >
-                Ver mis viajes
+                {t("payments.viewTrips")}
                 <ArrowRight size={18} />
               </Link>
             </div>
@@ -188,11 +194,11 @@ export default function PaymentsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Método principal
+                  {t("payments.primaryMethod")}
                 </p>
 
                 <h2 className="mt-1 text-xl font-black">
-                  Sin método registrado
+                  {t("payments.noMethodRegistered")}
                 </h2>
               </div>
 
@@ -207,7 +213,10 @@ export default function PaymentsPage() {
                   AXI Mobility
                 </span>
 
-                <Banknote size={22} className="text-yellow-400" />
+                <Banknote
+                  size={22}
+                  className="text-yellow-400"
+                />
               </div>
 
               <p className="mt-10 text-lg font-black tracking-[0.22em] text-slate-400">
@@ -217,11 +226,11 @@ export default function PaymentsPage() {
               <div className="mt-7 flex items-end justify-between">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                    Titular
+                    {t("payments.cardholder")}
                   </p>
 
                   <p className="mt-1 text-sm font-bold text-slate-300">
-                    Sin registrar
+                    {t("payments.unregistered")}
                   </p>
                 </div>
 
@@ -237,7 +246,7 @@ export default function PaymentsPage() {
               className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-400"
             >
               <Plus size={17} />
-              Disponible próximamente
+              {t("payments.comingSoon")}
             </button>
           </Card>
 
@@ -249,21 +258,27 @@ export default function PaymentsPage() {
 
               <div>
                 <h2 className="text-lg font-black">
-                  Pagos protegidos
+                  {t("payments.protectedPayments")}
                 </h2>
 
                 <p className="mt-2 text-sm leading-7 text-slate-400">
-                  AXI no almacenará directamente los datos completos de las
-                  tarjetas. El procesamiento se hará mediante el proveedor de
-                  pagos.
+                  {t("payments.securityDescription")}
                 </p>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              <SecurityItem label="Datos cifrados" />
-              <SecurityItem label="Confirmación del pago" />
-              <SecurityItem label="Recibo por cada viaje" />
+              <SecurityItem
+                label={t("payments.encryptedData")}
+              />
+
+              <SecurityItem
+                label={t("payments.paymentConfirmation")}
+              />
+
+              <SecurityItem
+                label={t("payments.receiptPerTrip")}
+              />
             </div>
           </Card>
         </div>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   FormEvent,
@@ -46,10 +46,10 @@ type Profile = {
   language: "es" | "en";
 };
 
-const roleLabels: Record<UserRole, string> = {
-  admin: "Administrador",
-  driver: "Conductor",
-  passenger: "Pasajero",
+const roleLabelKeys: Record<UserRole, string> = {
+  admin: "roles.admin",
+  driver: "roles.driver",
+  passenger: "roles.passenger",
 };
 
 function formatDate(
@@ -108,15 +108,16 @@ const [language, setLanguage] = useState<"es" | "en">("es");
         rating,
         total_trips,
         account_active,
-        created_at
+        created_at,
+      language
       `)
       .eq("id", session.user.id)
       .single();
 
     if (error || !data) {
       setProfileMessage(
-        `No fue posible cargar el perfil: ${
-          error?.message ?? "Perfil no encontrado"
+        `${t("profile.loadProfileError")} ${
+          error?.message ?? t("profile.profileNotFound")
         }`
       );
       setLoading(false);
@@ -128,9 +129,13 @@ const [language, setLanguage] = useState<"es" | "en">("es");
     setProfile(loadedProfile);
     setName(loadedProfile.full_name ?? "");
     setPhone(loadedProfile.phone ?? "");
-setLanguage(loadedProfile.language ?? "es");
+const savedLanguage =
+      loadedProfile.language === "en" ? "en" : "es";
+
+    setLanguage(savedLanguage);
+    setLocale(savedLanguage);
     setLoading(false);
-  }, [router]);
+  }, [router, setLocale, t]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -144,14 +149,12 @@ setLanguage(loadedProfile.language ?? "es");
     setProfileMessage("");
 
     if (!name.trim()) {
-      setProfileMessage("Escribe tu nombre completo.");
+      setProfileMessage(t("profile.enterFullName"));
       return;
     }
 
     if (phone.trim() && phone.replace(/\D/g, "").length < 10) {
-      setProfileMessage(
-        "Escribe un nÃºmero de telÃ©fono vÃ¡lido de al menos 10 dÃ­gitos."
-      );
+      setProfileMessage(t("profile.invalidPhone"));
       return;
     }
 
@@ -178,11 +181,13 @@ setLanguage(loadedProfile.language ?? "es");
 
     if (profileError) {
       setProfileMessage(
-        `Error actualizando perfil: ${profileError.message}`
+        `${t("profile.updateProfileError")} ${profileError.message}`
       );
       setSavingProfile(false);
       return;
     }
+
+    setLocale(language);
 
     const { error: authError } =
       await supabase.auth.updateUser({
@@ -193,10 +198,10 @@ setLanguage(loadedProfile.language ?? "es");
 
     if (authError) {
       setProfileMessage(
-        `El perfil se guardÃ³, pero no se actualizÃ³ el nombre de autenticaciÃ³n: ${authError.message}`
+        `${t("profile.authNameUpdateError")} ${authError.message}`
       );
     } else {
-      setProfileMessage("Perfil actualizado correctamente.");
+      setProfileMessage(t("profile.profileUpdated"));
     }
 
     await loadProfile();
@@ -210,14 +215,14 @@ setLanguage(loadedProfile.language ?? "es");
     setPasswordMessage("");
 
     if (newPassword.length < 8) {
-      setPasswordMessage(
-        "La contraseÃ±a debe tener al menos 8 caracteres."
-      );
+      setPasswordMessage(t("profile.passwordMin"));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMessage("Las contraseÃ±as no coinciden.");
+      setPasswordMessage(
+        t("profile.passwordsDoNotMatch")
+      );
       return;
     }
 
@@ -229,12 +234,10 @@ setLanguage(loadedProfile.language ?? "es");
 
     if (error) {
       setPasswordMessage(
-        `No fue posible cambiar la contraseÃ±a: ${error.message}`
+        `${t("profile.passwordUpdateError")} ${error.message}`
       );
     } else {
-      setPasswordMessage(
-        "ContraseÃ±a actualizada correctamente."
-      );
+      setPasswordMessage(t("profile.passwordUpdated"));
       setNewPassword("");
       setConfirmPassword("");
     }
@@ -259,7 +262,7 @@ setLanguage(loadedProfile.language ?? "es");
     return (
       <Card>
         <p className="font-semibold text-red-700">
-          {profileMessage || "No fue posible cargar tu perfil."}
+          {profileMessage || t("profile.loadingError")}
         </p>
       </Card>
     );
@@ -282,7 +285,7 @@ setLanguage(loadedProfile.language ?? "es");
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={profile.avatar_url}
-                    alt={profile.full_name || "Usuario AXI"}
+                    alt={profile.full_name || t("profile.userFallback")}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -298,11 +301,11 @@ setLanguage(loadedProfile.language ?? "es");
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
                 <UserRound size={14} />
-                Mi cuenta
+                {t("profile.myAccount")}
               </span>
 
               <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
-                {profile.full_name || "Usuario AXI"}
+                {profile.full_name || t("profile.userFallback")}
               </h1>
 
               <div className="mt-4 flex flex-wrap gap-3">
@@ -311,7 +314,7 @@ setLanguage(loadedProfile.language ?? "es");
                     size={17}
                     className="text-yellow-400"
                   />
-                  {roleLabels[profile.role]}
+                  {t(roleLabelKeys[profile.role])}
                 </span>
 
                 <span
@@ -324,8 +327,8 @@ setLanguage(loadedProfile.language ?? "es");
                 >
                   <CheckCircle2 size={17} />
                   {profile.account_active
-                    ? "Cuenta activa"
-                    : "Cuenta suspendida"}
+                    ? t("profile.accountActive")
+                    : t("profile.accountSuspended")}
                 </span>
               </div>
             </div>
@@ -333,13 +336,13 @@ setLanguage(loadedProfile.language ?? "es");
 
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-md">
             <HeroMetric
-              label="CalificaciÃ³n"
+              label={t("profile.rating")}
               value={Number(profile.rating ?? 5).toFixed(1)}
               icon={Star}
             />
 
             <HeroMetric
-              label="Viajes"
+              label={t("profile.trips")}
               value={String(profile.total_trips ?? 0)}
               icon={Route}
             />
@@ -353,11 +356,11 @@ setLanguage(loadedProfile.language ?? "es");
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Resumen
+                  {t("profile.summary")}
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  InformaciÃ³n de cuenta
+                  {t("profile.accountInformation")}
                 </h2>
               </div>
 
@@ -369,25 +372,25 @@ setLanguage(loadedProfile.language ?? "es");
             <div className="mt-7 space-y-3">
               <AccountRow
                 icon={Mail}
-                label="Correo electrÃ³nico"
-                value={email || "No registrado"}
+                label={t("profile.email")}
+                value={email || t("profile.notRegistered")}
               />
 
               <AccountRow
                 icon={Phone}
-                label="TelÃ©fono"
-                value={profile.phone || "No registrado"}
+                label={t("profile.phone")}
+                value={profile.phone || t("profile.notRegistered")}
               />
 
               <AccountRow
                 icon={ShieldCheck}
-                label="Tipo de cuenta"
-                value={roleLabels[profile.role]}
+                label={t("profile.accountType")}
+                value={t(roleLabelKeys[profile.role])}
               />
 
               <AccountRow
                 icon={CalendarDays}
-                label="Miembro desde"
+                label={t("profile.memberSince")}
                 value={formatDate(profile.created_at, locale)}
               />
             </div>
@@ -401,20 +404,19 @@ setLanguage(loadedProfile.language ?? "es");
 
               <div>
                 <h2 className="text-lg font-black">
-                  Seguridad de tu cuenta
+                  {t("profile.accountSecurity")}
                 </h2>
 
                 <p className="mt-2 text-sm leading-7 text-slate-400">
-                  Usa una contraseÃ±a Ãºnica y evita compartir tus datos de
-                  acceso con otras personas.
+                  {t("profile.securityDescription")}
                 </p>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              <SecurityItem label="SesiÃ³n protegida con Supabase Auth" />
-              <SecurityItem label="ContraseÃ±a cifrada" />
-              <SecurityItem label="Acceso segÃºn tu rol" />
+              <SecurityItem label={t("profile.protectedSession")} />
+              <SecurityItem label={t("profile.encryptedPassword")} />
+              <SecurityItem label={t("profile.roleBasedAccess")} />
             </div>
           </Card>
         </div>
@@ -424,15 +426,15 @@ setLanguage(loadedProfile.language ?? "es");
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Datos personales
+                  {t("profile.personalData")}
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Editar perfil
+                  {t("profile.editProfile")}
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  MantÃ©n actualizada tu informaciÃƒÂ³n de contacto.
+                  {t("profile.editProfileDescription")}
                 </p>
               </div>
 
@@ -450,7 +452,7 @@ setLanguage(loadedProfile.language ?? "es");
                   htmlFor="full-name"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Nombre completo
+                  {t("profile.fullName")}
                 </label>
 
                 <div className="relative">
@@ -465,7 +467,7 @@ setLanguage(loadedProfile.language ?? "es");
                     onChange={(event) =>
                       setName(event.target.value)
                     }
-                    placeholder="Escribe tu nombre completo"
+                    placeholder={t("profile.fullNamePlaceholder")}
                     className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                   />
                 </div>
@@ -476,7 +478,7 @@ setLanguage(loadedProfile.language ?? "es");
                   htmlFor="phone"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  TelÃ©fono
+                  {t("profile.phone")}
                 </label>
 
                 <div className="relative">
@@ -492,7 +494,7 @@ setLanguage(loadedProfile.language ?? "es");
                     onChange={(event) =>
                       setPhone(event.target.value)
                     }
-                    placeholder="Ejemplo: 2221234567"
+                    placeholder={t("profile.phonePlaceholder")}
                     className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                   />
                 </div>
@@ -501,7 +503,7 @@ setLanguage(loadedProfile.language ?? "es");
                   htmlFor="language"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Idioma
+                  {t("profile.language")}
                 </label>
 
                 <select
@@ -512,12 +514,12 @@ setLanguage(loadedProfile.language ?? "es");
                   }
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                 >
-                  <option value="es">Español</option>
-                  <option value="en">English</option>
+                  <option value="es">{t("profile.spanish")}</option>
+                  <option value="en">{t("profile.english")}</option>
                 </select>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  El idioma se aplicará a toda tu cuenta.
+                  {t("profile.languageDescription")}
                 </p>
               </div>
 
@@ -527,7 +529,7 @@ setLanguage(loadedProfile.language ?? "es");
                   htmlFor="email"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Correo electrÃ³nico
+                  {t("profile.email")}
                 </label>
 
                 <div className="relative">
@@ -545,7 +547,7 @@ setLanguage(loadedProfile.language ?? "es");
                 </div>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  El cambio de correo se habilitarÃ¡ posteriormente.
+                  {t("profile.emailChangeLater")}
                 </p>
               </div>
 
@@ -564,12 +566,12 @@ setLanguage(loadedProfile.language ?? "es");
                       size={19}
                       className="animate-spin"
                     />
-                    Guardando...
+                    {t("profile.saving")}
                   </>
                 ) : (
                   <>
                     <Save size={19} />
-                    Guardar cambios
+                    {t("profile.saveChanges")}
                   </>
                 )}
               </button>
@@ -580,15 +582,14 @@ setLanguage(loadedProfile.language ?? "es");
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Seguridad
+                  {t("profile.security")}
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Cambiar contraseÃ±a
-                </h2>
+                  {t("profile.changePassword")}</h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  La nueva contraseÃ±a debe tener al menos 8 caracteres.
+                  {t("profile.passwordDescription")}
                 </p>
               </div>
 
@@ -603,24 +604,30 @@ setLanguage(loadedProfile.language ?? "es");
             >
               <PasswordInput
                 id="new-password"
-                label="Nueva contraseÃ±a"
+                label={t("profile.newPassword")}
                 value={newPassword}
                 showPassword={showPassword}
                 onChange={setNewPassword}
                 onToggle={() =>
                   setShowPassword((current) => !current)
                 }
+                placeholder={t("profile.passwordPlaceholder")}
+                showLabel={t("profile.showPassword")}
+                hideLabel={t("profile.hidePassword")}
               />
 
               <PasswordInput
                 id="confirm-password"
-                label="Confirmar contraseÃ±a"
+                label={t("profile.confirmPassword")}
                 value={confirmPassword}
                 showPassword={showPassword}
                 onChange={setConfirmPassword}
                 onToggle={() =>
                   setShowPassword((current) => !current)
                 }
+                placeholder={t("profile.passwordPlaceholder")}
+                showLabel={t("profile.showPassword")}
+                hideLabel={t("profile.hidePassword")}
               />
 
               {passwordMessage && (
@@ -638,13 +645,12 @@ setLanguage(loadedProfile.language ?? "es");
                       size={19}
                       className="animate-spin"
                     />
-                    Actualizando...
+                    {t("profile.updating")}
                   </>
                 ) : (
                   <>
                     <KeyRound size={19} />
-                    Actualizar contraseÃ±a
-                  </>
+                    {t("profile.updatePassword")}</>
                 )}
               </button>
             </form>
@@ -716,6 +722,9 @@ function PasswordInput({
   showPassword,
   onChange,
   onToggle,
+  placeholder,
+  showLabel,
+  hideLabel,
 }: {
   id: string;
   label: string;
@@ -723,6 +732,9 @@ function PasswordInput({
   showPassword: boolean;
   onChange: (value: string) => void;
   onToggle: () => void;
+  placeholder: string;
+  showLabel: string;
+  hideLabel: string;
 }) {
   return (
     <div>
@@ -746,7 +758,8 @@ function PasswordInput({
           onChange={(event) =>
             onChange(event.target.value)
           }
-          placeholder="MÃ­nimo 8 caracteres"
+          placeholder={placeholder}
+          autoComplete="new-password"
           className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-14 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
         />
 
@@ -754,9 +767,7 @@ function PasswordInput({
           type="button"
           onClick={onToggle}
           aria-label={
-            showPassword
-              ? "Ocultar contraseÃ±a"
-              : "Mostrar contraseÃ±a"
+            showPassword ? hideLabel : showLabel
           }
           className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-950"
         >
@@ -771,6 +782,7 @@ function PasswordInput({
   );
 }
 
+
 function MessageBox({
   message,
 }: {
@@ -778,7 +790,9 @@ function MessageBox({
 }) {
   const successful =
     message.toLowerCase().includes("correctamente") ||
-    message.toLowerCase().includes("actualizado");
+    message.toLowerCase().includes("actualizado") ||
+    message.toLowerCase().includes("successfully") ||
+    message.toLowerCase().includes("saved");
 
   return (
     <div

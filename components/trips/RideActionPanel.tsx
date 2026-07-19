@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -14,6 +14,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { UserRole } from "@/components/layout/Sidebar";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
 interface RideActionPanelProps {
@@ -24,25 +25,33 @@ const vehicleOptions = [
   {
     id: "economy",
     name: "AXI",
-    description: "Rápido y económico",
+    descriptionKey:
+      "ridePanel.passenger.economyDescription",
     price: "$85",
   },
   {
     id: "comfort",
     name: "AXI Comfort",
-    description: "Más espacio y comodidad",
+    descriptionKey:
+      "ridePanel.passenger.comfortDescription",
     price: "$115",
   },
   {
     id: "xl",
     name: "AXI XL",
-    description: "Hasta 6 pasajeros",
+    descriptionKey:
+      "ridePanel.passenger.xlDescription",
     price: "$155",
   },
 ];
 
-export function RideActionPanel({ role }: RideActionPanelProps) {
-  const [selectedVehicle, setSelectedVehicle] = useState("economy");
+export function RideActionPanel({
+  role,
+}: RideActionPanelProps) {
+  const { t } = useLanguage();
+
+  const [selectedVehicle, setSelectedVehicle] =
+    useState("economy");
 
   if (role === "driver") {
     return (
@@ -53,36 +62,50 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
           </span>
 
           <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400">
-            Sin conexión
+            {t("ridePanel.driver.offline")}
           </span>
         </div>
 
         <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-          Panel del conductor
+          {t("ridePanel.driver.section")}
         </p>
 
         <h2 className="mt-2 text-3xl font-black">
-          Empieza a recibir viajes
+          {t("ridePanel.driver.title")}
         </h2>
 
         <p className="mt-3 text-sm leading-6 text-slate-400">
-          Activa tu disponibilidad para aparecer cerca de los pasajeros y
-          recibir nuevas solicitudes.
+          {t("ridePanel.driver.description")}
         </p>
 
         <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-5">
-          <p className="text-sm text-slate-400">Ganancias de hoy</p>
-          <p className="mt-2 text-4xl font-black">$0.00</p>
+          <p className="text-sm text-slate-400">
+            {t("ridePanel.driver.todayEarnings")}
+          </p>
+
+          <p className="mt-2 text-4xl font-black">
+            $0.00
+          </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-2xl font-black">0</p>
-              <p className="mt-1 text-xs text-slate-500">Viajes</p>
+              <p className="text-2xl font-black">
+                0
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                {t("ridePanel.driver.trips")}
+              </p>
             </div>
 
             <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-2xl font-black">0 h</p>
-              <p className="mt-1 text-xs text-slate-500">En línea</p>
+              <p className="text-2xl font-black">
+                0 h
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                {t("ridePanel.driver.onlineTime")}
+              </p>
             </div>
           </div>
         </div>
@@ -92,7 +115,10 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
             href="/dashboard/driver/status"
             className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300"
           >
-            Activar disponibilidad
+            {t(
+              "ridePanel.driver.activateAvailability"
+            )}
+
             <ArrowRight size={19} />
           </Link>
 
@@ -100,7 +126,9 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
             href="/dashboard/driver/available-trips"
             className="flex h-13 items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 font-bold transition hover:bg-white/10"
           >
-            Ver viajes disponibles
+            {t(
+              "ridePanel.driver.viewAvailableTrips"
+            )}
           </Link>
         </div>
       </aside>
@@ -116,21 +144,20 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
           </span>
 
           <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-            Operación activa
+            {t("ridePanel.admin.operationActive")}
           </span>
         </div>
 
         <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-          Administración
+          {t("ridePanel.admin.section")}
         </p>
 
         <h2 className="mt-2 text-3xl font-black text-slate-950">
-          Centro de control
+          {t("ridePanel.admin.title")}
         </h2>
 
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          Supervisa conductores, pasajeros, vehículos y viajes desde un solo
-          lugar.
+          {t("ridePanel.admin.description")}
         </p>
 
         <div className="mt-8 space-y-3">
@@ -143,13 +170,21 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block font-bold">Solicitudes</span>
+              <span className="block font-bold">
+                {t("ridePanel.admin.applications")}
+              </span>
+
               <span className="block text-sm text-slate-500">
-                Revisar nuevos conductores
+                {t(
+                  "ridePanel.admin.applicationsDescription"
+                )}
               </span>
             </span>
 
-            <ArrowRight size={18} className="text-slate-400" />
+            <ArrowRight
+              size={18}
+              className="text-slate-400"
+            />
           </Link>
 
           <Link
@@ -161,13 +196,21 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block font-bold">Conductores</span>
+              <span className="block font-bold">
+                {t("ridePanel.admin.drivers")}
+              </span>
+
               <span className="block text-sm text-slate-500">
-                Administrar la flotilla
+                {t(
+                  "ridePanel.admin.driversDescription"
+                )}
               </span>
             </span>
 
-            <ArrowRight size={18} className="text-slate-400" />
+            <ArrowRight
+              size={18}
+              className="text-slate-400"
+            />
           </Link>
 
           <Link
@@ -179,13 +222,21 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block font-bold">Pasajeros</span>
+              <span className="block font-bold">
+                {t("ridePanel.admin.passengers")}
+              </span>
+
               <span className="block text-sm text-slate-500">
-                Consultar usuarios registrados
+                {t(
+                  "ridePanel.admin.passengersDescription"
+                )}
               </span>
             </span>
 
-            <ArrowRight size={18} className="text-slate-400" />
+            <ArrowRight
+              size={18}
+              className="text-slate-400"
+            />
           </Link>
         </div>
 
@@ -193,7 +244,10 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
           href="/dashboard/admin/trips"
           className="mt-auto flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800"
         >
-          Ver operación completa
+          {t(
+            "ridePanel.admin.viewFullOperation"
+          )}
+
           <ArrowRight size={19} />
         </Link>
       </aside>
@@ -208,16 +262,16 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
         </span>
 
         <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
-          Viaje nuevo
+          {t("ridePanel.passenger.newTrip")}
         </span>
       </div>
 
       <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-        Solicitar un AXI
+        {t("ridePanel.passenger.section")}
       </p>
 
       <h2 className="mt-2 text-3xl font-black text-slate-950">
-        ¿A dónde vamos?
+        {t("ridePanel.passenger.title")}
       </h2>
 
       <div className="mt-6 space-y-3">
@@ -229,7 +283,9 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
 
           <input
             type="text"
-            placeholder="Tu ubicación actual"
+            placeholder={t(
+              "ridePanel.passenger.currentLocation"
+            )}
             className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-semibold outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
           />
         </div>
@@ -242,25 +298,30 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
 
           <input
             type="text"
-            placeholder="¿A dónde quieres ir?"
+            placeholder={t(
+              "ridePanel.passenger.destination"
+            )}
             className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-semibold outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
           />
         </div>
       </div>
 
       <p className="mt-7 text-sm font-black text-slate-950">
-        Elige tu viaje
+        {t("ridePanel.passenger.chooseTrip")}
       </p>
 
       <div className="mt-3 space-y-2">
         {vehicleOptions.map((vehicle) => {
-          const selected = selectedVehicle === vehicle.id;
+          const selected =
+            selectedVehicle === vehicle.id;
 
           return (
             <button
               key={vehicle.id}
               type="button"
-              onClick={() => setSelectedVehicle(vehicle.id)}
+              onClick={() =>
+                setSelectedVehicle(vehicle.id)
+              }
               className={cn(
                 "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition",
                 selected
@@ -283,8 +344,9 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
                 <span className="block font-black text-slate-950">
                   {vehicle.name}
                 </span>
+
                 <span className="block truncate text-xs text-slate-500">
-                  {vehicle.description}
+                  {t(vehicle.descriptionKey)}
                 </span>
               </span>
 
@@ -300,11 +362,17 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
         <div className="mb-4 flex items-center justify-between text-sm">
           <span className="flex items-center gap-2 text-slate-500">
             <CircleDollarSign size={17} />
-            Precio estimado
+
+            {t("ridePanel.passenger.estimatedPrice")}
           </span>
 
           <span className="font-black text-slate-950">
-            {vehicleOptions.find((item) => item.id === selectedVehicle)?.price}
+            {
+              vehicleOptions.find(
+                (item) =>
+                  item.id === selectedVehicle
+              )?.price
+            }
           </span>
         </div>
 
@@ -312,7 +380,10 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
           href="/dashboard/trips/new"
           className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800"
         >
-          Confirmar destino
+          {t(
+            "ridePanel.passenger.confirmDestination"
+          )}
+
           <ArrowRight size={19} />
         </Link>
       </div>

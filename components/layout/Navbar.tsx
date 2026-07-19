@@ -1,40 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, UserRound } from "lucide-react";
+import {
+  ChevronRight,
+  UserRound,
+} from "lucide-react";
 import NotificationsBell from "@/components/NotificationsBell";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import type { UserRole } from "@/components/layout/Sidebar";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type NavbarProps = {
   role: UserRole | null;
 };
 
-const roleNames: Record<UserRole, string> = {
-  admin: "Administrador",
-  driver: "Conductor",
-  passenger: "Pasajero",
-};
-
 export function Navbar({ role }: NavbarProps) {
+  const { t } = useLanguage();
+
+  const roleName = role
+    ? t(`roles.${role}`)
+    : t("navigation.userFallback");
+
   return (
-    <header className="sticky top-0 z-[9999] border-b border-slate-200 bg-white/95 backdrop-blur-xl pointer-events-auto">
-      <div className="relative z-[9999] flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8 pointer-events-auto">
+    <header className="pointer-events-auto sticky top-0 z-[9999] border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+      <div className="pointer-events-auto relative z-[9999] flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-            Panel AXI
+            {t("navigation.panel")}
           </p>
 
           <p className="mt-1 hidden text-sm font-bold text-slate-700 sm:block">
-            Movilidad segura e inteligente
+            {t("navigation.safeSmartMobility")}
           </p>
         </div>
 
-        <div className="relative z-[9999] flex items-center gap-3 pointer-events-auto">
+        <div className="pointer-events-auto relative z-[9999] flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher />
+
           <NotificationsBell />
 
           <Link
             href="/dashboard/profile"
-            className="relative z-[9999] flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] pointer-events-auto"
+            className="pointer-events-auto relative z-[9999] flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-2.5 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] sm:px-3"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-400 text-black">
               <UserRound size={18} />
@@ -42,11 +49,11 @@ export function Navbar({ role }: NavbarProps) {
 
             <span className="hidden text-left sm:block">
               <span className="block text-xs font-bold text-slate-400">
-                Mi cuenta
+                {t("navigation.myAccount")}
               </span>
 
               <span className="block text-sm font-black text-slate-950">
-                {role ? roleNames[role] : "Usuario AXI"}
+                {roleName}
               </span>
             </span>
 
