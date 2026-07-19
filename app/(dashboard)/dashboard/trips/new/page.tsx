@@ -21,13 +21,16 @@ import {
   PlaceAutocomplete,
   type SelectedPlace,
 } from "@/components/maps/PlaceAutocomplete";
+import {
+  MOBILITY_CONFIG,
+  estimateRouteSync,
+  isMockMobilityMode,
+  type MobilityCoordinates,
+} from "@/lib/mobility";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/utils/cn";
 
-type Coordinates = {
-  latitude: number;
-  longitude: number;
-};
+type Coordinates = MobilityCoordinates;
 
 type PaymentMethod = "cash" | "card";
 
@@ -35,40 +38,6 @@ type ResolvedTripData = {
   originCoordinates: Coordinates;
   destinationPlace: SelectedPlace;
 };
-
-const BASE_FARE = 35;
-const PRICE_PER_KM = 12;
-const BOOKING_FEE = 8;
-
-function calculateDistanceKm(
-  origin: Coordinates,
-  destination: Coordinates
-) {
-  const earthRadiusKm = 6371;
-
-  const latitudeDifference =
-    ((destination.latitude - origin.latitude) * Math.PI) / 180;
-
-  const longitudeDifference =
-    ((destination.longitude - origin.longitude) * Math.PI) / 180;
-
-  const originLatitude =
-    (origin.latitude * Math.PI) / 180;
-
-  const destinationLatitude =
-    (destination.latitude * Math.PI) / 180;
-
-  const value =
-    Math.sin(latitudeDifference / 2) ** 2 +
-    Math.cos(originLatitude) *
-      Math.cos(destinationLatitude) *
-      Math.sin(longitudeDifference / 2) ** 2;
-
-  const centralAngle =
-    2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
-
-  return Math.max(1, earthRadiusKm * centralAngle);
-}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -81,9 +50,14 @@ function formatCurrency(value: number) {
 export default function NewTripPage() {
   const router = useRouter();
 
-  const placesConfigured = Boolean(
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-  );
+  const mockMobilityMode =
+    isMockMobilityMode();
+
+  const placesConfigured =
+    !mockMobilityMode &&
+    Boolean(
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    );
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -195,8 +169,7 @@ export default function NewTripPage() {
       }
 
       resolvedOriginCoordinates = {
-        latitude: 19.0414,
-        longitude: -98.2063,
+        ...MOBILITY_CONFIG.defaultOrigin,
       };
     }
 
@@ -219,8 +192,7 @@ export default function NewTripPage() {
         placeId: "demo-manual-destination",
         name: destination.trim(),
         address: destination.trim(),
-        latitude: 19.0544,
-        longitude: -98.2221,
+        ...MOBILITY_CONFIG.defaultDestination,
       };
     }
 
@@ -248,27 +220,23 @@ export default function NewTripPage() {
     setLoading(true);
     setMessage("");
 
-    const distanceKm = calculateDistanceKm(
-      resolvedTrip.originCoordinates,
-      {
-        latitude: resolvedTrip.destinationPlace.latitude,
-        longitude: resolvedTrip.destinationPlace.longitude,
-      }
-    );
+    const routeEstimate =
+      estimateRouteSync(
+        resolvedTrip.originCoordinates,
+        {
+          latitude:
+            resolvedTrip.destinationPlace.latitude,
+          longitude:
+            resolvedTrip.destinationPlace.longitude,
+        }
+      );
 
-    const durationMinutes = Math.max(
-      5,
-      Math.round((distanceKm / 28) * 60)
-    );
-
-    const estimatedPrice = Math.max(
-      55,
-      Math.round(
-        BASE_FARE +
-          distanceKm * PRICE_PER_KM +
-          BOOKING_FEE
-      )
-    );
+    const {
+      distanceKm,
+      durationMinutes,
+      estimatedPrice,
+      bookingFee,
+    } = routeEstimate;
 
     const {
       data: { session },
@@ -301,7 +269,7 @@ export default function NewTripPage() {
           distance_km: Number(distanceKm.toFixed(2)),
           duration_minutes: durationMinutes,
           estimated_price: estimatedPrice,
-          booking_fee: BOOKING_FEE,
+          booking_fee: bookingFee,
           payment_method: paymentMethod,
           status: "requested",
         })
@@ -375,8 +343,7 @@ export default function NewTripPage() {
       originCoordinates ??
       (!placesConfigured && originReady
         ? {
-            latitude: 19.0414,
-            longitude: -98.2063,
+            ...MOBILITY_CONFIG.defaultOrigin,
           }
         : null);
 
@@ -387,8 +354,7 @@ export default function NewTripPage() {
             placeId: "demo-preview",
             name: destination,
             address: destination,
-            latitude: 19.0544,
-            longitude: -98.2221,
+            ...MOBILITY_CONFIG.defaultDestination,
           }
         : null);
 
@@ -396,33 +362,13 @@ export default function NewTripPage() {
       return null;
     }
 
-    const distanceKm = calculateDistanceKm(
+    return estimateRouteSync(
       previewOrigin,
       {
         latitude: previewDestination.latitude,
         longitude: previewDestination.longitude,
       }
     );
-
-    const durationMinutes = Math.max(
-      5,
-      Math.round((distanceKm / 28) * 60)
-    );
-
-    const estimatedPrice = Math.max(
-      55,
-      Math.round(
-        BASE_FARE +
-          distanceKm * PRICE_PER_KM +
-          BOOKING_FEE
-      )
-    );
-
-    return {
-      distanceKm,
-      durationMinutes,
-      estimatedPrice,
-    };
   }, [
     destination,
     destinationPlace,
@@ -677,7 +623,12 @@ export default function NewTripPage() {
 
               <div className="mt-4 flex justify-between text-xs text-slate-400">
                 <span>Incluye tarifa de servicio</span>
-                <span>{formatCurrency(BOOKING_FEE)}</span>
+                <span>
+                  {formatCurrency(
+                    estimate?.bookingFee ??
+                      MOBILITY_CONFIG.bookingFee
+                  )}
+                </span>
               </div>
             </div>
 
