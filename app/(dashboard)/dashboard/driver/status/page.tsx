@@ -18,6 +18,8 @@ import {
   LocateFixed,
   MapPin,
   Navigation,
+  PauseCircle,
+  PlayCircle,
   Power,
   Radio,
   RefreshCw,
@@ -34,6 +36,14 @@ import { supabase } from "@/lib/supabaseClient";
 import { isDriver } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
+type DriverOperationalStatus =
+  | "offline"
+  | "available"
+  | "offer_pending"
+  | "to_pickup"
+  | "on_trip"
+  | "paused";
+
 type DriverStats = {
   earnings_today: number;
   earnings_week: number;
@@ -44,6 +54,36 @@ type DriverStats = {
   worked_hours: number;
   average_rating: number;
   rating_count: number;
+};
+
+const operationalStatusLabels: Record<
+  DriverOperationalStatus,
+  string
+> = {
+  offline: "Fuera de línea",
+  available: "Disponible",
+  offer_pending: "Oferta pendiente",
+  to_pickup: "Recogiendo pasajero",
+  on_trip: "En viaje",
+  paused: "Solicitudes pausadas",
+};
+
+const operationalStatusDescriptions: Record<
+  DriverOperationalStatus,
+  string
+> = {
+  offline:
+    "Conéctate para comenzar a recibir solicitudes de viaje.",
+  available:
+    "Estás disponible y puedes recibir nuevas solicitudes.",
+  offer_pending:
+    "Tienes una solicitud pendiente por aceptar o rechazar.",
+  to_pickup:
+    "Tienes un viaje aceptado y debes dirigirte al pasajero.",
+  on_trip:
+    "Actualmente estás realizando un viaje.",
+  paused:
+    "Sigues conectado, pero no recibirás nuevas solicitudes.",
 };
 
 const EMPTY_STATS: DriverStats = {
@@ -62,6 +102,10 @@ export default function DriverStatusPage() {
   const router = useRouter();
 
   const [online, setOnline] = useState(false);
+  const [
+    operationalStatus,
+    setOperationalStatus,
+  ] = useState<DriverOperationalStatus>("offline");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
@@ -112,7 +156,7 @@ export default function DriverStatusPage() {
         supabase
           .from("drivers")
           .select(
-            "online, current_lat, current_lng"
+            "online, operational_status, current_lat, current_lng"
           )
           .eq("id", session.user.id)
           .single(),
@@ -129,6 +173,14 @@ export default function DriverStatusPage() {
       } else {
         setOnline(
           Boolean(driverResult.data.online)
+        );
+        setOperationalStatus(
+          (
+            driverResult.data.operational_status ??
+            (driverResult.data.online
+              ? "available"
+              : "offline")
+          ) as DriverOperationalStatus
         );
         setLatitude(
           driverResult.data.current_lat
@@ -164,6 +216,56 @@ export default function DriverStatusPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDriverStatus();
   }, [loadDriverStatus]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(
+        `driver-operational-status-${crypto.randomUUID()}`
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "drivers",
+        },
+        (payload) => {
+          const nextDriver = payload.new as {
+            id?: string;
+            online?: boolean;
+            operational_status?: DriverOperationalStatus;
+          };
+
+          void supabase.auth
+            .getSession()
+            .then(({ data }) => {
+              if (
+                data.session?.user.id !==
+                nextDriver.id
+              ) {
+                return;
+              }
+
+              setOnline(
+                Boolean(nextDriver.online)
+              );
+
+              if (
+                nextDriver.operational_status
+              ) {
+                setOperationalStatus(
+                  nextDriver.operational_status
+                );
+              }
+            });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -348,10 +450,45 @@ export default function DriverStatusPage() {
     }
 
     setOnline(nextOnline);
+    setOperationalStatus(
+      nextOnline ? "available" : "offline"
+    );
     setMessage(
       nextOnline
-        ? "Ya estás en línea. Tu ubicación se actualizará automáticamente."
+        ? "Ya estás disponible para recibir solicitudes."
         : "Ahora estás fuera de línea y el seguimiento GPS se detuvo."
+    );
+  }
+
+  async function changeOperationalStatus(
+    nextStatus: "available" | "paused"
+  ) {
+    setProcessing(true);
+    setMessage("");
+
+    const { data, error } = await supabase.rpc(
+      "set_driver_operational_status",
+      {
+        next_status: nextStatus,
+      }
+    );
+
+    setProcessing(false);
+
+    if (error) {
+      setMessage(`Error: ${error.message}`);
+      return;
+    }
+
+    const resolvedStatus =
+      (data ?? nextStatus) as DriverOperationalStatus;
+
+    setOperationalStatus(resolvedStatus);
+
+    setMessage(
+      resolvedStatus === "paused"
+        ? "Pausaste las solicitudes. Seguirás conectado y compartiendo tu ubicación."
+        : "Reanudaste las solicitudes y ya estás disponible."
     );
   }
 
@@ -387,6 +524,24 @@ export default function DriverStatusPage() {
 
   const hasLocation =
     latitude !== null && longitude !== null;
+
+  const currentStatusLabel =
+    operationalStatusLabels[operationalStatus];
+
+  const currentStatusDescription =
+    operationalStatusDescriptions[operationalStatus];
+
+  const isBusy =
+    operationalStatus === "to_pickup" ||
+    operationalStatus === "on_trip";
+
+  const canPause =
+    online &&
+    operationalStatus === "available";
+
+  const canResume =
+    online &&
+    operationalStatus === "paused";
 
   const locationQuality =
     accuracy === null
@@ -434,21 +589,27 @@ export default function DriverStatusPage() {
                 <SignalZero size={15} />
               )}
 
-              {online
-                ? "Conductor conectado"
-                : "Conductor desconectado"}
+              {currentStatusLabel}
             </span>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
-              {online
+              {operationalStatus === "available"
                 ? "Ya puedes recibir viajes"
-                : "Inicia tu jornada con AXI"}
+                : operationalStatus === "offer_pending"
+                  ? "Tienes una nueva solicitud"
+                  : operationalStatus === "to_pickup"
+                    ? "Dirígete al pasajero"
+                    : operationalStatus === "on_trip"
+                      ? "Viaje en curso"
+                      : operationalStatus === "paused"
+                        ? "Solicitudes pausadas"
+                        : "Inicia tu jornada con AXI"}
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Comparte tu ubicación y activa tu disponibilidad. Mientras
-              permanezcas en línea, AXI actualizará automáticamente tu
-              posición para pasajeros y viajes activos.
+              {currentStatusDescription} Mientras permanezcas en línea,
+              AXI actualizará automáticamente tu posición para solicitudes
+              y viajes activos.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -472,7 +633,7 @@ export default function DriverStatusPage() {
                 </p>
 
                 <p className="mt-2 text-3xl font-black">
-                  {online ? "En línea" : "Fuera de línea"}
+                  {currentStatusLabel}
                 </p>
               </div>
 
@@ -488,12 +649,42 @@ export default function DriverStatusPage() {
               </span>
             </div>
 
+            {(canPause || canResume) && (
+              <button
+                type="button"
+                onClick={() =>
+                  changeOperationalStatus(
+                    canPause
+                      ? "paused"
+                      : "available"
+                  )
+                }
+                disabled={processing}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 font-black text-white transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-50"
+              >
+                {canPause ? (
+                  <PauseCircle size={20} />
+                ) : (
+                  <PlayCircle size={20} />
+                )}
+
+                {processing
+                  ? "Procesando..."
+                  : canPause
+                    ? "Pausar solicitudes"
+                    : "Reanudar solicitudes"}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => changeOnlineStatus(!online)}
-              disabled={processing}
+              disabled={processing || isBusy}
               className={cn(
-                "mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-5 font-black transition disabled:pointer-events-none disabled:opacity-50",
+                "flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-5 font-black transition disabled:pointer-events-none disabled:opacity-50",
+                canPause || canResume
+                  ? "mt-3"
+                  : "mt-6",
                 online
                   ? "bg-white text-red-700 hover:bg-red-50"
                   : "bg-yellow-400 text-black hover:bg-yellow-300"
@@ -501,9 +692,11 @@ export default function DriverStatusPage() {
             >
               {processing
                 ? "Procesando..."
-                : online
-                  ? "Terminar jornada"
-                  : "Ponerme en línea"}
+                : isBusy
+                  ? "Viaje activo"
+                  : online
+                    ? "Terminar jornada"
+                    : "Ponerme en línea"}
 
               {!processing && <ArrowRight size={19} />}
             </button>
