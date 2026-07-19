@@ -158,3 +158,18 @@ export async function registerCashDebtPayment(payload: {
 
   return data;
 }
+
+export async function markCommissionPaid(
+  commissionId: string
+) {
+  const { data, error } = await supabase.rpc(
+    "mark_commission_paid",
+    {
+      p_commission_id: commissionId,
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}

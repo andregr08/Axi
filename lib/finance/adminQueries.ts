@@ -180,3 +180,14 @@ export async function getCashDebts() {
 
   return data ?? [];
 }
+
+export async function getCommissions() {
+  const { data, error } = await supabase
+    .from("driver_commissions_view")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return data ?? [];
+}
