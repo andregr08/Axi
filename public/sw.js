@@ -1,9 +1,117 @@
-﻿self.addEventListener("install", () => {
+﻿const CACHE_NAME = "axi-v2";
+
+const STATIC_ASSETS = [
+  "/offline",
+  "/",
+  "/manifest.json",
+  "/axi-icon-192.png",
+  "/axi-icon-512.png",
+  "/axi-badge-96.png",
+];
+
+self.addEventListener("install", (event) => {
   self.skipWaiting();
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      caches.keys().then((cacheNames) =>
+        Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              return caches.delete(cacheName);
+            }
+
+            return Promise.resolve();
+          })
+        )
+      ),
+      self.clients.claim(),
+    ])
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+
+  if (request.method !== "GET") {
+    return;
+  }
+
+  const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.includes("supabase")
+  ) {
+    return;
+  }
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseCopy = response.clone();
+
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseCopy);
+            });
+          }
+
+          return response;
+        })
+        .catch(async () => {
+          const cachedPage = await caches.match(request);
+
+          if (cachedPage) {
+            return cachedPage;
+          }
+
+          return caches.match("/offline") || caches.match("/");
+        })
+    );
+
+    return;
+  }
+
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      return fetch(request).then((response) => {
+        if (
+          !response ||
+          response.status !== 200 ||
+          response.type === "opaque"
+        ) {
+          return response;
+        }
+
+        const responseCopy = response.clone();
+
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseCopy);
+        });
+
+        return response;
+      });
+    })
+  );
 });
 
 self.addEventListener("push", (event) => {
@@ -78,3 +186,6 @@ self.addEventListener(
     );
   }
 );
+
+
+

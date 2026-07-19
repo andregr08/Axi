@@ -1,9 +1,10 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PushServiceWorker } from "@/components/notifications/PushServiceWorker";
 import { LanguageProvider } from "@/components/i18n/LanguageProvider";
-
+import InstallAxiPrompt from "@/components/pwa/InstallAxiPrompt";
+import PwaUpdater from "@/components/pwa/PwaUpdater";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -77,7 +78,8 @@ export default function RootLayout({
         <LanguageProvider>
           {children}
           <PushServiceWorker />
-
+          <InstallAxiPrompt />
+          <PwaUpdater />
         </LanguageProvider>
       </body>
     </html>
