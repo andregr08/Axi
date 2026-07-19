@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type TripStatus =
   | "requested"
@@ -40,15 +41,15 @@ type Trip = {
 
 type TripFilter = "all" | "active" | "completed" | "cancelled";
 
-const statusName: Record<TripStatus, string> = {
-  requested: "Solicitado",
-  searching: "Buscando conductor",
-  accepted: "Aceptado",
-  driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegó",
-  in_progress: "En curso",
-  completed: "Completado",
-  cancelled: "Cancelado",
+const statusKeys: Record<TripStatus, string> = {
+  requested: "trips.status.requested",
+  searching: "trips.status.searching",
+  accepted: "trips.status.accepted",
+  driver_arriving: "trips.status.driverArriving",
+  driver_arrived: "trips.status.driverArrived",
+  in_progress: "trips.status.inProgress",
+  completed: "trips.status.completed",
+  cancelled: "trips.status.cancelled",
 };
 
 const activeStatuses: TripStatus[] = [
@@ -60,17 +61,15 @@ const activeStatuses: TripStatus[] = [
   "in_progress",
 ];
 
-function formatCurrency(value: number | null) {
-  if (value === null) return "Por calcular";
-
-  return new Intl.NumberFormat("es-MX", {
+function formatCurrency(value: number, locale: string) {
+  return new Intl.NumberFormat(locale === "en" ? "en-US" : "es-MX", {
     style: "currency",
     currency: "MXN",
   }).format(value);
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
+function formatDate(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-MX", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -94,6 +93,7 @@ function getStatusVariant(
 }
 
 export default function TripsPage() {
+  const { locale, t } = useLanguage();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -132,9 +132,7 @@ export default function TripsPage() {
   }, []);
 
   async function cancelTrip(tripId: string) {
-    const confirmed = window.confirm(
-      "¿Seguro que quieres cancelar este viaje?"
-    );
+    const confirmed = window.confirm(t("trips.cancelConfirmation"));
 
     if (!confirmed) return;
 
@@ -155,13 +153,13 @@ export default function TripsPage() {
         status: "cancelled",
         cancelled_by: session.user.id,
         cancelled_at: new Date().toISOString(),
-        cancellation_reason: "Cancelado por el pasajero",
+        cancellation_reason: t("trips.cancellationReason"),
       })
       .eq("id", tripId)
       .in("status", ["requested", "searching", "accepted"]);
 
     if (error) {
-      window.alert(`Error al cancelar: ${error.message}`);
+      window.alert(`${t("trips.cancelError")} ${error.message}`);
     } else {
       await loadTrips();
     }
@@ -232,16 +230,15 @@ export default function TripsPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">
               <Route size={15} />
-              Historial de movilidad
+              {t("trips.heroBadge")}
             </span>
 
             <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
-              Mis viajes
+              {t("trips.title")}
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta tus viajes activos, revisa tu historial y administra
-              solicitudes desde un solo lugar.
+              {t("trips.subtitle")}
             </p>
           </div>
 
@@ -250,7 +247,7 @@ export default function TripsPage() {
             className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
           >
             <Plus size={20} />
-            Solicitar viaje
+            {t("trips.requestTrip")}
           </Link>
         </div>
       </div>
@@ -262,11 +259,11 @@ export default function TripsPage() {
               <Clock3 size={23} />
             </span>
 
-            <Badge>Ahora</Badge>
+            <Badge>{t("trips.now")}</Badge>
           </div>
 
           <p className="mt-6 text-sm font-semibold text-slate-500">
-            Viajes activos
+            {t("trips.activeTrips")}
           </p>
 
           <p className="mt-1 text-4xl font-black tracking-tight">
@@ -274,7 +271,7 @@ export default function TripsPage() {
           </p>
 
           <p className="mt-2 text-sm text-slate-400">
-            Solicitudes o viajes en curso
+            {t("trips.activeTripsDescription")}
           </p>
         </Card>
 
@@ -284,11 +281,11 @@ export default function TripsPage() {
               <CheckCircle2 size={23} />
             </span>
 
-            <Badge variant="success">Finalizados</Badge>
+            <Badge variant="success">{t("trips.finished")}</Badge>
           </div>
 
           <p className="mt-6 text-sm font-semibold text-slate-500">
-            Viajes completados
+            {t("trips.completedTrips")}
           </p>
 
           <p className="mt-1 text-4xl font-black tracking-tight">
@@ -296,7 +293,7 @@ export default function TripsPage() {
           </p>
 
           <p className="mt-2 text-sm text-slate-400">
-            Viajes realizados correctamente
+            {t("trips.completedDescription")}
           </p>
         </Card>
 
@@ -306,11 +303,11 @@ export default function TripsPage() {
               <CircleX size={23} />
             </span>
 
-            <Badge variant="danger">Cancelados</Badge>
+            <Badge variant="danger">{t("trips.cancelled")}</Badge>
           </div>
 
           <p className="mt-6 text-sm font-semibold text-slate-500">
-            Viajes cancelados
+            {t("trips.cancelledTrips")}
           </p>
 
           <p className="mt-1 text-4xl font-black tracking-tight">
@@ -318,7 +315,7 @@ export default function TripsPage() {
           </p>
 
           <p className="mt-2 text-sm text-slate-400">
-            Solicitudes que no continuaron
+            {t("trips.cancelledDescription")}
           </p>
         </Card>
       </div>
@@ -328,15 +325,15 @@ export default function TripsPage() {
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Actividad
+                {t("trips.activity")}
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
-                Historial de viajes
+                {t("trips.history")}
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Información guardada en tu cuenta AXI.
+                {t("trips.accountInformation")}
               </p>
             </div>
 
@@ -351,17 +348,17 @@ export default function TripsPage() {
                   type="search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar dirección..."
+                  placeholder={t("trips.searchPlaceholder")}
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-64"
                 />
               </div>
 
               <div className="flex overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-1">
                 {[
-                  ["all", "Todos"],
-                  ["active", "Activos"],
-                  ["completed", "Completados"],
-                  ["cancelled", "Cancelados"],
+                  ["all", t("trips.filterAll")],
+                  ["active", t("trips.filterActive")],
+                  ["completed", t("trips.filterCompleted")],
+                  ["cancelled", t("trips.filterCancelled")],
                 ].map(([value, label]) => (
                   <button
                     key={value}
@@ -390,14 +387,12 @@ export default function TripsPage() {
 
               <h3 className="mt-6 text-2xl font-black text-slate-950">
                 {search || filter !== "all"
-                  ? "No encontramos resultados"
-                  : "Todavía no tienes viajes"}
+                  ? t("trips.noResults") : t("trips.noTrips")}
               </h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-500">
                 {search || filter !== "all"
-                  ? "Prueba con otra búsqueda o selecciona un filtro diferente."
-                  : "Solicita tu primer viaje y consulta aquí toda la información de tu recorrido."}
+                  ? t("trips.noResultsDescription") : t("trips.noTripsDescription")}
               </p>
 
               {!search && filter === "all" && (
@@ -405,7 +400,7 @@ export default function TripsPage() {
                   href="/dashboard/trips/new"
                   className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
                 >
-                  Solicitar mi primer viaje
+                  {t("trips.firstTrip")}
                   <ArrowRight size={18} />
                 </Link>
               )}
@@ -447,19 +442,19 @@ export default function TripsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-3">
                           <Badge variant={getStatusVariant(trip.status)}>
-                            {statusName[trip.status]}
+                            {t(statusKeys[trip.status])}
                           </Badge>
 
                           <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
                             <CalendarDays size={14} />
-                            {formatDate(trip.requested_at)}
+                            {formatDate(trip.requested_at, locale)}
                           </span>
                         </div>
 
                         <div className="mt-5 space-y-5">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                              Origen
+                              {t("trips.origin")}
                             </p>
                             <p className="mt-1 truncate font-black text-slate-950">
                               {trip.origin_address}
@@ -468,7 +463,7 @@ export default function TripsPage() {
 
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                              Destino
+                              {t("trips.destination")}
                             </p>
                             <p className="mt-1 truncate font-black text-slate-950">
                               {trip.destination_address}
@@ -481,11 +476,11 @@ export default function TripsPage() {
                     <div className="flex items-center justify-between gap-5 border-t border-slate-100 pt-5 xl:w-64 xl:border-l xl:border-t-0 xl:pl-7 xl:pt-0">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                          Precio
+                          {t("trips.price")}
                         </p>
 
                         <p className="mt-1 text-xl font-black text-slate-950">
-                          {formatCurrency(price)}
+                          {price === null ? t("trips.pricePending") : formatCurrency(price, locale)}
                         </p>
                       </div>
 
@@ -494,7 +489,7 @@ export default function TripsPage() {
                           href={`/dashboard/trips/${trip.id}`}
                           className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-xs font-black text-white transition hover:bg-slate-800"
                         >
-                          Ver detalle
+                          {t("trips.viewDetail")}
                         </Link>
 
                         {canCancel && (
@@ -504,9 +499,7 @@ export default function TripsPage() {
                             disabled={cancellingId === trip.id}
                             className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:pointer-events-none disabled:opacity-50"
                           >
-                            {cancellingId === trip.id
-                              ? "Cancelando..."
-                              : "Cancelar"}
+                            {cancellingId === trip.id ? t("trips.cancelling") : t("trips.cancel")}
                           </button>
                         )}
                       </div>
@@ -521,3 +514,7 @@ export default function TripsPage() {
     </section>
   );
 }
+
+
+
+

@@ -14,6 +14,7 @@ import {
 } from "react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type PushStatus =
   | "loading"
@@ -46,6 +47,7 @@ function urlBase64ToUint8Array(
 }
 
 export function PushNotificationsCard() {
+  const { t } = useLanguage();
   const [status, setStatus] =
     useState<PushStatus>("loading");
 
@@ -120,9 +122,7 @@ export function PushNotificationsCard() {
           .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
       if (!publicKey) {
-        throw new Error(
-          "Falta configurar la clave pública VAPID."
-        );
+        throw new Error(t("notifications.missingVapid"));
       }
 
       const {
@@ -130,9 +130,7 @@ export function PushNotificationsCard() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        throw new Error(
-          "Tu sesión no está disponible."
-        );
+        throw new Error(t("notifications.sessionUnavailable"));
       }
 
       const permission =
@@ -145,9 +143,7 @@ export function PushNotificationsCard() {
             : "inactive"
         );
 
-        setMessage(
-          "No se concedió permiso para enviar notificaciones."
-        );
+        setMessage(t("notifications.permissionDenied"));
 
         return;
       }
@@ -179,9 +175,7 @@ export function PushNotificationsCard() {
         !subscriptionData.keys?.p256dh ||
         !subscriptionData.keys?.auth
       ) {
-        throw new Error(
-          "El navegador no devolvió una suscripción válida."
-        );
+        throw new Error(t("notifications.invalidSubscription"));
       }
 
       const { error } = await supabase
@@ -199,7 +193,7 @@ export function PushNotificationsCard() {
               navigator.userAgent,
             device_name:
               navigator.platform ||
-              "Dispositivo web",
+              t("notifications.deviceWeb"),
             enabled: true,
           },
           {
@@ -213,14 +207,11 @@ export function PushNotificationsCard() {
 
       setStatus("active");
 
-      setMessage(
-        "Las notificaciones quedaron activadas en este dispositivo."
-      );
+      setMessage(t("notifications.activatedSuccess"));
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? error.message
-          : "No fue posible activar las notificaciones."
+          ? error.message : t("notifications.activateError")
       );
     } finally {
       setProcessing(false);
@@ -237,9 +228,7 @@ export function PushNotificationsCard() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        throw new Error(
-          "Tu sesión no está disponible."
-        );
+        throw new Error(t("notifications.sessionUnavailable"));
       }
 
       const response = await fetch(
@@ -262,20 +251,17 @@ export function PushNotificationsCard() {
       if (!response.ok) {
         throw new Error(
           result.error ??
-            "No fue posible enviar la prueba."
+            "{T:notifications.testError}"
         );
       }
 
       setMessage(
-        `Notificación enviada a ${
-          result.sent ?? 1
-        } dispositivo.`
+        t("notifications.sentToDevice")
       );
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? error.message
-          : "No fue posible enviar la notificación."
+          ? error.message : t("notifications.notificationError")
       );
     } finally {
       setTestingPush(false);
@@ -311,14 +297,11 @@ export function PushNotificationsCard() {
 
       setStatus("inactive");
 
-      setMessage(
-        "Las notificaciones se desactivaron en este dispositivo."
-      );
+      setMessage(t("notifications.deactivatedSuccess"));
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? error.message
-          : "No fue posible desactivar las notificaciones."
+          ? error.message : t("notifications.deactivateError")
       );
     } finally {
       setProcessing(false);
@@ -348,15 +331,15 @@ export function PushNotificationsCard() {
 
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-              Notificaciones
+              {t("notifications.section")}
             </p>
 
             <h2 className="mt-1 text-2xl font-black">
-              Alertas de AXI
+              {t("notifications.title")}
             </h2>
 
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-              Recibe avisos de viajes, mensajes, cancelaciones, pagos y seguridad.
+              {t("notifications.description")}
             </p>
           </div>
         </div>
@@ -373,19 +356,19 @@ export function PushNotificationsCard() {
           )}
 
           {status === "loading" &&
-            "Revisando"}
+            t("notifications.checking")}
 
           {status === "active" &&
-            "Activadas"}
+            t("notifications.active")}
 
           {status === "inactive" &&
-            "Desactivadas"}
+            t("notifications.inactive")}
 
           {status === "blocked" &&
-            "Bloqueadas"}
+            t("notifications.blocked")}
 
           {status === "unsupported" &&
-            "No compatibles"}
+            t("notifications.unsupported")}
         </span>
       </div>
 
@@ -397,26 +380,23 @@ export function PushNotificationsCard() {
           />
 
           <p>
-            El navegador bloqueó las notificaciones. Debes permitirlas desde la configuración del sitio.
+            {t("notifications.blockedDescription")}
           </p>
         </div>
       )}
 
       {status === "unsupported" && (
         <div className="mt-6 rounded-2xl bg-slate-100 p-4 text-sm text-slate-600">
-          Este navegador o dispositivo todavía no admite notificaciones web.
+          {t("notifications.unsupportedDescription")}
         </div>
       )}
 
       {message && (
         <div
           className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${
-            message
-              .toLowerCase()
-              .includes("activadas") ||
-            message
-              .toLowerCase()
-              .includes("desactivaron")
+            message === t("notifications.activatedSuccess") ||
+            message === t("notifications.deactivatedSuccess") ||
+            message === t("notifications.sentToDevice")
               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
               : "border-red-200 bg-red-50 text-red-700"
           }`}
@@ -440,12 +420,12 @@ export function PushNotificationsCard() {
                 size={19}
                 className="animate-spin"
               />
-              Enviando prueba...
+              {t("notifications.sendingTest")}
             </>
           ) : (
             <>
               <Bell size={19} />
-              Enviar notificación de prueba
+              {t("notifications.sendTest")}
             </>
           )}
         </button>
@@ -476,17 +456,17 @@ export function PushNotificationsCard() {
                   size={19}
                   className="animate-spin"
                 />
-                Procesando...
+                {t("notifications.processing")}
               </>
             ) : active ? (
               <>
                 <BellOff size={19} />
-                Desactivar notificaciones
+                {t("notifications.deactivate")}
               </>
             ) : (
               <>
                 <Bell size={19} />
-                Activar notificaciones
+                {t("notifications.activate")}
               </>
             )}
           </button>

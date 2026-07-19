@@ -16,14 +16,12 @@ import {
 import { Logo } from "@/components/shared/Logo";
 import { supabase } from "@/lib/supabaseClient";
 import { useLanguage } from "@/hooks/useLanguage";
-import type { Locale } from "@/i18n/config";
 
 type AccountType = "passenger" | "driver";
 
 export default function RegisterPage() {
   const router = useRouter();
-const { t, setLocale } = useLanguage();
-  const [language, setLanguage] = useState<"es" | "en">("es");
+  const { t, locale, setLocale } = useLanguage();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -34,10 +32,15 @@ const { t, setLocale } = useLanguage();
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [registrationComplete, setRegistrationComplete] =
+    useState(false);
 
-  async function handleRegister(event: FormEvent<HTMLFormElement>) {
+  async function handleRegister(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     setErrorMessage("");
+    setRegistrationComplete(false);
 
     if (!fullName.trim() || !email.trim() || !password) {
       setErrorMessage(t("register.fillFields"));
@@ -62,9 +65,9 @@ const { t, setLocale } = useLanguage();
       options: {
         data: {
           full_name: fullName.trim(),
-          role: accountType === "driver" ? "passenger" : "passenger",
+          role: "passenger",
           requested_account_type: accountType,
-          language,
+          language: locale,
         },
       },
     });
@@ -81,19 +84,27 @@ const { t, setLocale } = useLanguage();
 
     if (!data.session) {
       setLoading(false);
-      setErrorMessage(
-        t("register.confirmEmail")
-      );
+      setRegistrationComplete(true);
+      setErrorMessage(t("register.confirmEmail"));
       return;
     }
+
+    localStorage.setItem("axi-language", locale);
 
     router.push(
       accountType === "driver"
         ? "/dashboard/driver-application"
         : "/dashboard"
     );
+
     router.refresh();
   }
+
+  const benefits = [
+    t("register.benefit1"),
+    t("register.benefit2"),
+    t("register.benefit3"),
+  ];
 
   return (
     <main className="min-h-screen bg-[#F4F6F8] lg:grid lg:grid-cols-[0.9fr_1.1fr]">
@@ -105,26 +116,28 @@ const { t, setLocale } = useLanguage();
 
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-600">
-              ÃƒÅ¡nete a AXI
+              {t("register.join")}
             </p>
 
             <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-              Crea tu cuenta
+              {t("register.title")}
             </h1>
 
             <p className="mt-4 text-base leading-7 text-slate-500">
-              RegÃƒÂ­strate como pasajero o inicia tu solicitud para convertirte
-              en conductor.
+              {t("register.subtitle")}
             </p>
           </div>
 
-          <form onSubmit={handleRegister} className="mt-9 space-y-5">
+          <form
+            onSubmit={handleRegister}
+            className="mt-9 space-y-5"
+          >
             <div>
               <label
                 htmlFor="full-name"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                Nombre completo
+                {t("register.fullName")}
               </label>
 
               <div className="relative">
@@ -137,9 +150,13 @@ const { t, setLocale } = useLanguage();
                   id="full-name"
                   type="text"
                   autoComplete="name"
-                  placeholder="Tu nombre completo"
+                  placeholder={t(
+                    "register.fullNamePlaceholder"
+                  )}
                   value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
+                  onChange={(event) =>
+                    setFullName(event.target.value)
+                  }
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/5"
                 />
               </div>
@@ -150,7 +167,7 @@ const { t, setLocale } = useLanguage();
                 htmlFor="email"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                Correo electrÃƒÂ³nico
+                {t("register.email")}
               </label>
 
               <div className="relative">
@@ -163,9 +180,13 @@ const { t, setLocale } = useLanguage();
                   id="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="tu@correo.com"
+                  placeholder={t(
+                    "register.emailPlaceholder"
+                  )}
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) =>
+                    setEmail(event.target.value)
+                  }
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/5"
                 />
               </div>
@@ -176,7 +197,7 @@ const { t, setLocale } = useLanguage();
                 htmlFor="password"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                ContraseÃƒÂ±a
+                {t("register.password")}
               </label>
 
               <div className="relative">
@@ -187,36 +208,52 @@ const { t, setLocale } = useLanguage();
 
                 <input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={
+                    showPassword ? "text" : "password"
+                  }
                   autoComplete="new-password"
-                  placeholder="MÃƒÂ­nimo 6 caracteres"
+                  placeholder={t(
+                    "register.passwordPlaceholder"
+                  )}
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) =>
+                    setPassword(event.target.value)
+                  }
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-12 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/5"
                 />
 
                 <button
                   type="button"
-                  onClick={() => setShowPassword((current) => !current)}
+                  onClick={() =>
+                    setShowPassword((current) => !current)
+                  }
                   aria-label={
-                    showPassword ? "Ocultar contraseÃƒÂ±a" : "Mostrar contraseÃƒÂ±a"
+                    showPassword
+                      ? t("register.hidePassword")
+                      : t("register.showPassword")
                   }
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-950"
                 >
-                  {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                  {showPassword ? (
+                    <EyeOff size={19} />
+                  ) : (
+                    <Eye size={19} />
+                  )}
                 </button>
               </div>
             </div>
 
             <div>
               <p className="mb-3 text-sm font-bold text-slate-700">
-                Ã‚Â¿CÃƒÂ³mo usarÃƒÂ¡s AXI?
+                {t("register.accountType")}
               </p>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => setAccountType("passenger")}
+                  onClick={() =>
+                    setAccountType("passenger")
+                  }
                   className={`rounded-3xl border p-5 text-left transition ${
                     accountType === "passenger"
                       ? "border-yellow-400 bg-yellow-50 ring-2 ring-yellow-400/20"
@@ -235,22 +272,27 @@ const { t, setLocale } = useLanguage();
                     </span>
 
                     {accountType === "passenger" && (
-                      <CheckCircle2 size={20} className="text-yellow-600" />
+                      <CheckCircle2
+                        size={20}
+                        className="text-yellow-600"
+                      />
                     )}
                   </div>
 
                   <p className="mt-5 font-black text-slate-950">
-                    Soy pasajero
+                    {t("register.passenger")}
                   </p>
 
                   <p className="mt-1 text-sm leading-5 text-slate-500">
-                    Solicitar viajes y administrar pagos.
+                    {t("register.passengerDesc")}
                   </p>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setAccountType("driver")}
+                  onClick={() =>
+                    setAccountType("driver")
+                  }
                   className={`rounded-3xl border p-5 text-left transition ${
                     accountType === "driver"
                       ? "border-slate-950 bg-slate-950 text-white ring-2 ring-slate-950/15"
@@ -269,11 +311,16 @@ const { t, setLocale } = useLanguage();
                     </span>
 
                     {accountType === "driver" && (
-                      <CheckCircle2 size={20} className="text-yellow-400" />
+                      <CheckCircle2
+                        size={20}
+                        className="text-yellow-400"
+                      />
                     )}
                   </div>
 
-                  <p className="mt-5 font-black">Quiero conducir</p>
+                  <p className="mt-5 font-black">
+                    {t("register.driver")}
+                  </p>
 
                   <p
                     className={`mt-1 text-sm leading-5 ${
@@ -282,7 +329,7 @@ const { t, setLocale } = useLanguage();
                         : "text-slate-500"
                     }`}
                   >
-                    Crear cuenta y enviar solicitud.
+                    {t("register.driverDesc")}
                   </p>
                 </button>
               </div>
@@ -290,32 +337,32 @@ const { t, setLocale } = useLanguage();
 
             <div>
               <p className="mb-3 text-sm font-bold text-slate-700">
-                Idioma
+                {t("register.language")}
               </p>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setLanguage("es")}
+                  onClick={() => setLocale("es")}
                   className={`h-14 rounded-2xl border font-black transition ${
-                    language === "es"
+                    locale === "es"
                       ? "border-yellow-400 bg-yellow-50 text-slate-950 ring-2 ring-yellow-400/20"
                       : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
                   }`}
                 >
-                  EspaÃ±ol
+                  {t("register.spanish")}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setLanguage("en")}
+                  onClick={() => setLocale("en")}
                   className={`h-14 rounded-2xl border font-black transition ${
-                    language === "en"
+                    locale === "en"
                       ? "border-yellow-400 bg-yellow-50 text-slate-950 ring-2 ring-yellow-400/20"
                       : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
                   }`}
                 >
-                  English
+                  {t("register.english")}
                 </button>
               </div>
             </div>
@@ -324,19 +371,21 @@ const { t, setLocale } = useLanguage();
               <input
                 type="checkbox"
                 checked={acceptTerms}
-                onChange={(event) => setAcceptTerms(event.target.checked)}
+                onChange={(event) =>
+                  setAcceptTerms(event.target.checked)
+                }
                 className="mt-1 h-4 w-4 accent-yellow-400"
               />
 
               <span className="text-sm leading-6 text-slate-500">
-                Acepto los tÃƒÂ©rminos de uso y el aviso de privacidad de AXI.
+                {t("register.terms")}
               </span>
             </label>
 
             {errorMessage && (
               <div
                 className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-                  errorMessage.startsWith("Cuenta creada")
+                  registrationComplete
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                     : "border-red-200 bg-red-50 text-red-700"
                 }`}
@@ -350,19 +399,21 @@ const { t, setLocale } = useLanguage();
               disabled={loading}
               className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#0B0F19] px-6 font-black text-white shadow-xl shadow-slate-950/10 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-60"
             >
-              {loading ? t("register.creating") : t("register.create")}
+              {loading
+                ? t("register.creating")
+                : t("register.create")}
 
               {!loading && <ArrowRight size={19} />}
             </button>
           </form>
 
           <p className="mt-7 text-center text-sm text-slate-500">
-            Ã‚Â¿Ya tienes una cuenta?{" "}
+            {t("register.already")}{" "}
             <Link
               href="/login"
               className="font-black text-slate-950 hover:underline"
             >
-              Inicia sesiÃƒÂ³n
+              {t("register.login")}
             </Link>
           </p>
         </div>
@@ -376,28 +427,23 @@ const { t, setLocale } = useLanguage();
           <div className="mx-auto max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">
               <ShieldCheck size={15} />
-              Una cuenta, toda tu movilidad
+              {t("register.heroBadge")}
             </span>
 
             <h2 className="mt-7 text-6xl font-black leading-[1.02] tracking-tight">
-              MuÃƒÂ©vete.
+              {t("register.heroTitleLine1")}
               <br />
-              Conduce.
+              {t("register.heroTitleLine2")}
               <br />
-              Crece con AXI.
+              {t("register.heroTitleLine3")}
             </h2>
 
             <p className="mt-6 max-w-lg text-lg leading-8 text-slate-300">
-              DiseÃƒÂ±ado para conectar pasajeros y conductores mediante una
-              plataforma moderna, segura y sencilla.
+              {t("register.heroSubtitle")}
             </p>
 
             <div className="mt-10 space-y-4">
-              {[
-                "Seguimiento y gestiÃƒÂ³n de viajes",
-                "Conductores y vehÃƒÂ­culos verificados",
-                "Pagos y actividad desde una sola cuenta",
-              ].map((benefit) => (
+              {benefits.map((benefit) => (
                 <div
                   key={benefit}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4"
@@ -406,7 +452,9 @@ const { t, setLocale } = useLanguage();
                     <CheckCircle2 size={17} />
                   </span>
 
-                  <span className="font-bold text-slate-200">{benefit}</span>
+                  <span className="font-bold text-slate-200">
+                    {benefit}
+                  </span>
                 </div>
               ))}
             </div>
@@ -415,11 +463,9 @@ const { t, setLocale } = useLanguage();
 
         <div className="relative flex items-center justify-between text-xs text-slate-500">
           <span>AXI Mobility</span>
-          <span>Registro seguro</span>
+          <span>{t("register.secure")}</span>
         </div>
       </section>
     </main>
   );
 }
-
-

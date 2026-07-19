@@ -12,6 +12,7 @@ import {
   Siren,
   X,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
 type SOSButtonProps = {
@@ -29,6 +30,8 @@ export function SOSButton({
   className,
   onActivate,
 }: SOSButtonProps) {
+  const { t } = useLanguage();
+
   const [holding, setHolding] = useState(false);
   const [progress, setProgress] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -99,7 +102,7 @@ export function SOSButton({
       setActivated(true);
       setConfirmOpen(false);
 
-      console.info("SOS preparado para backend", {
+      console.info("SOS ready for backend", {
         tripId: tripId ?? null,
         activatedAt: new Date().toISOString(),
       });
@@ -122,7 +125,7 @@ export function SOSButton({
     <>
       <button
         type="button"
-        aria-label="Mantén presionado para activar SOS"
+        aria-label={t("sos.holdAriaLabel")}
         onPointerDown={startHold}
         onPointerUp={resetHold}
         onPointerCancel={resetHold}
@@ -174,12 +177,12 @@ export function SOSButton({
 
         <span>
           {activated
-            ? "Alerta SOS activada"
+            ? t("sos.activated")
             : holding
-              ? "Sigue presionando..."
+              ? t("sos.keepHolding")
               : compact
                 ? "SOS"
-                : "Mantén presionado para SOS"}
+                : t("sos.holdButton")}
         </span>
       </button>
 
@@ -197,7 +200,7 @@ export function SOSButton({
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                aria-label="Cerrar"
+                aria-label={t("sos.close")}
                 className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 transition hover:bg-white/25"
               >
                 <X size={20} />
@@ -211,13 +214,11 @@ export function SOSButton({
                 id="sos-dialog-title"
                 className="mt-6 text-3xl font-black"
               >
-                ¿Necesitas ayuda?
+                {t("sos.needHelp")}
               </h2>
 
               <p className="mt-3 max-w-md text-sm leading-7 text-red-50">
-                Al activar la alerta, AXI preparará el
-                registro del viaje, la hora y tu ubicación
-                para enviarlos al centro de seguridad.
+                {t("sos.description")}
               </p>
             </div>
 
@@ -234,12 +235,12 @@ export function SOSButton({
                       size={20}
                       className="animate-spin"
                     />
-                    Activando alerta...
+                    {t("sos.activating")}
                   </>
                 ) : (
                   <>
                     <ShieldAlert size={20} />
-                    Activar alerta SOS
+                    {t("sos.activate")}
                   </>
                 )}
               </button>
@@ -250,7 +251,7 @@ export function SOSButton({
                 className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white transition hover:bg-slate-800"
               >
                 <PhoneCall size={20} />
-                Llamar al 911
+                {t("sos.call911")}
               </button>
 
               <button
@@ -258,12 +259,11 @@ export function SOSButton({
                 onClick={() => setConfirmOpen(false)}
                 className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-600 transition hover:bg-slate-50"
               >
-                Cancelar
+                {t("sos.cancel")}
               </button>
 
               <p className="text-center text-xs leading-5 text-slate-400">
-                AXI no sustituye a los servicios oficiales de
-                emergencia.
+                {t("sos.disclaimer")}
               </p>
             </div>
           </div>

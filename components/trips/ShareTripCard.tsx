@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
 
 export function ShareTripCard({
@@ -18,6 +19,8 @@ export function ShareTripCard({
 }: {
   tripId: string;
 }) {
+  const { t } = useLanguage();
+
   const [shareUrl, setShareUrl] = useState("");
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -44,12 +47,10 @@ export function ShareTripCard({
           .toLowerCase()
           .includes("could not find the function")
       ) {
-        setMessage(
-          "El enlace seguro está preparado en frontend, pero falta que Gali conecte la función en Supabase."
-        );
+        setMessage(t("shareTrip.backendPending"));
       } else {
         setMessage(
-          `No fue posible crear el enlace: ${error.message}`
+          `${t("shareTrip.createError")}: ${error.message}`
         );
       }
 
@@ -67,9 +68,7 @@ export function ShareTripCard({
 
     if (!token) {
       setCreating(false);
-      setMessage(
-        "Supabase no devolvió un token válido."
-      );
+      setMessage(t("shareTrip.invalidToken"));
       return "";
     }
 
@@ -101,7 +100,7 @@ export function ShareTripCard({
 
     window.open(
       `https://wa.me/?text=${encodeURIComponent(
-        `Estoy realizando un viaje en AXI. Puedes seguirlo de forma segura aquí:\n\n${url}`
+        `${t("shareTrip.whatsappMessage")}\n\n${url}`
       )}`,
       "_blank",
       "noopener,noreferrer"
@@ -115,8 +114,8 @@ export function ShareTripCard({
 
     if (navigator.share) {
       await navigator.share({
-        title: "Mi viaje AXI",
-        text: "Sigue mi viaje de forma segura.",
+        title: t("shareTrip.nativeTitle"),
+        text: t("shareTrip.shareText"),
         url,
       });
 
@@ -136,18 +135,17 @@ export function ShareTripCard({
 
         <div>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">
-            Compartir viaje
+            {t("shareTrip.section")}
           </p>
 
           <h2 className="mt-1 text-2xl font-black">
-            Comparte tu recorrido
+            {t("shareTrip.heading")}
           </h2>
         </div>
       </div>
 
       <p className="mt-5 text-sm leading-7 text-slate-500">
-        Genera un enlace temporal para que familiares o amigos puedan
-        consultar el estado de tu viaje.
+        {t("shareTrip.description")}
       </p>
 
       <div className="mt-5 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
@@ -157,8 +155,7 @@ export function ShareTripCard({
         />
 
         <p className="text-xs leading-6 text-emerald-800">
-          El enlace no utiliza directamente el identificador del viaje y
-          deberá expirar automáticamente.
+          {t("shareTrip.security")}
         </p>
       </div>
 
@@ -175,12 +172,12 @@ export function ShareTripCard({
                 size={20}
                 className="animate-spin"
               />
-              Preparando enlace...
+              {t("shareTrip.preparing")}
             </>
           ) : (
             <>
               <Link2 size={20} />
-              Preparar enlace seguro
+              {t("shareTrip.prepare")}
             </>
           )}
         </button>
@@ -194,7 +191,7 @@ export function ShareTripCard({
             className="flex h-14 items-center justify-center gap-3 rounded-2xl bg-slate-950 font-black text-white transition hover:bg-slate-800"
           >
             <Share2 size={20} />
-            Compartir
+            {t("shareTrip.share")}
           </button>
 
           <button
@@ -214,12 +211,12 @@ export function ShareTripCard({
             {copied ? (
               <>
                 <Check size={20} />
-                Enlace copiado
+                {t("shareTrip.copied")}
               </>
             ) : (
               <>
                 <Copy size={20} />
-                Copiar enlace
+                {t("shareTrip.copy")}
               </>
             )}
           </button>

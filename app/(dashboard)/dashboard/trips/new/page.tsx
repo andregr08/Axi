@@ -28,6 +28,7 @@ import {
   type RoutePoint,
 } from "@/components/maps/TripRouteMap";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type Coordinates = {
   latitude: number;
@@ -47,6 +48,7 @@ const MINIMUM_FARE = 55;
 
 export default function NewTripPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -77,9 +79,6 @@ export default function NewTripPage() {
 
   useEffect(() => {
     if (!originCoordinates || !destinationPlace) {
-      setRouteData(null);
-      setRouteError("");
-      setRouteLoading(false);
       return;
     }
 
@@ -118,7 +117,7 @@ export default function NewTripPage() {
         if (!response.ok) {
           throw new Error(
             result.error ??
-              "No fue posible calcular la ruta."
+              t("tripNew.routeCalculationFailed")
           );
         }
 
@@ -144,7 +143,7 @@ export default function NewTripPage() {
         setRouteError(
           error instanceof Error
             ? error.message
-            : "No fue posible calcular la ruta."
+            : t("tripNew.routeCalculationFailed")
         );
       } finally {
         if (!controller.signal.aborted) {
@@ -229,7 +228,7 @@ export default function NewTripPage() {
 
     if (!navigator.geolocation) {
       setMessage(
-        "Tu navegador no permite obtener tu ubicación."
+        t("tripNew.browserLocationUnsupported")
       );
       return;
     }
@@ -243,11 +242,11 @@ export default function NewTripPage() {
           longitude: position.coords.longitude,
         });
 
-        setOrigin("Mi ubicación actual");
+        setOrigin(t("tripNew.currentLocation"));
         setLocating(false);
 
         setMessage(
-          "Ubicación obtenida correctamente."
+          t("tripNew.locationSuccess")
         );
       },
       (error) => {
@@ -257,13 +256,13 @@ export default function NewTripPage() {
           error.code === error.PERMISSION_DENIED
         ) {
           setMessage(
-            "Debes permitir el acceso a tu ubicación."
+            t("tripNew.locationPermissionRequired")
           );
           return;
         }
 
         setMessage(
-          "No pudimos obtener tu ubicación. Intenta nuevamente."
+          t("tripNew.locationFailed")
         );
       },
       {
@@ -282,21 +281,21 @@ export default function NewTripPage() {
 
     if (!originCoordinates) {
       setMessage(
-        "Selecciona un punto de partida válido."
+        t("tripNew.invalidOrigin")
       );
       return;
     }
 
     if (!destinationPlace) {
       setMessage(
-        "Selecciona una ubicación sugerida como destino."
+        t("tripNew.invalidDestination")
       );
       return;
     }
 
     if (!routeData || estimatedPrice === null) {
       setMessage(
-        "Espera a que terminemos de calcular la ruta."
+        t("tripNew.waitForRoute")
       );
       return;
     }
@@ -344,7 +343,7 @@ export default function NewTripPage() {
       if (tripError || !trip) {
         throw new Error(
           tripError?.message ??
-            "No se pudo crear el viaje."
+            t("tripNew.tripCreationFailed")
         );
       }
 
@@ -359,7 +358,7 @@ export default function NewTripPage() {
 
       if (dispatchError) {
         setMessage(
-          "El viaje fue creado, pero ocurrió un error al buscar conductores."
+          t("tripNew.driverSearchError")
         );
       } else {
         const count = Number(
@@ -368,12 +367,12 @@ export default function NewTripPage() {
 
         setMessage(
           count > 0
-            ? `Viaje creado. Se notificó a ${count} ${
+            ? `${t("tripNew.tripCreatedNotified")} ${count} ${
                 count === 1
-                  ? "conductor cercano"
-                  : "conductores cercanos"
+                  ? t("tripNew.nearbyDriver")
+                  : t("tripNew.nearbyDrivers")
               }.`
-            : "Viaje creado. Seguiremos buscando conductores cercanos."
+            : t("tripNew.tripCreatedSearching")
         );
       }
 
@@ -388,8 +387,8 @@ export default function NewTripPage() {
 
       setMessage(
         error instanceof Error
-          ? `Error creando el viaje: ${error.message}`
-          : "No fue posible crear el viaje."
+          ? `${t("tripNew.creatingTripError")} ${error.message}`
+          : t("tripNew.generalTripError")
       );
     } finally {
       setSubmitting(false);
@@ -410,23 +409,13 @@ export default function NewTripPage() {
           }
           className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-950 hover:text-white"
         >
-          <ArrowLeft size={18} />
-          Volver a viajes
-        </button>
+          <ArrowLeft size={18} />{t("tripNew.backToTrips")}</button>
 
-        <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-yellow-600">
-          Nueva solicitud
-        </p>
+        <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-yellow-600">{t("tripNew.newRequest")}</p>
 
-        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-          ¿A dónde vamos?
-        </h1>
+        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">{t("tripNew.title")}</h1>
 
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
-          Selecciona el punto de partida y el
-          destino. AXI calculará la ruta, el tiempo
-          y el precio estimado.
-        </p>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">{t("tripNew.description")}</p>
       </header>
 
       <form
@@ -440,24 +429,20 @@ export default function NewTripPage() {
             </span>
 
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                Ruta AXI
-              </p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">{t("tripNew.axiRoute")}</p>
 
-              <p className="mt-1 font-black">
-                Selecciona origen y destino
-              </p>
+              <p className="mt-1 font-black">{t("tripNew.selectOriginDestination")}</p>
             </div>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <LocationStatus
-              label="Origen"
+              label={t("tripNew.origin")}
               ready={originReady}
             />
 
             <LocationStatus
-              label="Destino"
+              label={t("tripNew.destination")}
               ready={destinationReady}
             />
           </div>
@@ -467,9 +452,7 @@ export default function NewTripPage() {
           <div className="space-y-6">
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-black text-slate-700">
-                  Punto de partida
-                </p>
+                <p className="text-sm font-black text-slate-700">{t("tripNew.startingPoint")}</p>
 
                 <button
                   type="button"
@@ -487,14 +470,14 @@ export default function NewTripPage() {
                   />
 
                   {locating
-                    ? "Ubicando..."
-                    : "Usar mi ubicación"}
+                    ? t("tripNew.locating")
+                    : t("tripNew.useMyLocation")}
                 </button>
               </div>
 
               <PlaceAutocomplete
-                label="Busca el lugar donde te recogerán"
-                placeholder="Ejemplo: UDLAP, Cholula"
+                label={t("tripNew.originSearchLabel")}
+                placeholder={t("tripNew.originPlaceholder")}
                 value={origin}
                 onTextChange={
                   handleOriginTextChange
@@ -514,8 +497,8 @@ export default function NewTripPage() {
 
             <div>
               <PlaceAutocomplete
-                label="¿A dónde quieres ir?"
-                placeholder="Ejemplo: Angelópolis, Puebla"
+                label={t("tripNew.destinationSearchLabel")}
+                placeholder={t("tripNew.destinationPlaceholder")}
                 value={destination}
                 onTextChange={
                   handleDestinationTextChange
@@ -556,23 +539,16 @@ export default function NewTripPage() {
                   <MapPin size={25} />
                 </span>
 
-                <p className="mt-4 font-black text-slate-900">
-                  El mapa aparecerá aquí
-                </p>
+                <p className="mt-4 font-black text-slate-900">{t("tripNew.mapAppearsHere")}</p>
 
-                <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
-                  Confirma el origen y el destino
-                  para visualizar la ruta.
-                </p>
+                <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">{t("tripNew.confirmLocationsForMap")}</p>
               </div>
             )}
           </div>
         </div>
 
         {routeLoading && (
-          <Notice>
-            Calculando la mejor ruta...
-          </Notice>
+          <Notice>{t("tripNew.calculatingBestRoute")}</Notice>
         )}
 
         {routeError && (
@@ -586,7 +562,7 @@ export default function NewTripPage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               <EstimateCard
                 icon={<Route size={20} />}
-                label="Distancia"
+                label={t("tripNew.distance")}
                 value={`${routeData.distanceKm.toFixed(
                   1
                 )} km`}
@@ -594,7 +570,7 @@ export default function NewTripPage() {
 
               <EstimateCard
                 icon={<Clock3 size={20} />}
-                label="Tiempo estimado"
+                label={t("tripNew.estimatedTime")}
                 value={`${routeData.durationMinutes} min`}
               />
 
@@ -602,7 +578,7 @@ export default function NewTripPage() {
                 icon={
                   <WalletCards size={20} />
                 }
-                label="Precio estimado"
+                label={t("tripNew.estimatedPrice")}
                 value={`$${estimatedPrice.toFixed(
                   2
                 )} MXN`}
@@ -630,9 +606,7 @@ export default function NewTripPage() {
               router.push("/dashboard/trips")
             }
             className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-slate-200 px-5 font-black text-slate-600 transition hover:bg-slate-50"
-          >
-            Cancelar
-          </button>
+          >{t("tripNew.cancel")}</button>
 
           <button
             type="submit"
@@ -645,10 +619,10 @@ export default function NewTripPage() {
             className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40"
           >
             {submitting
-              ? "Buscando conductores..."
+              ? t("tripNew.searchingDrivers")
               : routeLoading
-                ? "Calculando ruta..."
-                : "Confirmar viaje"}
+                ? t("tripNew.calculatingRoute")
+                : t("tripNew.confirmTrip")}
 
             {!submitting &&
               !routeLoading && (
@@ -668,6 +642,8 @@ function LocationStatus({
   label: string;
   ready: boolean;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
       <span
@@ -686,7 +662,7 @@ function LocationStatus({
         <p className="mt-0.5 text-xs font-bold text-slate-200">
           {ready
             ? "Ubicación confirmada"
-            : "Pendiente"}
+            : t("tripNew.pending")}
         </p>
       </div>
     </div>
@@ -700,6 +676,8 @@ function ConfirmedLocation({
   origin?: boolean;
   text: string;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div
       className={`mt-3 flex items-start gap-3 rounded-2xl border p-4 ${
@@ -729,8 +707,8 @@ function ConfirmedLocation({
           }`}
         >
           {origin
-            ? "Punto de partida confirmado"
-            : "Destino confirmado"}
+            ? t("tripNew.originConfirmed")
+            : t("tripNew.destinationConfirmed")}
         </p>
 
         <p
@@ -806,3 +784,6 @@ function Notice({
     </div>
   );
 }
+
+
+

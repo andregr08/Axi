@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import {
@@ -14,6 +14,7 @@ import type {
   RoutePoint,
 } from "@/components/maps/TripRouteMap";
 import "leaflet/dist/leaflet.css";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type TripRouteLeafletMapProps = {
   origin: RouteCoordinates;
@@ -68,6 +69,8 @@ export default function TripRouteLeafletMap({
   destination,
   routePoints,
 }: TripRouteLeafletMapProps) {
+  const { t } = useLanguage();
+
   const polylinePoints = routePoints.map(
     (point) =>
       [point.lat, point.lng] as [
@@ -121,7 +124,7 @@ export default function TripRouteLeafletMap({
           weight: 4,
         }}
       >
-        <Popup>Punto de partida</Popup>
+        <Popup>{t("tripRouteMap.origin")}</Popup>
       </CircleMarker>
 
       <CircleMarker
@@ -137,7 +140,7 @@ export default function TripRouteLeafletMap({
           weight: 4,
         }}
       >
-        <Popup>Destino</Popup>
+        <Popup>{t("tripRouteMap.destination")}</Popup>
       </CircleMarker>
     </MapContainer>
   );

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import dynamic from "next/dynamic";
 import {
@@ -6,6 +6,7 @@ import {
   LocateFixed,
 } from "lucide-react";
 import { useUserLocation } from "@/hooks/useUserLocation";
+import { useLanguage } from "@/hooks/useLanguage";
 
 const OpenStreetMap = dynamic(
   () => import("@/components/maps/OpenStreetMap"),
@@ -14,7 +15,7 @@ const OpenStreetMap = dynamic(
     loading: () => (
       <div className="flex h-full items-center justify-center bg-slate-100">
         <p className="text-sm font-bold text-slate-500">
-          Cargando mapa...
+          Loading map...
         </p>
       </div>
     ),
@@ -27,6 +28,7 @@ const PUEBLA_CENTER = {
 };
 
 export function GoogleMapView() {
+  const { t } = useLanguage();
   const {
     coordinates,
     loading,
@@ -48,10 +50,10 @@ export function GoogleMapView() {
 
           <div>
             <p className="font-black text-slate-950">
-              Conductores cercanos
+              {t("maps.nearbyDrivers")}
             </p>
             <p className="text-xs text-slate-500">
-              Mapa OpenStreetMap
+              {t("maps.openStreetMap")}
             </p>
           </div>
         </div>
@@ -61,7 +63,7 @@ export function GoogleMapView() {
         type="button"
         onClick={requestLocation}
         disabled={loading}
-        aria-label="Actualizar mi ubicación"
+        aria-label={t("maps.refreshMyLocation")}
         className="absolute bottom-5 right-5 z-[500] flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0B0F19] text-yellow-400 shadow-xl transition hover:scale-105 disabled:opacity-60"
       >
         <LocateFixed
@@ -78,3 +80,4 @@ export function GoogleMapView() {
     </div>
   );
 }
+

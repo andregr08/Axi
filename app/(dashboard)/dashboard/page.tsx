@@ -32,15 +32,15 @@ type Profile = {
 };
 
 const roleNameKey: Record<UserRole, string> = {
-  admin: "Administrador",
-  driver: "Conductor",
-  passenger: "Pasajero",
+  admin: "roles.admin",
+  driver: "roles.driver",
+  passenger: "roles.passenger",
 };
 
 const roleDescriptionKey: Record<UserRole, string> = {
-  admin: "Control total de la plataforma",
-  driver: "Listo para recibir viajes",
-  passenger: "Tu movilidad, en un solo lugar",
+  admin: "roles.adminDescription",
+  driver: "roles.driverDescription",
+  passenger: "roles.passengerDescription",
 };
 
 export default function DashboardPage() {
@@ -123,57 +123,8 @@ export default function DashboardPage() {
               <Badge variant="warning">{t("dashboard.thisMonth")}</Badge>
             </div>
 
-            <p className="mt-6 text-sm font-semibold text-slate-500">
-              Viajes realizados
-            </p>
-            <p className="mt-1 text-4xl font-black tracking-tight">0</p>
-            <p className="mt-3 text-sm text-slate-400">
-              Tu historial aparecerÃƒÆ’Ã‚Â¡ aquÃƒÆ’Ã‚Â­
-            </p>
-          </div>
-        </Card>
-
-        <Card className="group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-          <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-blue-100 transition group-hover:scale-125" />
-
-          <div className="relative">
-            <div className="flex items-start justify-between">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                <Clock3 size={23} />
-              </span>
-
-              <Badge>{t("dashboard.now")}</Badge>
-            </div>
-
-            <p className="mt-6 text-sm font-semibold text-slate-500">
-              Viajes activos
-            </p>
-            <p className="mt-1 text-4xl font-black tracking-tight">0</p>
-            <p className="mt-3 text-sm text-slate-400">
-              NingÃƒÆ’Ã‚Âºn viaje en curso
-            </p>
-          </div>
-        </Card>
-
-        <Card className="group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-          <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-100 transition group-hover:scale-125" />
-
-          <div className="relative">
-            <div className="flex items-start justify-between">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                <Star size={23} />
-              </span>
-
-              <Badge variant="success">{t("dashboard.excellent")}</Badge>
-            </div>
-
-            <p className="mt-6 text-sm font-semibold text-slate-500">
-              CalificaciÃƒÆ’Ã‚Â³n
-            </p>
-            <p className="mt-1 text-4xl font-black tracking-tight">5.0</p>
-            <p className="mt-3 text-sm text-slate-400">
-              Cuenta nueva en AXI
-            </p>
+            <p className="mt-6 text-sm font-semibold text-slate-500">{t("dashboard.rating")}</p><p className="mt-1 text-4xl font-black tracking-tight">5.0</p>
+            <p className="mt-3 text-sm text-slate-400">{t("dashboard.newAccount")}</p>
           </div>
         </Card>
 
@@ -186,18 +137,12 @@ export default function DashboardPage() {
                 <CircleCheck size={23} />
               </span>
 
-              <Badge variant="success">En lÃƒÆ’Ã‚Â­nea</Badge>
+              <Badge variant="success">{t("dashboard.online")}</Badge>
             </div>
 
-            <p className="mt-6 text-sm font-semibold text-slate-500">
-              Estado de cuenta
-            </p>
-            <p className="mt-2 text-2xl font-black text-emerald-600">
-              Activa
-            </p>
-            <p className="mt-3 text-sm text-slate-400">
-              Todos los servicios disponibles
-            </p>
+            <p className="mt-6 text-sm font-semibold text-slate-500">{t("dashboard.accountStatus")}</p>
+            <p className="mt-2 text-2xl font-black text-emerald-600">{t("dashboard.active")}</p>
+            <p className="mt-3 text-sm text-slate-400">{t("dashboard.servicesAvailable")}</p>
           </div>
         </Card>
       </div>
@@ -207,19 +152,19 @@ export default function DashboardPage() {
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              OperaciÃƒÆ’Ã‚Â³n en vivo
+              {t("dashboard.liveOperation")}
             </p>
             <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Mapa de movilidad
+              {t("dashboard.mobilityMap")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              AquÃƒÆ’Ã‚Â­ aparecerÃƒÆ’Ã‚Â¡n conductores, rutas y viajes activos.
+              {t("dashboard.mapDescription")}
             </p>
           </div>
 
           <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Sistema disponible
+            {t("dashboard.systemAvailable")}
           </span>
         </div>
 
@@ -233,23 +178,17 @@ export default function DashboardPage() {
         <Card className="overflow-hidden p-0">
           <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Actividad
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">
-                Viajes recientes
-              </h2>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">{t("dashboard.activity")}</p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">{t("dashboard.recentTrips")}</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Consulta los movimientos mÃƒÆ’Ã‚Â¡s recientes de tu cuenta.
+                {t("dashboard.recentDescription")}
               </p>
             </div>
 
             <Link
               href="/dashboard/trips"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
-            >
-              Ver todos
-              <ArrowUpRight size={17} />
+            >{t("dashboard.viewAll")}<ArrowUpRight size={17} />
             </Link>
           </div>
 
@@ -263,20 +202,17 @@ export default function DashboardPage() {
               </span>
 
               <h3 className="mt-6 text-xl font-black text-slate-900">
-                TodavÃƒÆ’Ã‚Â­a no hay actividad
+                {t("dashboard.noActivity")}
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Cuando realices o recibas tu primer viaje, aparecerÃƒÆ’Ã‚Â¡ en esta
-                secciÃƒÆ’Ã‚Â³n.
+                {t("dashboard.noActivityDescription")}
               </p>
 
               <Link
                 href="/dashboard/trips/new"
                 className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
-              >
-                Solicitar viaje
-                <ChevronRight size={17} />
+              >{t("dashboard.requestTrip")}<ChevronRight size={17} />
               </Link>
             </div>
           </div>
@@ -307,9 +243,7 @@ export default function DashboardPage() {
               <Link
                 href="/dashboard/profile"
                 className="mt-6 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-bold transition hover:bg-white/10"
-              >
-                Administrar perfil
-                <ChevronRight size={18} />
+              >{t("dashboard.manageProfile")}<ChevronRight size={18} />
               </Link>
             </div>
           </Card>
@@ -318,9 +252,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Accesos rÃƒÆ’Ã‚Â¡pidos
+                  {t("dashboard.quickAccess")}
                 </p>
-                <h2 className="mt-1 text-xl font-black">Tu cuenta AXI</h2>
+                <h2 className="mt-1 text-xl font-black">{t("dashboard.yourAccount")}</h2>
               </div>
 
               <ShieldCheck className="text-emerald-500" size={26} />
@@ -337,8 +271,7 @@ export default function DashboardPage() {
 
                 <span className="min-w-0 flex-1">
                   <span className="block font-bold">{t("dashboard.payments")}</span>
-                  <span className="block truncate text-sm text-slate-500">
-                    MÃƒÆ’Ã‚Â©todos de pago y movimientos
+                  <span className="block truncate text-sm text-slate-500">{t("dashboard.paymentDescription")}
                   </span>
                 </span>
 
@@ -355,9 +288,9 @@ export default function DashboardPage() {
                   </span>
 
                   <span className="min-w-0 flex-1">
-                    <span className="block font-bold">VehÃƒÆ’Ã‚Â­culos</span>
+                    <span className="block font-bold">{t("dashboard.vehicles")}</span>
                     <span className="block truncate text-sm text-slate-500">
-                      Administra tu unidad o flotilla
+                      {t("dashboard.vehicleDescription")}
                     </span>
                   </span>
 

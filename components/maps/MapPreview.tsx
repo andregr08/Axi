@@ -9,6 +9,7 @@ import {
   Minus,
   Route,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 const drivers = [
   { id: 1, left: "18%", top: "28%", active: true },
@@ -19,6 +20,7 @@ const drivers = [
 ];
 
 export function MapPreview() {
+  const { t } = useLanguage();
   return (
     <div className="relative h-[520px] overflow-hidden rounded-[2rem] border border-slate-200 bg-[#E9EDF0] shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
       <div className="absolute inset-0 opacity-70">
@@ -102,7 +104,7 @@ export function MapPreview() {
             </span>
 
             <div>
-              <p className="font-black text-slate-950">Operación en vivo</p>
+              <p className="font-black text-slate-950">{t("maps.liveOperation")}</p>
               <p className="text-xs text-slate-500">
                 Puebla, México
               </p>
@@ -125,7 +127,7 @@ export function MapPreview() {
             </div>
 
             <div className="rounded-2xl bg-slate-100 p-3 text-center">
-              <p className="text-xl font-black text-emerald-600">Online</p>
+              <p className="text-xl font-black text-emerald-600">{t("maps.online")}</p>
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Sistema
               </p>
@@ -137,7 +139,7 @@ export function MapPreview() {
       <div className="absolute right-4 top-4 flex flex-col gap-2 sm:right-6 sm:top-6">
         <button
           type="button"
-          aria-label="Acercar mapa"
+          aria-label={t("maps.zoomIn")}
           className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white"
         >
           <Plus size={20} />
@@ -145,7 +147,7 @@ export function MapPreview() {
 
         <button
           type="button"
-          aria-label="Alejar mapa"
+          aria-label={t("maps.zoomOut")}
           className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white"
         >
           <Minus size={20} />
@@ -153,7 +155,7 @@ export function MapPreview() {
 
         <button
           type="button"
-          aria-label="Ubicación actual"
+          aria-label={t("maps.currentLocation")}
           className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0B0F19] text-yellow-400 shadow-lg transition hover:scale-105"
         >
           <LocateFixed size={20} />

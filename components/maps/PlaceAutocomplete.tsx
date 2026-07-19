@@ -50,8 +50,6 @@ export function PlaceAutocomplete({
     const query = value.trim();
 
     if (selected || query.length < 3) {
-      setResults([]);
-      setLoading(false);
       return;
     }
 
@@ -225,3 +223,4 @@ export function PlaceAutocomplete({
     </div>
   );
 }
+
