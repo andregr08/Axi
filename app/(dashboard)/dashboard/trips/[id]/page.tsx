@@ -5,6 +5,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -206,6 +207,9 @@ export default function ActiveTripPage({
   const [processing, setProcessing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [searchSeconds, setSearchSeconds] = useState(0);
+  const [dispatchRound, setDispatchRound] = useState(1);
+  const [dispatchRadius, setDispatchRadius] = useState(3);
+  const dispatchProcessingRef = useRef(false);
   const [message, setMessage] = useState("");
 
   const loadTrip = useCallback(async () => {
@@ -467,17 +471,131 @@ export default function ActiveTripPage({
       trip?.status === "searching";
 
     if (!searching) {
+      setSearchSeconds(0);
       return;
     }
 
-    const timer = window.setInterval(() => {
-      setSearchSeconds((current) => current + 1);
-    }, 1000);
+    const requestedAt = trip?.requested_at
+      ? new Date(trip.requested_at).getTime()
+      : Date.now();
+
+    const updateElapsedTime = () => {
+      const elapsed = Math.max(
+        0,
+        Math.floor(
+          (Date.now() - requestedAt) / 1000
+        )
+      );
+
+      setSearchSeconds(elapsed);
+    };
+
+    updateElapsedTime();
+
+    const timer = window.setInterval(
+      updateElapsedTime,
+      1000
+    );
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [trip?.status]);
+  }, [trip?.requested_at, trip?.status]);
+
+  useEffect(() => {
+    const searching =
+      trip?.status === "requested" ||
+      trip?.status === "searching";
+
+    if (
+      !trip ||
+      !searching ||
+      role !== "passenger"
+    ) {
+      return;
+    }
+
+    const tripId = trip.id;
+    let cancelled = false;
+
+    async function processDispatchRound() {
+      if (
+        cancelled ||
+        dispatchProcessingRef.current
+      ) {
+        return;
+      }
+
+      dispatchProcessingRef.current = true;
+
+      const {
+        data,
+        error,
+      } = await supabase.rpc(
+        "process_trip_dispatch",
+        {
+          requested_trip_id: tripId,
+        }
+      );
+
+      dispatchProcessingRef.current = false;
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        console.error(
+          "Error procesando despacho:",
+          error
+        );
+        return;
+      }
+
+      const result = data as {
+        status?: string;
+        round?: number;
+        radius_km?: number;
+        notified_drivers?: number;
+      } | null;
+
+      if (
+        typeof result?.round === "number"
+      ) {
+        setDispatchRound(result.round);
+      }
+
+      if (
+        typeof result?.radius_km === "number"
+      ) {
+        setDispatchRadius(
+          Number(result.radius_km)
+        );
+      }
+
+      if (result?.status === "completed") {
+        await loadTrip();
+      }
+    }
+
+    void processDispatchRound();
+
+    const dispatchTimer = window.setInterval(
+      () => {
+        void processDispatchRound();
+      },
+      8000
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(dispatchTimer);
+    };
+  }, [
+    loadTrip,
+    role,
+    trip,
+  ]);
 
   async function cancelCurrentTrip() {
     if (!trip) return;
@@ -883,10 +1001,10 @@ export default function ActiveTripPage({
                 />
 
                 <SearchStep
-                  completed={searchSeconds >= 30}
-                  active={searchSeconds >= 30}
+                  completed={dispatchRound >= 2}
+                  active={dispatchRound >= 2}
                   title="Ampliando zona de búsqueda"
-                  description="Buscaremos conductores en un radio mayor."
+                  description={`Ronda ${dispatchRound}: buscando conductores en un radio de ${dispatchRadius} km.`}
                 />
               </div>
 

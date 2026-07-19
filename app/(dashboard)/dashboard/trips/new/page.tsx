@@ -290,13 +290,14 @@ export default function NewTripPage() {
     }
 
     const {
-      data: notifiedDrivers,
+      data: dispatchResult,
       error: dispatchError,
-    } = await supabase.rpc("dispatch_trip", {
-      requested_trip_id: trip.id,
-      search_radius_km: 10,
-      drivers_limit: 10,
-    });
+    } = await supabase.rpc(
+      "process_trip_dispatch",
+      {
+        requested_trip_id: trip.id,
+      }
+    );
 
     setLoading(false);
     setConfirmOpen(false);
@@ -314,7 +315,13 @@ export default function NewTripPage() {
       return;
     }
 
-    const count = Number(notifiedDrivers ?? 0);
+    const count = Number(
+      (
+        dispatchResult as {
+          notified_drivers?: number;
+        } | null
+      )?.notified_drivers ?? 0
+    );
 
     setMessage(
       count === 0

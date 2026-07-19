@@ -458,11 +458,9 @@ export default function PasajeroPage() {
 
     const { error: dispatchError } =
       await supabase.rpc(
-        "dispatch_trip",
+        "process_trip_dispatch",
         {
           requested_trip_id: trip.id,
-          search_radius_km: 10,
-          drivers_limit: 10,
         }
       );
 
