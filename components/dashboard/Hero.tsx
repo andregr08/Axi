@@ -6,22 +6,64 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import type { UserRole } from "@/lib/auth/roles";
 
 interface HeroProps {
   name?: string;
-  role?: "admin" | "driver" | "passenger";
+  role?: UserRole;
 }
 
-const content = {
+const content: Record<
+  UserRole,
+  {
+    eyebrow: string;
+    title: string;
+    description: string;
+    primaryLabel: string;
+    primaryHref: string;
+    secondaryLabel: string;
+    secondaryHref: string;
+  }
+> = {
+  director_general: {
+    eyebrow: "Dirección general",
+    title: "Control estratégico de AXI",
+    description:
+      "Supervisa la operación, las finanzas, el soporte y el crecimiento de toda la plataforma.",
+    primaryLabel: "Centro administrativo",
+    primaryHref: "/dashboard/admin",
+    secondaryLabel: "Ver finanzas",
+    secondaryHref: "/dashboard/admin/finance",
+  },
   admin: {
     eyebrow: "Centro de operaciones",
-    title: "Control total de AXI",
+    title: "Control operativo de AXI",
     description:
       "Supervisa usuarios, conductores, vehículos y viajes desde un solo lugar.",
     primaryLabel: "Ver viajes",
     primaryHref: "/dashboard/trips",
     secondaryLabel: "Administrar vehículos",
-    secondaryHref: "/dashboard/vehicles",
+    secondaryHref: "/dashboard/admin/vehicles",
+  },
+  support: {
+    eyebrow: "Centro de soporte",
+    title: "Atención y seguridad",
+    description:
+      "Gestiona solicitudes, reportes, alertas y la atención de usuarios de AXI.",
+    primaryLabel: "Abrir soporte",
+    primaryHref: "/dashboard/admin/support",
+    secondaryLabel: "Ver reportes",
+    secondaryHref: "/dashboard/security",
+  },
+  finance: {
+    eyebrow: "Centro financiero",
+    title: "Finanzas de AXI",
+    description:
+      "Supervisa pagos, retiros, incentivos, comisiones y movimientos financieros.",
+    primaryLabel: "Ver finanzas",
+    primaryHref: "/dashboard/admin/finance",
+    secondaryLabel: "Ver pagos",
+    secondaryHref: "/dashboard/admin/payments",
   },
   driver: {
     eyebrow: "Panel del conductor",

@@ -31,8 +31,26 @@ interface AIChatPanelProps {
 }
 
 function getRoleLabel(role: AIUserRole) {
-  if (role === "admin") return "Copilot administrativo";
-  if (role === "driver") return "Asistente para conductores";
+  if (role === "director_general") {
+    return "Copilot de Dirección General";
+  }
+
+  if (role === "admin") {
+    return "Copilot administrativo";
+  }
+
+  if (role === "support") {
+    return "Copilot de soporte";
+  }
+
+  if (role === "finance") {
+    return "Copilot financiero";
+  }
+
+  if (role === "driver") {
+    return "Asistente para conductores";
+  }
+
   return "Asistente para pasajeros";
 }
 

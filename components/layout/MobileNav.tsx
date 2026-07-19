@@ -18,7 +18,13 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import type { UserRole } from "@/lib/auth/roles";
+import {
+  getRoleLabel,
+  isAdmin,
+  isFinance,
+  isSupport,
+  type UserRole,
+} from "@/lib/auth/roles";
 import { Logo } from "@/components/shared/Logo";
 import { cn } from "@/utils/cn";
 
@@ -103,42 +109,56 @@ export function MobileNav({
       label: "Mis vehículos",
       description: "Administra tu unidad o flotilla",
       icon: CarFront,
-      visible: role === "driver" || role === "admin",
+      visible: role === "driver" || isAdmin(role),
     },
     {
       href: "/dashboard/admin/driver-applications",
       label: "Solicitudes",
       description: "Revisa nuevos conductores",
       icon: ClipboardCheck,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/drivers",
       label: "Conductores",
       description: "Administra conductores activos",
       icon: CarFront,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/passengers",
       label: "Pasajeros",
       description: "Consulta usuarios registrados",
       icon: UsersRound,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/vehicles",
       label: "Vehículos admin",
       description: "Supervisa toda la flotilla",
       icon: CarFront,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/trips",
       label: "Operación de viajes",
       description: "Supervisa los viajes de AXI",
       icon: ShieldCheck,
-      visible: role === "admin",
+      visible: isAdmin(role),
+    },
+    {
+      href: "/dashboard/admin/support",
+      label: "Soporte",
+      description: "Gestiona tickets, reportes e incidentes",
+      icon: ShieldCheck,
+      visible: isSupport(role),
+    },
+    {
+      href: "/dashboard/admin/finance",
+      label: "Finanzas",
+      description: "Pagos, retiros, comisiones e incentivos",
+      icon: CreditCard,
+      visible: isFinance(role),
     },
   ];
 
@@ -200,10 +220,7 @@ export function MobileNav({
 
                   <div>
                     <p className="font-black">
-                      {role === "admin" && "Administrador"}
-                      {role === "driver" && "Conductor"}
-                      {role === "passenger" && "Pasajero"}
-                      {!role && "Usuario AXI"}
+                      {getRoleLabel(role)}
                     </p>
 
                     <p className="mt-1 text-xs text-slate-400">

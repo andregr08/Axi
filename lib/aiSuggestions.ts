@@ -10,12 +10,33 @@ export function getSuggestions(role: AIUserRole): string[] {
     ];
   }
 
-  if (role === "admin") {
+  if (
+    role === "director_general" ||
+    role === "admin"
+  ) {
     return [
       "Muéstrame el reporte del día",
       "Ayúdame a crear una promoción",
       "Ver conductores pendientes",
       "Consultar tickets abiertos",
+    ];
+  }
+
+  if (role === "support") {
+    return [
+      "Consultar tickets abiertos",
+      "Ver reportes de usuarios",
+      "Revisar alertas SOS",
+      "Escalar un incidente",
+    ];
+  }
+
+  if (role === "finance") {
+    return [
+      "Ver retiros pendientes",
+      "Consultar pagos del día",
+      "Revisar comisiones",
+      "Auditar movimientos financieros",
     ];
   }
 

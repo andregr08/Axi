@@ -38,17 +38,19 @@ type Profile = {
 
 
 const roleName: Record<UserRole, string> = {
-  super_admin: "Superadministrador",
+  director_general: "Director General",
   admin: "Administrador",
   support: "Soporte",
+  finance: "Finanzas",
   driver: "Conductor",
   passenger: "Pasajero",
 };
 
 const roleDescription: Record<UserRole, string> = {
-  super_admin: "Control total de la plataforma",
+  director_general: "Dirección y control total de la plataforma",
   admin: "Control operativo de la plataforma",
   support: "Atención y soporte a usuarios",
+  finance: "Administración financiera de la plataforma",
   driver: "Listo para recibir viajes",
   passenger: "Tu movilidad, en un solo lugar",
 };
@@ -411,25 +413,23 @@ export default function DashboardPage() {
                 <ChevronRight size={18} className="text-slate-400" />
               </Link>
 
-              {role === "admin" && (
-                <Link
-                  href="/dashboard/vehicles"
-                  className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                    <CarFront size={20} />
-                  </span>
+              <Link
+                href="/dashboard/admin/finance"
+                className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+                  <CreditCard size={20} />
+                </span>
 
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-bold">Vehículos</span>
-                    <span className="block truncate text-sm text-slate-500">
-                      Administra tu unidad o flotilla
-                    </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold">Panel financiero</span>
+                  <span className="block truncate text-sm text-slate-500">
+                    Pagos, retiros, comisiones e incentivos
                   </span>
+                </span>
 
-                  <ChevronRight size={18} className="text-slate-400" />
-                </Link>
-              )}
+                <ChevronRight size={18} className="text-slate-400" />
+              </Link>
             </div>
           </Card>
         </div>

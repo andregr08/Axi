@@ -10,9 +10,10 @@ interface NavbarProps {
 }
 
 const roleNames: Record<UserRole, string> = {
-  super_admin: "Superadministrador",
+  director_general: "Director General",
   admin: "Administrador",
   support: "Soporte",
+  finance: "Finanzas",
   driver: "Conductor",
   passenger: "Pasajero",
 };

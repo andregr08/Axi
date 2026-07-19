@@ -13,7 +13,10 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
-import type { UserRole } from "@/lib/auth/roles";
+import {
+  isAdmin,
+  type UserRole,
+} from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 interface RideActionPanelProps {
@@ -107,7 +110,7 @@ export function RideActionPanel({ role }: RideActionPanelProps) {
     );
   }
 
-  if (role === "admin") {
+  if (isAdmin(role)) {
     return (
       <aside className="flex h-full min-h-[520px] flex-col rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
         <div className="flex items-center justify-between">

@@ -103,7 +103,7 @@ export default function AdminPromotionsPage() {
 
     if (
       profileError ||
-      profile?.role !== "admin"
+      !isAdmin(profile?.role)
     ) {
       router.replace("/dashboard");
       return;
