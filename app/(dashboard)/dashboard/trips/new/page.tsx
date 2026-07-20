@@ -382,66 +382,6 @@ export default function NewTripPage() {
     }, 1500);
   }
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDynamicFare() {
-      if (!resolvedTrip) {
-        setDynamicFare(null);
-        setPricingError("");
-        return;
-      }
-
-      const routeEstimate =
-        estimateRouteSync(
-          resolvedTrip.originCoordinates,
-          {
-            latitude:
-              resolvedTrip.destinationPlace
-                .latitude,
-            longitude:
-              resolvedTrip.destinationPlace
-                .longitude,
-          }
-        );
-
-      setPricingLoading(true);
-      setPricingError("");
-
-      try {
-        const fare =
-          await getDynamicFareEstimate(
-            routeEstimate.distanceKm,
-            routeEstimate.durationMinutes,
-            "economy"
-          );
-
-        if (!cancelled) {
-          setDynamicFare(fare);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setDynamicFare(null);
-          setPricingError(
-            error instanceof Error
-              ? error.message
-              : "No se pudo calcular la tarifa."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setPricingLoading(false);
-        }
-      }
-    }
-
-    void loadDynamicFare();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [resolvedTrip]);
-
   const originReady =
     originCoordinates !== null ||
     (!placesConfigured && origin.trim().length > 2);
@@ -489,6 +429,53 @@ export default function NewTripPage() {
     originReady,
     placesConfigured,
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDynamicFare() {
+      if (!estimate) {
+        setDynamicFare(null);
+        setPricingError("");
+        return;
+      }
+
+      setPricingLoading(true);
+      setPricingError("");
+
+      try {
+        const fare =
+          await getDynamicFareEstimate(
+            estimate.distanceKm,
+            estimate.durationMinutes,
+            "economy"
+          );
+
+        if (!cancelled) {
+          setDynamicFare(fare);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDynamicFare(null);
+          setPricingError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo calcular la tarifa."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setPricingLoading(false);
+        }
+      }
+    }
+
+    void loadDynamicFare();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [estimate]);
 
   return (
     <>
