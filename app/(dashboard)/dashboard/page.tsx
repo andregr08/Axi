@@ -30,6 +30,7 @@ import {
   isAdmin,
   isSupport,
   type UserRole,
+  isPassenger,
 } from "@/lib/auth/roles";
 
 type Profile = {
@@ -279,11 +280,15 @@ export default function DashboardPage() {
                 {t("dashboard.noActivityDescription")}
               </p>
 
-              <Link
-                href="/dashboard/trips/new"
-                className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
-              >{t("dashboard.requestTrip")}<ChevronRight size={17} />
-              </Link>
+              {isPassenger(role) && (
+                <Link
+                  href="/dashboard/trips/new"
+                  className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
+                >
+                  {t("dashboard.requestTrip")}
+                  <ChevronRight size={17} />
+                </Link>
+              )}
             </div>
           </div>
         </Card>

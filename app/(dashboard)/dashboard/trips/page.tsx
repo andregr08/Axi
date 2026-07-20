@@ -18,6 +18,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { useLanguage } from "@/hooks/useLanguage";
+import {
+  isPassenger,
+  type UserRole,
+} from "@/lib/auth/roles";
 
 type TripStatus =
   | "requested"
@@ -95,6 +99,7 @@ function getStatusVariant(
 export default function TripsPage() {
   const { locale, t } = useLanguage();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<TripFilter>("all");
@@ -108,6 +113,25 @@ export default function TripsPage() {
     if (!session) {
       setLoading(false);
       return;
+    }
+
+    const { data: profile, error: profileError } =
+      await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error(
+        "Error cargando rol:",
+        profileError.message
+      );
+    } else {
+      setRole(
+        (profile?.role as UserRole | undefined) ??
+          null
+      );
     }
 
     const { data, error } = await supabase
@@ -291,13 +315,15 @@ export default function TripsPage() {
             </p>
           </div>
 
-          <Link
-            href="/dashboard/trips/new"
-            className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
-          >
-            <Plus size={20} />
-            {t("trips.requestTrip")}
-          </Link>
+          {isPassenger(role) && (
+            <Link
+              href="/dashboard/trips/new"
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
+            >
+              <Plus size={20} />
+              {t("trips.requestTrip")}
+            </Link>
+          )}
         </div>
       </div>
 
@@ -444,15 +470,17 @@ export default function TripsPage() {
                   ? t("trips.noResultsDescription") : t("trips.noTripsDescription")}
               </p>
 
-              {!search && filter === "all" && (
-                <Link
-                  href="/dashboard/trips/new"
-                  className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
-                >
-                  {t("trips.firstTrip")}
-                  <ArrowRight size={18} />
-                </Link>
-              )}
+              {!search &&
+                filter === "all" &&
+                isPassenger(role) && (
+                  <Link
+                    href="/dashboard/trips/new"
+                    className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:-translate-y-0.5 hover:bg-yellow-300"
+                  >
+                    {t("trips.firstTrip")}
+                    <ArrowRight size={18} />
+                  </Link>
+                )}
             </div>
           </div>
         ) : (

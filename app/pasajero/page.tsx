@@ -1134,25 +1134,11 @@ function OptionsPanel({
           </div>
         )}
 
-        {!pricingLoading &&
-          selectedFare && (
-            <div className="rounded-2xl bg-amber-50 px-4 py-3">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">
-                {getPricingPeriodLabel(
-                  selectedFare.pricing_period
-                )}
-              </p>
-
-              <p className="mt-1 text-xs font-bold text-amber-900">
-                {selectedFare.surge_multiplier >
-                1
-                  ? `Tarifa dinámica ${selectedFare.surge_multiplier.toFixed(
-                      2
-                    )}x`
-                  : "Sin incremento por demanda"}
-              </p>
-            </div>
-          )}
+        {!pricingLoading && selectedFare && (
+          <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+            Precio actualizado para tu viaje.
+          </div>
+        )}
 
         {pricingError && (
           <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">

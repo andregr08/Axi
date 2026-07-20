@@ -59,7 +59,12 @@ export function Sidebar({
     },
     {
       href: "/dashboard/trips",
-      labelKey: "navigation.myTrips",
+      labelKey: isDriver(role)
+        ? undefined
+        : "navigation.myTrips",
+      label: isDriver(role)
+        ? "Mis viajes"
+        : undefined,
       icon: Route,
       visible: true,
     },
