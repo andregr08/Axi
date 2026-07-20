@@ -94,6 +94,19 @@ export default function AvailableTripsPage() {
 
     setMessage("");
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      setMessage("Tu sesión expiró. Inicia sesión nuevamente.");
+      setOffers([]);
+      setLoading(false);
+      setRefreshing(false);
+      router.replace("/login");
+      return;
+    }
+
     await supabase.rpc("expire_trip_offers");
 
     const { data, error } = await supabase
@@ -113,6 +126,7 @@ export default function AvailableTripsPage() {
           requested_at
         )
       `)
+      .eq("driver_id", session.user.id)
       .eq("status", "pending")
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: true });
@@ -125,7 +139,7 @@ export default function AvailableTripsPage() {
 
     setLoading(false);
     setRefreshing(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
