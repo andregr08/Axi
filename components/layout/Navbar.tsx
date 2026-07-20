@@ -35,7 +35,9 @@ export function Navbar({ role }: NavbarProps) {
         </div>
 
         <div className="pointer-events-auto relative z-[9999] flex items-center gap-2 sm:gap-3">
-          <LanguageSwitcher />
+          <div className="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
 
           <NotificationsBell />
 

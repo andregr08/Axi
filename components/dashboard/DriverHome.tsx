@@ -129,6 +129,9 @@ export function DriverHome({
         data: { session },
       } = await supabase.auth.getSession();
 
+      console.log("[AXI DRIVER] SESSION USER ID:", session?.user.id);
+      console.log("[AXI DRIVER] SESSION EMAIL:", session?.user.email);
+
       if (!session) {
         setMessage("Tu sesión ya no está disponible.");
         setLoading(false);

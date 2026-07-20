@@ -8,7 +8,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-[100] flex items-center rounded-full border border-slate-200 bg-white p-1 shadow-lg"
+      className="flex items-center rounded-2xl border border-slate-200 bg-white p-1 shadow-sm"
       aria-label="Seleccionar idioma"
     >
       <Globe2

@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -23,6 +27,27 @@ export default function LoginPage() {
   const router = useRouter();
   const { setLocale, t } = useLanguage();
 
+  const [suspensionMessage, setSuspensionMessage] =
+    useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const error = params.get("error");
+
+    if (error === "suspended") {
+      setSuspensionMessage(
+        "Tu cuenta está suspendida. Contacta a soporte de AXI."
+      );
+    } else if (error === "account-verification") {
+      setSuspensionMessage(
+        "No fue posible verificar el estado de tu cuenta."
+      );
+    }
+  }, []);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +57,7 @@ export default function LoginPage() {
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
+    setSuspensionMessage("");
 
     if (!email.trim() || !password) {
       setErrorMessage(t("login.missingCredentials"));
@@ -56,11 +82,30 @@ export default function LoginPage() {
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("language")
-      .eq("id", authData.user.id)
-      .maybeSingle();
+    const { data: profile, error: profileError } =
+      await supabase
+        .from("profiles")
+        .select("language, account_active")
+        .eq("id", authData.user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setErrorMessage(
+        "No fue posible verificar el estado de tu cuenta."
+      );
+      return;
+    }
+
+    if (profile?.account_active === false) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setErrorMessage(
+        "Tu cuenta está suspendida. Contacta a soporte de AXI."
+      );
+      return;
+    }
 
     const profileLanguage = profile?.language;
     const metadataLanguage = authData.user.user_metadata?.language;
@@ -230,9 +275,9 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {errorMessage && (
+            {(errorMessage || suspensionMessage) && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                {errorMessage}
+                {errorMessage || suspensionMessage}
               </div>
             )}
 

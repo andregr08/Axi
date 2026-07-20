@@ -182,6 +182,9 @@ function shortAddress(value: string) {
 export default function PasajeroPage() {
   const router = useRouter();
 
+  const [checkingAccount, setCheckingAccount] =
+    useState(true);
+
   const placesConfigured = Boolean(
     process.env
       .NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -189,6 +192,60 @@ export default function PasajeroPage() {
 
   const [step, setStep] =
     useState<BookingStep>("home");
+
+  useEffect(() => {
+    let active = true;
+
+    async function validateAccount() {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      if (sessionError || !session) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: profileError } =
+        await supabase
+          .from("profiles")
+          .select("role, account_active")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+      if (!active) return;
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        router.replace(
+          "/login?error=account-verification"
+        );
+        return;
+      }
+
+      if (profile.account_active === false) {
+        await supabase.auth.signOut();
+        router.replace("/login?error=suspended");
+        return;
+      }
+
+      if (profile.role !== "passenger") {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setCheckingAccount(false);
+    }
+
+    void validateAccount();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const [origin, setOrigin] = useState(
     "Mi ubicación actual"
@@ -529,6 +586,35 @@ export default function PasajeroPage() {
       return;
     }
 
+    const { data: profile, error: profileError } =
+      await supabase
+        .from("profiles")
+        .select("role, account_active")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+    if (profileError || !profile) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      router.replace(
+        "/login?error=account-verification"
+      );
+      return;
+    }
+
+    if (profile.account_active === false) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      router.replace("/login?error=suspended");
+      return;
+    }
+
+    if (profile.role !== "passenger") {
+      setLoading(false);
+      router.replace("/dashboard");
+      return;
+    }
+
     let tripId: string;
 
     try {
@@ -587,6 +673,23 @@ export default function PasajeroPage() {
     );
 
     router.refresh();
+  }
+
+  if (checkingAccount) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F4F6F8]">
+        <div className="text-center">
+          <LoaderCircle
+            size={40}
+            className="mx-auto animate-spin text-yellow-500"
+          />
+
+          <p className="mt-4 text-sm font-semibold text-slate-500">
+            Verificando tu cuenta...
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (
