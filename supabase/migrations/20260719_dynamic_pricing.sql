@@ -72,7 +72,7 @@ alter table public.trips
   add constraint trips_ride_type_check
   check (
     ride_type is null
-    or ride_type in ('economy', 'comfort', 'xl')
+    or ride_type in ('economy', 'comfort')
   );
 
 create or replace function public.get_ride_multiplier(
@@ -83,8 +83,7 @@ language sql
 immutable
 as $$
   select case requested_ride_type
-    when 'comfort' then 1.35
-    when 'xl' then 1.75
+    when 'comfort' then 1.25
     else 1.00
   end;
 $$;
@@ -143,7 +142,6 @@ begin
   safe_ride_type :=
     case requested_ride_type
       when 'comfort' then 'comfort'
-      when 'xl' then 'xl'
       else 'economy'
     end;
 
@@ -180,23 +178,24 @@ begin
     and status in ('available', 'active');
 
   if online_drivers <= 0 then
-    demand_multiplier := 1.25;
+    demand_multiplier := 1.20;
   else
     demand_ratio :=
       waiting_trips::numeric / greatest(online_drivers, 1);
 
     demand_multiplier :=
       case
-        when demand_ratio >= 3 then 1.50
-        when demand_ratio >= 2 then 1.35
-        when demand_ratio >= 1 then 1.20
-        when demand_ratio >= 0.50 then 1.10
+        when demand_ratio >= 3 then 1.20
+        when demand_ratio >= 2 then 1.15
+        when demand_ratio >= 1 then 1.10
+        when demand_ratio >= 0.50 then 1.05
         else 1.00
       end;
   end if;
 
   final_surge_multiplier :=
     least(
+      1.35,
       settings.maximum_surge_multiplier,
       greatest(
         1.00,

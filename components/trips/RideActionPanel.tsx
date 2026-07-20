@@ -27,24 +27,15 @@ interface RideActionPanelProps {
 const vehicleOptions = [
   {
     id: "economy",
-    name: "AXI",
-    descriptionKey:
-      "ridePanel.passenger.economyDescription",
+    name: "AXI 4",
+    description: "Hasta 4 pasajeros",
     price: "$85",
   },
   {
     id: "comfort",
-    name: "AXI Comfort",
-    descriptionKey:
-      "ridePanel.passenger.comfortDescription",
-    price: "$115",
-  },
-  {
-    id: "xl",
-    name: "AXI XL",
-    descriptionKey:
-      "ridePanel.passenger.xlDescription",
-    price: "$155",
+    name: "AXI 6",
+    description: "Hasta 6 pasajeros y equipaje",
+    price: "$106",
   },
 ];
 
@@ -349,7 +340,7 @@ export function RideActionPanel({
                 </span>
 
                 <span className="block truncate text-xs text-slate-500">
-                  {t(vehicle.descriptionKey)}
+                  {vehicle.description}
                 </span>
               </span>
 
