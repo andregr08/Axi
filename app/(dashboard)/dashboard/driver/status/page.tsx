@@ -363,7 +363,7 @@ export default function DriverStatusPage() {
     };
   }, [online]);
 
-  function shareLocation() {
+function shareLocation() {
     setMessage("");
 
     if (!navigator.geolocation) {
@@ -453,6 +453,7 @@ export default function DriverStatusPage() {
     setOperationalStatus(
       nextOnline ? "available" : "offline"
     );
+
     setMessage(
       nextOnline
         ? "Ya estás disponible para recibir solicitudes."

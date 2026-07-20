@@ -1,17 +1,23 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Bell,
   CheckCheck,
   ChevronRight,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type NotificationItem = {
   id: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   href: string;
   read: boolean;
 };
@@ -19,25 +25,31 @@ type NotificationItem = {
 const initialNotifications: NotificationItem[] = [
   {
     id: "welcome",
-    title: "Bienvenido a AXI",
-    description:
-      "Aquí recibirás avisos sobre viajes, pagos y seguridad.",
+    titleKey: "notifications.welcomeTitle",
+    descriptionKey: "notifications.welcomeDescription",
     href: "/dashboard",
     read: false,
   },
 ];
 
 export default function NotificationsBell() {
+  const { t } = useLanguage();
+
   const [open, setOpen] = useState(false);
+
   const [notifications, setNotifications] =
-    useState(initialNotifications);
+    useState<NotificationItem[]>(initialNotifications);
 
   const containerRef =
     useRef<HTMLDivElement>(null);
 
-  const unreadCount = notifications.filter(
-    (notification) => !notification.read
-  ).length;
+  const unreadCount = useMemo(
+    () =>
+      notifications.filter(
+        (notification) => !notification.read
+      ).length,
+    [notifications]
+  );
 
   useEffect(() => {
     function handleOutsideClick(
@@ -75,19 +87,36 @@ export default function NotificationsBell() {
     );
   }
 
+  function markAsRead(
+    notificationId: string
+  ) {
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id === notificationId
+          ? {
+              ...notification,
+              read: true,
+            }
+          : notification
+      )
+    );
+  }
+
   return (
     <div
       ref={containerRef}
-      className="relative"
+      className="pointer-events-auto relative z-[10000]"
     >
       <button
         type="button"
         onClick={() =>
           setOpen((current) => !current)
         }
-        aria-label="Abrir notificaciones"
+        aria-label={t(
+          "notifications.openNotifications"
+        )}
         aria-expanded={open}
-        className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-95"
+        className="pointer-events-auto relative z-[10000] flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
       >
         <Bell size={20} />
 
@@ -99,15 +128,15 @@ export default function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-14 z-[100] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <div className="pointer-events-auto absolute right-0 top-14 z-[10001] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Notificaciones
+                {t("notifications.title")}
               </p>
 
               <h2 className="mt-1 text-lg font-black text-slate-950">
-                Actividad reciente
+                {t("notifications.recentActivity")}
               </h2>
             </div>
 
@@ -115,72 +144,51 @@ export default function NotificationsBell() {
               type="button"
               onClick={markAllAsRead}
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200"
-              aria-label="Marcar todas como leídas"
+              aria-label={t(
+                "notifications.markAllAsRead"
+              )}
             >
               <CheckCheck size={17} />
             </button>
           </div>
 
           <div className="max-h-96 overflow-y-auto p-3">
-            {notifications.length === 0 ? (
-              <div className="px-4 py-10 text-center">
-                <Bell
-                  size={28}
-                  className="mx-auto text-slate-300"
-                />
+            {notifications.map(
+              (notification) => (
+                <Link
+                  key={notification.id}
+                  href={notification.href}
+                  onClick={() => {
+                    markAsRead(notification.id);
+                    setOpen(false);
+                  }}
+                  className="flex items-start gap-3 rounded-2xl p-3 transition hover:bg-slate-50"
+                >
+                  <span
+                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                      notification.read
+                        ? "bg-slate-300"
+                        : "bg-yellow-400"
+                    }`}
+                  />
 
-                <p className="mt-3 font-bold text-slate-700">
-                  No tienes notificaciones
-                </p>
-              </div>
-            ) : (
-              notifications.map(
-                (notification) => (
-                  <Link
-                    key={notification.id}
-                    href={notification.href}
-                    onClick={() => {
-                      setNotifications(
-                        (current) =>
-                          current.map((item) =>
-                            item.id ===
-                            notification.id
-                              ? {
-                                  ...item,
-                                  read: true,
-                                }
-                              : item
-                          )
-                      );
-
-                      setOpen(false);
-                    }}
-                    className="flex items-start gap-3 rounded-2xl p-3 transition hover:bg-slate-50"
-                  >
-                    <span
-                      className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                        notification.read
-                          ? "bg-slate-300"
-                          : "bg-yellow-400"
-                      }`}
-                    />
-
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-black text-slate-950">
-                        {notification.title}
-                      </span>
-
-                      <span className="mt-1 block text-sm leading-5 text-slate-500">
-                        {notification.description}
-                      </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-black text-slate-950">
+                      {t(notification.titleKey)}
                     </span>
 
-                    <ChevronRight
-                      size={17}
-                      className="mt-1 shrink-0 text-slate-300"
-                    />
-                  </Link>
-                )
+                    <span className="mt-1 block text-sm leading-5 text-slate-500">
+                      {t(
+                        notification.descriptionKey
+                      )}
+                    </span>
+                  </span>
+
+                  <ChevronRight
+                    size={17}
+                    className="mt-1 shrink-0 text-slate-300"
+                  />
+                </Link>
               )
             )}
           </div>
@@ -191,7 +199,9 @@ export default function NotificationsBell() {
               onClick={() => setOpen(false)}
               className="flex h-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white transition hover:bg-slate-800"
             >
-              Configurar notificaciones
+              {t(
+                "notifications.configureNotifications"
+              )}
             </Link>
           </div>
         </div>

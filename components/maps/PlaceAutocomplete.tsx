@@ -1,11 +1,6 @@
-"use client";
+﻿"use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { APIProvider } from "@vis.gl/react-google-maps";
+import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   LoaderCircle,
@@ -29,6 +24,15 @@ type PlaceAutocompleteProps = {
   onPlaceSelect: (place: SelectedPlace) => void;
 };
 
+type SearchResult = {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  name?: string;
+  type?: string;
+};
+
 export function PlaceAutocomplete({
   label,
   placeholder,
@@ -36,202 +40,107 @@ export function PlaceAutocomplete({
   onTextChange,
   onPlaceSelect,
 }: PlaceAutocompleteProps) {
-  const apiKey =
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-  if (!apiKey) {
-    return (
-      <FallbackInput
-        label={label}
-        placeholder={placeholder}
-        value={value}
-        onTextChange={onTextChange}
-      />
-    );
-  }
-
-  return (
-    <APIProvider
-      apiKey={apiKey}
-      libraries={["places"]}
-      language="es"
-      region="MX"
-    >
-      <PlaceAutocompleteInner
-        label={label}
-        placeholder={placeholder}
-        value={value}
-        onTextChange={onTextChange}
-        onPlaceSelect={onPlaceSelect}
-      />
-    </APIProvider>
-  );
-}
-
-function PlaceAutocompleteInner({
-  label,
-  placeholder,
-  value,
-  onTextChange,
-  onPlaceSelect,
-}: PlaceAutocompleteProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const elementRef =
-    useRef<google.maps.places.PlaceAutocompleteElement | null>(
-      null
-    );
-
-  const [loading, setLoading] = useState(true);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(false);
   const [error, setError] = useState("");
+  const requestRef = useRef(0);
 
   useEffect(() => {
-    let mounted = true;
-    let autocomplete:
-      | google.maps.places.PlaceAutocompleteElement
-      | null = null;
+    const query = value.trim();
 
-    const container = containerRef.current;
+    if (selected || query.length < 3) {
+      return;
+    }
 
-    async function createAutocomplete() {
-      if (!container) return;
+    const requestId = ++requestRef.current;
 
+    const timer = window.setTimeout(async () => {
       try {
-        const { PlaceAutocompleteElement } =
-          (await google.maps.importLibrary(
-            "places"
-          )) as google.maps.PlacesLibrary;
+        setLoading(true);
+        setError("");
 
-        if (!mounted) {
+        const response = await fetch(
+          `/api/geocode?q=${encodeURIComponent(query)}`
+        );
+
+        if (!response.ok) {
+          throw new Error("No se pudo consultar el buscador");
+        }
+
+        const data = (await response.json()) as SearchResult[];
+
+        if (requestId !== requestRef.current) {
           return;
         }
 
-        autocomplete =
-          new PlaceAutocompleteElement();
+        setResults(Array.isArray(data) ? data : []);
 
-        autocomplete.placeholder = placeholder;
-        autocomplete.includedRegionCodes = ["mx"];
+        if (!Array.isArray(data) || data.length === 0) {
+          setError("No encontramos ubicaciones con ese nombre.");
+        }
+      } catch (searchError) {
+        console.error("Error buscando ubicaciones:", searchError);
 
-        autocomplete.locationBias = {
-          center: {
-            lat: 19.0414,
-            lng: -98.2063,
-          },
-          radius: 100000,
-        };
+        if (requestId !== requestRef.current) {
+          return;
+        }
 
-        autocomplete.style.width = "100%";
-
-        const handleSelection = async (
-          event: google.maps.places.PlacePredictionSelectEvent
-        ) => {
-          setError("");
-
-          try {
-            const place =
-              event.placePrediction.toPlace();
-
-            await place.fetchFields({
-              fields: [
-                "id",
-                "displayName",
-                "formattedAddress",
-                "location",
-              ],
-            });
-
-            if (!place.location) {
-              setError(
-                "No pudimos obtener la ubicación exacta."
-              );
-              return;
-            }
-
-            const address =
-              place.formattedAddress ??
-              place.displayName ??
-              "";
-
-            onTextChange(address);
-            setSelected(true);
-
-            onPlaceSelect({
-              placeId: place.id ?? "",
-              name:
-                place.displayName ??
-                address,
-              address,
-              latitude:
-                place.location.lat(),
-              longitude:
-                place.location.lng(),
-            });
-          } catch (selectionError) {
-            console.error(
-              "Error seleccionando lugar:",
-              selectionError
-            );
-
-            setError(
-              "No fue posible seleccionar esa ubicación."
-            );
-          }
-        };
-
-        const selectionListener = (
-          event: Event
-        ) => {
-          void handleSelection(
-            event as google.maps.places.PlacePredictionSelectEvent
-          );
-        };
-
-        autocomplete.addEventListener(
-          "gmp-select",
-          selectionListener
-        );
-
-        container.innerHTML = "";
-        container.appendChild(autocomplete);
-
-        elementRef.current = autocomplete;
-        setLoading(false);
-      } catch (creationError) {
-        console.error(
-          "Error cargando Places:",
-          creationError
-        );
-
-        setError(
-          "Google Places todavía no está habilitado."
-        );
-        setLoading(false);
+        setResults([]);
+        setError("No fue posible buscar ubicaciones.");
+      } finally {
+        if (requestId === requestRef.current) {
+          setLoading(false);
+        }
       }
-    }
-
-    void createAutocomplete();
+    }, 500);
 
     return () => {
-      mounted = false;
-
-      if (
-        autocomplete &&
-        container &&
-        container.contains(autocomplete)
-      ) {
-        container.removeChild(autocomplete);
-      }
-
-      elementRef.current = null;
+      window.clearTimeout(timer);
     };
-  }, [
-    onPlaceSelect,
-    onTextChange,
-    placeholder,
-  ]);
+  }, [value, selected]);
+
+  function handleChange(nextValue: string) {
+    setSelected(false);
+    setError("");
+    onTextChange(nextValue);
+  }
+
+  function handleSelect(result: SearchResult) {
+    const latitude = Number(result.lat);
+    const longitude = Number(result.lon);
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      setError("No pudimos obtener las coordenadas del lugar.");
+      return;
+    }
+
+    const address = result.display_name;
+    const name =
+      result.name ||
+      result.display_name.split(",")[0] ||
+      "Ubicación";
+
+    setSelected(true);
+    setResults([]);
+    setError("");
+
+    onTextChange(address);
+
+    onPlaceSelect({
+      placeId: String(result.place_id),
+      name,
+      address,
+      latitude,
+      longitude,
+    });
+  }
 
   return (
-    <div>
+    <div className="relative">
       <label className="mb-2 block text-sm font-black text-slate-700">
         {label}
       </label>
@@ -242,31 +151,61 @@ function PlaceAutocompleteInner({
           className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-400"
         />
 
-        <div
-          ref={containerRef}
-          className="min-h-14 w-full overflow-visible rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-3"
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => handleChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-12 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white"
         />
 
         {loading && (
-          <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-            <LoaderCircle
-              size={18}
-              className="animate-spin text-slate-400"
-            />
-          </div>
+          <LoaderCircle
+            size={18}
+            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+          />
         )}
 
         {selected && !loading && (
-          <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-            <CheckCircle2
-              size={19}
-              className="text-emerald-600"
-            />
-          </div>
+          <CheckCircle2
+            size={19}
+            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600"
+          />
         )}
       </div>
 
-      {value && (
+      {results.length > 0 && (
+        <div className="absolute left-0 right-0 top-[82px] z-[2000] max-h-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          {results.map((result) => (
+            <button
+              key={result.place_id}
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                handleSelect(result);
+              }}
+              className="flex w-full items-start gap-3 border-b border-slate-100 px-4 py-4 text-left transition last:border-b-0 hover:bg-slate-50"
+            >
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+                <MapPin size={17} />
+              </span>
+
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-black text-slate-950">
+                  {result.name || result.display_name.split(",")[0]}
+                </span>
+
+                <span className="mt-1 block text-xs leading-5 text-slate-500">
+                  {result.display_name}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selected && value && (
         <div className="mt-2 flex items-start gap-2 text-xs text-slate-500">
           <MapPin
             size={14}
@@ -285,41 +224,3 @@ function PlaceAutocompleteInner({
   );
 }
 
-function FallbackInput({
-  label,
-  placeholder,
-  value,
-  onTextChange,
-}: Omit<
-  PlaceAutocompleteProps,
-  "onPlaceSelect"
->) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-black text-slate-700">
-        {label}
-      </label>
-
-      <div className="relative">
-        <MapPin
-          size={18}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-        />
-
-        <input
-          type="text"
-          value={value}
-          onChange={(event) =>
-            onTextChange(event.target.value)
-          }
-          placeholder={placeholder}
-          className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold outline-none focus:border-slate-950 focus:bg-white"
-        />
-      </div>
-
-      <p className="mt-2 text-xs text-amber-700">
-        Falta configurar Google Places.
-      </p>
-    </div>
-  );
-}

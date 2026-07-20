@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/hooks/useLanguage";
+
 import {
   useCallback,
   useEffect,
@@ -74,6 +76,7 @@ export function PublicTripTracker({
 }: {
   token: string;
 }) {
+  const { t } = useLanguage();
   const [trip, setTrip] = useState<SharedTrip | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -105,11 +108,11 @@ export function PublicTripTracker({
             .includes("could not find the function")
         ) {
           setMessage(
-            "El seguimiento seguro está preparado, pero todavía falta conectar el servicio en Supabase."
+            "El seguimiento seguro estÃ¡ preparado, pero todavÃ­a falta conectar el servicio en Supabase."
           );
         } else {
           setMessage(
-            "Este enlace no existe, expiró o ya no está disponible."
+            "Este enlace no existe, expirÃ³ o ya no estÃ¡ disponible."
           );
         }
 
@@ -125,7 +128,7 @@ export function PublicTripTracker({
       if (!result) {
         setTrip(null);
         setMessage(
-          "Este enlace no existe, expiró o ya no está disponible."
+          "Este enlace no existe, expirÃ³ o ya no estÃ¡ disponible."
         );
       } else {
         setTrip(result as SharedTrip);
@@ -190,7 +193,7 @@ export function PublicTripTracker({
           </button>
 
           <p className="mt-6 text-xs leading-5 text-slate-400">
-            AXI protege la información de pasajeros y conductores mediante
+            AXI protege la informaciÃ³n de pasajeros y conductores mediante
             enlaces temporales.
           </p>
         </div>
@@ -218,8 +221,8 @@ export function PublicTripTracker({
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
-                Esta página permite consultar el avance del viaje sin mostrar
-                información privada innecesaria.
+                Esta pÃ¡gina permite consultar el avance del viaje sin mostrar
+                informaciÃ³n privada innecesaria.
               </p>
             </div>
 
@@ -279,7 +282,7 @@ export function PublicTripTracker({
               </h2>
 
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                El mapa mostrará la posición del taxi y la ruta cuando Gali
+                El mapa mostrarÃ¡ la posiciÃ³n del taxi y la ruta cuando Gali
                 conecte Google Maps y el historial de ubicaciones.
               </p>
 
@@ -296,7 +299,7 @@ export function PublicTripTracker({
               onClick={() => loadSharedTrip(true)}
               disabled={refreshing}
               className="absolute bottom-5 right-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-yellow-400 shadow-xl disabled:opacity-50"
-              aria-label="Actualizar seguimiento"
+              aria-label={t("publicTripTracker.refreshTracking")}
             >
               <RefreshCw
                 size={20}
@@ -317,13 +320,13 @@ export function PublicTripTracker({
 
               <div className="mt-6 space-y-5">
                 <LocationRow
-                  label="Origen"
+                  label={t("publicTripTracker.origin")}
                   value={trip.origin_address}
                   type="origin"
                 />
 
                 <LocationRow
-                  label="Destino"
+                  label={t("publicTripTracker.destination")}
                   value={trip.destination_address}
                   type="destination"
                 />
@@ -346,37 +349,37 @@ export function PublicTripTracker({
                 <div className="mt-6 space-y-4">
                   <InfoRow
                     icon={UserRound}
-                    label="Conductor"
+                    label={t("publicTripTracker.driver")}
                     value={trip.driver_name}
                   />
 
                   <InfoRow
                     icon={CarFront}
-                    label="Vehículo"
+                    label={t("publicTripTracker.vehicle")}
                     value={
                       [trip.vehicle_brand, trip.vehicle_model]
                         .filter(Boolean)
-                        .join(" ") || "Pendiente"
+                        .join(" ") || t("publicTripTracker.pending")
                     }
                   />
 
                   <InfoRow
                     icon={MapPin}
-                    label="Color y placas"
+                    label={t("publicTripTracker.colorAndPlates")}
                     value={
                       [
                         trip.vehicle_color,
                         trip.vehicle_plates,
                       ]
                         .filter(Boolean)
-                        .join(" · ") || "Pendiente"
+                        .join(" · ") || t("publicTripTracker.pending")
                     }
                   />
 
                   {trip.vehicle_economic_number && (
                     <InfoRow
                       icon={ShieldCheck}
-                      label="Número económico"
+                      label={t("publicTripTracker.economicNumber")}
                       value={trip.vehicle_economic_number}
                     />
                   )}
@@ -412,8 +415,7 @@ export function PublicTripTracker({
           </p>
 
           <p className="mt-2 text-xs leading-6 text-slate-500">
-            El enlace debe expirar cuando termine el viaje o cuando el
-            pasajero deje de compartirlo.
+            {t("publicTripTracker.linkExpiration")}
           </p>
         </section>
       </div>

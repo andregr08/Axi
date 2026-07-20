@@ -23,6 +23,7 @@ import {
   UserRound,
   XCircle,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
 import { isAdmin } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";

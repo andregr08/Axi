@@ -104,6 +104,8 @@ export default function DashboardLayout({
         </main>
       </div>
 
+      <PushServiceWorker />
+
       <MobileNav
         role={role}
         onLogout={handleLogout}

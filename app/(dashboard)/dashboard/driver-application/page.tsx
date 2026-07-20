@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   FormEvent,
@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type Status =
   | "none"
@@ -42,6 +43,7 @@ const emptyFiles: DocumentFiles = {
 
 export default function DriverApplicationPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [licenseNumber, setLicenseNumber] =
     useState("");
@@ -128,7 +130,7 @@ export default function DriverApplicationPage() {
 
     if (error) {
       setMessage(
-        `Error cargando solicitud: ${error.message}`
+        `${t("driverApplication.loadError")} ${error.message}`
       );
     } else if (data) {
       setLicenseNumber(
@@ -217,7 +219,7 @@ export default function DriverApplicationPage() {
 
     if (error) {
       throw new Error(
-        `Error subiendo ${documentName}: ${error.message}`
+        `${t("driverApplication.uploadError")} ${documentName}: ${error.message}`
       );
     }
 
@@ -270,7 +272,7 @@ export default function DriverApplicationPage() {
       !licenseExpiration
     ) {
       setMessage(
-        "Completa el número y vencimiento de la licencia."
+        t("driverApplication.licenseRequired")
       );
       return;
     }
@@ -280,14 +282,14 @@ export default function DriverApplicationPage() {
       !operatingCity.trim()
     ) {
       setMessage(
-        "Escribe el estado y la ciudad o municipio donde opera el taxi."
+        t("driverApplication.locationRequired")
       );
       return;
     }
 
     if (!taxiNumber.trim()) {
       setMessage(
-        "Escribe el número económico del taxi."
+        t("driverApplication.taxiNumberRequired")
       );
       return;
     }
@@ -296,28 +298,28 @@ export default function DriverApplicationPage() {
       concessionNumber.trim().length < 3
     ) {
       setMessage(
-        "Escribe un número de concesión o permiso válido."
+        t("driverApplication.concessionNumberInvalid")
       );
       return;
     }
 
     if (!concessionAuthority.trim()) {
       setMessage(
-        "Escribe la autoridad que emitió la concesión o permiso."
+        t("driverApplication.concessionAuthorityRequired")
       );
       return;
     }
 
     if (!concessionHolderName.trim()) {
       setMessage(
-        "Escribe el nombre del titular de la concesión."
+        t("driverApplication.concessionHolderRequired")
       );
       return;
     }
 
     if (cleanVin.length !== 17) {
       setMessage(
-        "El VIN o número de serie debe contener exactamente 17 caracteres."
+        t("driverApplication.vinInvalid")
       );
       return;
     }
@@ -332,7 +334,7 @@ export default function DriverApplicationPage() {
 
     if (!requiredDocumentsSelected) {
       setMessage(
-        "Selecciona todos los documentos obligatorios, incluido el documento de concesión o permiso."
+        t("driverApplication.documentsRequired")
       );
       return;
     }
@@ -509,13 +511,13 @@ export default function DriverApplicationPage() {
       setStatus("pending");
 
       setMessage(
-        "Solicitud enviada correctamente. Tus datos y documentos quedaron pendientes de revisión."
+        t("driverApplication.submitted")
       );
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Ocurrió un error inesperado.";
+          : t("driverApplication.unexpectedError");
 
       setMessage(errorMessage);
     } finally {
@@ -524,22 +526,22 @@ export default function DriverApplicationPage() {
   }
 
   if (loading) {
-    return <p>Cargando solicitud...</p>;
+    return <p>{t("driverApplication.loading")}</p>;
   }
 
   return (
     <section className="mx-auto max-w-4xl">
       <div className="mb-8">
         <p className="mb-1 text-sm font-medium text-gray-500">
-          Registro de conductor
+          {t("driverApplication.section")}
         </p>
 
         <h1 className="text-3xl font-bold text-gray-900">
-          Solicitud para conducir con AXI
+          {t("driverApplication.title")}
         </h1>
 
         <p className="mt-2 text-gray-600">
-          AXI es una plataforma exclusiva para taxis legalmente autorizados.
+          {t("driverApplication.description")}
         </p>
       </div>
 
@@ -549,24 +551,24 @@ export default function DriverApplicationPage() {
       >
         <section>
           <h2 className="mb-1 text-xl font-bold">
-            Licencia del conductor
+            {t("driverApplication.driverLicense")}
           </h2>
 
           <p className="mb-5 text-sm text-gray-500">
-            Ingresa los datos de tu licencia vigente.
+            {t("driverApplication.driverLicenseDescription")}
           </p>
 
           <div className="grid gap-5 md:grid-cols-2">
             <TextInput
-              label="Número de licencia"
+              label={t("driverApplication.licenseNumber")}
               value={licenseNumber}
               onChange={setLicenseNumber}
-              placeholder="Ejemplo: ABC123456"
+              placeholder={t("driverApplication.licenseNumberPlaceholder")}
               required
             />
 
             <DateInput
-              label="Vencimiento de la licencia"
+              label={t("driverApplication.licenseExpiration")}
               value={licenseExpiration}
               onChange={setLicenseExpiration}
               required
@@ -576,64 +578,64 @@ export default function DriverApplicationPage() {
 
         <section className="border-t pt-8">
           <h2 className="mb-1 text-xl font-bold">
-            Información legal del taxi
+            {t("driverApplication.taxiLegalInformation")}
           </h2>
 
           <p className="mb-5 text-sm text-gray-500">
-            Escribe los datos de la unidad y de la autorización gubernamental con la que opera.
+            {t("driverApplication.taxiLegalDescription")}
           </p>
 
           <div className="grid gap-5 md:grid-cols-2">
             <TextInput
-              label="Estado donde opera"
+              label={t("driverApplication.operatingState")}
               value={operatingState}
               onChange={setOperatingState}
-              placeholder="Ejemplo: Puebla"
+              placeholder={t("driverApplication.operatingStatePlaceholder")}
               required
             />
 
             <TextInput
-              label="Ciudad o municipio"
+              label={t("driverApplication.operatingCity")}
               value={operatingCity}
               onChange={setOperatingCity}
-              placeholder="Ejemplo: San Andrés Cholula"
+              placeholder={t("driverApplication.operatingCityPlaceholder")}
               required
             />
 
             <TextInput
-              label="Número económico del taxi"
+              label={t("driverApplication.taxiNumber")}
               value={taxiNumber}
               onChange={setTaxiNumber}
-              placeholder="Ejemplo: TX-1542"
+              placeholder={t("driverApplication.taxiNumberPlaceholder")}
               required
             />
 
             <TextInput
-              label="Número de concesión o permiso"
+              label={t("driverApplication.concessionNumber")}
               value={concessionNumber}
               onChange={setConcessionNumber}
-              placeholder="Escribe el número oficial"
+              placeholder={t("driverApplication.concessionNumberPlaceholder")}
               required
             />
 
             <TextInput
-              label="Autoridad emisora"
+              label={t("driverApplication.concessionAuthority")}
               value={concessionAuthority}
               onChange={setConcessionAuthority}
-              placeholder="Secretaría o autoridad que lo emitió"
+              placeholder={t("driverApplication.concessionAuthorityPlaceholder")}
               required
             />
 
             <TextInput
-              label="Titular de la concesión"
+              label={t("driverApplication.concessionHolder")}
               value={concessionHolderName}
               onChange={setConcessionHolderName}
-              placeholder="Nombre completo del titular"
+              placeholder={t("driverApplication.concessionHolderPlaceholder")}
               required
             />
 
             <DateInput
-              label="Vencimiento del permiso (opcional)"
+              label={t("driverApplication.concessionExpiration")}
               value={concessionExpiration}
               onChange={setConcessionExpiration}
             />
@@ -643,7 +645,7 @@ export default function DriverApplicationPage() {
                 htmlFor="vehicleVin"
                 className="mb-2 block text-sm font-semibold"
               >
-                VIN o número de serie
+                {t("driverApplication.vehicleVin")}
               </label>
 
               <input
@@ -659,12 +661,12 @@ export default function DriverApplicationPage() {
                 minLength={17}
                 maxLength={17}
                 required
-                placeholder="17 caracteres"
+                placeholder={t("driverApplication.vinPlaceholder")}
                 className="w-full rounded-xl border px-4 py-3 uppercase"
               />
 
               <p className="mt-2 text-xs text-gray-500">
-                {normalizeVin(vehicleVin).length}/17 caracteres
+                {normalizeVin(vehicleVin).length}/17 {t("driverApplication.characters")}
               </p>
             </div>
           </div>
@@ -672,16 +674,16 @@ export default function DriverApplicationPage() {
 
         <section className="border-t pt-8">
           <h2 className="mb-1 text-xl font-bold">
-            Fotografías personales
+            {t("driverApplication.personalPhotos")}
           </h2>
 
           <p className="mb-5 text-sm text-gray-500">
-            La selfie debe mostrar claramente el rostro del solicitante.
+            {t("driverApplication.personalPhotosDescription")}
           </p>
 
           <div className="grid gap-5 md:grid-cols-2">
             <DocumentInput
-              label="Foto de perfil"
+              label={t("driverApplication.profilePhoto")}
               accept="image/jpeg,image/png,image/webp"
               required
               onChange={(file) =>
@@ -693,7 +695,7 @@ export default function DriverApplicationPage() {
             />
 
             <DocumentInput
-              label="Selfie frontal"
+              label={t("driverApplication.frontSelfie")}
               accept="image/jpeg,image/png,image/webp"
               required
               onChange={(file) =>
@@ -708,16 +710,16 @@ export default function DriverApplicationPage() {
 
         <section className="border-t pt-8">
           <h2 className="mb-1 text-xl font-bold">
-            Documentos oficiales
+            {t("driverApplication.officialDocuments")}
           </h2>
 
           <p className="mb-5 text-sm text-gray-500">
-            Los archivos deben ser claros, legibles y mostrar el documento completo.
+            {t("driverApplication.officialDocumentsDescription")}
           </p>
 
           <div className="grid gap-5 md:grid-cols-2">
             <DocumentInput
-              label="Licencia — frente"
+              label={t("driverApplication.licenseFront")}
               accept="image/jpeg,image/png,image/webp"
               required
               onChange={(file) =>
@@ -729,7 +731,7 @@ export default function DriverApplicationPage() {
             />
 
             <DocumentInput
-              label="Licencia — reverso"
+              label={t("driverApplication.licenseBack")}
               accept="image/jpeg,image/png,image/webp"
               required
               onChange={(file) =>
@@ -741,7 +743,7 @@ export default function DriverApplicationPage() {
             />
 
             <DocumentInput
-              label="INE, pasaporte o identificación"
+              label={t("driverApplication.identification")}
               accept="image/jpeg,image/png,image/webp,application/pdf"
               required
               onChange={(file) =>
@@ -753,7 +755,7 @@ export default function DriverApplicationPage() {
             />
 
             <DocumentInput
-              label="Documento de concesión o permiso"
+              label={t("driverApplication.concessionDocument")}
               accept="image/jpeg,image/png,image/webp,application/pdf"
               required
               onChange={(file) =>
@@ -768,16 +770,16 @@ export default function DriverApplicationPage() {
 
         <section className="border-t pt-8">
           <h2 className="mb-1 text-xl font-bold">
-            Fotografías exteriores del taxi
+            {t("driverApplication.taxiPhotos")}
           </h2>
 
           <p className="mb-5 text-sm text-gray-500">
-            Son opcionales y sirven como apoyo para validar visualmente la unidad.
+            {t("driverApplication.taxiPhotosDescription")}
           </p>
 
           <div className="grid gap-5 md:grid-cols-2">
             <DocumentInput
-              label="Vista frontal (opcional)"
+              label={t("driverApplication.vehicleFront")}
               accept="image/jpeg,image/png,image/webp"
               onChange={(file) =>
                 updateFile(
@@ -788,7 +790,7 @@ export default function DriverApplicationPage() {
             />
 
             <DocumentInput
-              label="Vista trasera (opcional)"
+              label={t("driverApplication.vehicleRear")}
               accept="image/jpeg,image/png,image/webp"
               onChange={(file) =>
                 updateFile(
@@ -799,7 +801,7 @@ export default function DriverApplicationPage() {
             />
 
             <DocumentInput
-              label="Lado izquierdo (opcional)"
+              label={t("driverApplication.vehicleLeft")}
               accept="image/jpeg,image/png,image/webp"
               onChange={(file) =>
                 updateFile(
@@ -810,7 +812,7 @@ export default function DriverApplicationPage() {
             />
 
             <DocumentInput
-              label="Lado derecho (opcional)"
+              label={t("driverApplication.vehicleRight")}
               accept="image/jpeg,image/png,image/webp"
               onChange={(file) =>
                 updateFile(
@@ -824,30 +826,28 @@ export default function DriverApplicationPage() {
 
         <div className="rounded-xl bg-gray-100 p-4">
           <p className="text-sm text-gray-500">
-            Estado de la solicitud
+            {t("driverApplication.applicationStatus")}
           </p>
 
           <p className="mt-1 font-semibold">
             {status === "none" &&
-              "Sin solicitud"}
+              t("driverApplication.noApplication")}
 
             {status === "pending" &&
-              "Pendiente de revisión"}
+              t("driverApplication.pending")}
 
             {status === "approved" &&
-              "Aprobada"}
+              t("driverApplication.approved")}
 
             {status === "rejected" &&
-              "Rechazada"}
+              t("driverApplication.rejected")}
           </p>
         </div>
 
         {message && (
           <div
             className={`rounded-xl p-4 text-sm ${
-              message.includes(
-                "correctamente"
-              )
+              (message.includes("correctamente") || message.includes("successfully"))
                 ? "bg-green-50 text-green-700"
                 : "bg-red-50 text-red-700"
             }`}
@@ -865,8 +865,8 @@ export default function DriverApplicationPage() {
           className="w-full rounded-xl bg-black py-3 font-semibold text-white disabled:opacity-50"
         >
           {saving
-            ? "Subiendo documentos..."
-            : "Enviar solicitud"}
+            ? t("driverApplication.uploading")
+            : t("driverApplication.submit")}
         </button>
       </form>
     </section>
@@ -946,24 +946,44 @@ function DocumentInput({
   required?: boolean;
   onChange: (file: File | null) => void;
 }) {
+  const { t } = useLanguage();
+  const [fileName, setFileName] = useState("");
+
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold">
+      <p className="mb-2 block text-sm font-semibold">
         {label}
-      </label>
+      </p>
 
-      <input
-        type="file"
-        accept={accept}
-        required={required}
-        onChange={(event) =>
-          onChange(
-            event.target.files?.[0] ??
-              null
-          )
-        }
-        className="block w-full rounded-xl border p-3 text-sm"
-      />
+      <label className="block cursor-pointer">
+        <input
+          type="file"
+          accept={accept}
+          required={required}
+          className="sr-only"
+          onChange={(event) => {
+            const selectedFile =
+              event.target.files?.[0] ?? null;
+
+            setFileName(
+              selectedFile?.name ?? ""
+            );
+
+            onChange(selectedFile);
+          }}
+        />
+
+        <span className="flex min-h-14 items-center overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-slate-400">
+          <span className="flex min-h-14 shrink-0 items-center bg-slate-950 px-4 text-sm font-bold text-white">
+            {t("driverApplication.chooseFile")}
+          </span>
+
+          <span className="min-w-0 flex-1 truncate px-4 text-sm text-slate-500">
+            {fileName ||
+              t("driverApplication.noFileSelected")}
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

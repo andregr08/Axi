@@ -33,6 +33,7 @@ import {
   normalizeInternationalPhone,
 } from "@/lib/phone";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
 type UserRole = "admin" | "driver" | "passenger";
@@ -47,27 +48,36 @@ type Profile = {
   total_trips: number;
   account_active: boolean;
   created_at: string;
+  language: "es" | "en";
 };
 
-const roleLabels: Record<UserRole, string> = {
-  admin: "Administrador",
-  driver: "Conductor",
-  passenger: "Pasajero",
+const roleLabelKeys: Record<UserRole, string> = {
+  admin: "roles.admin",
+  driver: "roles.driver",
+  passenger: "roles.passenger",
 };
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "long",
-  }).format(new Date(value));
+function formatDate(
+  value: string,
+  locale: "es" | "en"
+) {
+  return new Intl.DateTimeFormat(
+    locale === "es" ? "es-MX" : "en-US",
+    {
+      dateStyle: "long",
+    }
+  ).format(new Date(value));
 }
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { locale, setLocale, t } = useLanguage();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+const [language, setLanguage] = useState<"es" | "en">("es");
 
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -103,15 +113,16 @@ export default function ProfilePage() {
         rating,
         total_trips,
         account_active,
-        created_at
+        created_at,
+      language
       `)
       .eq("id", session.user.id)
       .single();
 
     if (error || !data) {
       setProfileMessage(
-        `No fue posible cargar el perfil: ${
-          error?.message ?? "Perfil no encontrado"
+        `${t("profile.loadProfileError")} ${
+          error?.message ?? t("profile.profileNotFound")
         }`
       );
       setLoading(false);
@@ -123,8 +134,13 @@ export default function ProfilePage() {
     setProfile(loadedProfile);
     setName(loadedProfile.full_name ?? "");
     setPhone(loadedProfile.phone ?? "");
+const savedLanguage =
+      loadedProfile.language === "en" ? "en" : "es";
+
+    setLanguage(savedLanguage);
+    setLocale(savedLanguage);
     setLoading(false);
-  }, [router]);
+  }, [router, setLocale, t]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -138,24 +154,17 @@ export default function ProfilePage() {
     setProfileMessage("");
 
     if (!name.trim()) {
-      setProfileMessage("Escribe tu nombre completo.");
+      setProfileMessage(t("profile.enterFullName"));
       return;
     }
 
     const normalizedPhone =
       phone.trim()
-        ? normalizeInternationalPhone(
-            phone
-          )
+        ? normalizeInternationalPhone(phone)
         : null;
 
-    if (
-      phone.trim() &&
-      !normalizedPhone
-    ) {
-      setProfileMessage(
-        "Escribe un número de teléfono internacional válido."
-      );
+    if (phone.trim() && !normalizedPhone) {
+      setProfileMessage(t("profile.invalidPhone"));
       return;
     }
 
@@ -176,16 +185,19 @@ export default function ProfilePage() {
       .update({
         full_name: name.trim(),
         phone: normalizedPhone,
+        language,
       })
       .eq("id", session.user.id);
 
     if (profileError) {
       setProfileMessage(
-        `Error actualizando perfil: ${profileError.message}`
+        `${t("profile.updateProfileError")} ${profileError.message}`
       );
       setSavingProfile(false);
       return;
     }
+
+    setLocale(language);
 
     const { error: authError } =
       await supabase.auth.updateUser({
@@ -196,10 +208,10 @@ export default function ProfilePage() {
 
     if (authError) {
       setProfileMessage(
-        `El perfil se guardó, pero no se actualizó el nombre de autenticación: ${authError.message}`
+        `${t("profile.authNameUpdateError")} ${authError.message}`
       );
     } else {
-      setProfileMessage("Perfil actualizado correctamente.");
+      setProfileMessage(t("profile.profileUpdated"));
     }
 
     await loadProfile();
@@ -213,14 +225,14 @@ export default function ProfilePage() {
     setPasswordMessage("");
 
     if (newPassword.length < 8) {
-      setPasswordMessage(
-        "La contraseña debe tener al menos 8 caracteres."
-      );
+      setPasswordMessage(t("profile.passwordMin"));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMessage("Las contraseñas no coinciden.");
+      setPasswordMessage(
+        t("profile.passwordsDoNotMatch")
+      );
       return;
     }
 
@@ -232,12 +244,10 @@ export default function ProfilePage() {
 
     if (error) {
       setPasswordMessage(
-        `No fue posible cambiar la contraseña: ${error.message}`
+        `${t("profile.passwordUpdateError")} ${error.message}`
       );
     } else {
-      setPasswordMessage(
-        "Contraseña actualizada correctamente."
-      );
+      setPasswordMessage(t("profile.passwordUpdated"));
       setNewPassword("");
       setConfirmPassword("");
     }
@@ -262,7 +272,7 @@ export default function ProfilePage() {
     return (
       <Card>
         <p className="font-semibold text-red-700">
-          {profileMessage || "No fue posible cargar tu perfil."}
+          {profileMessage || t("profile.loadingError")}
         </p>
       </Card>
     );
@@ -285,7 +295,7 @@ export default function ProfilePage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={profile.avatar_url}
-                    alt={profile.full_name || "Usuario AXI"}
+                    alt={profile.full_name || t("profile.userFallback")}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -301,11 +311,11 @@ export default function ProfilePage() {
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
                 <UserRound size={14} />
-                Mi cuenta
+                {t("profile.myAccount")}
               </span>
 
               <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
-                {profile.full_name || "Usuario AXI"}
+                {profile.full_name || t("profile.userFallback")}
               </h1>
 
               <div className="mt-4 flex flex-wrap gap-3">
@@ -314,7 +324,7 @@ export default function ProfilePage() {
                     size={17}
                     className="text-yellow-400"
                   />
-                  {roleLabels[profile.role]}
+                  {t(roleLabelKeys[profile.role])}
                 </span>
 
                 <span
@@ -327,8 +337,8 @@ export default function ProfilePage() {
                 >
                   <CheckCircle2 size={17} />
                   {profile.account_active
-                    ? "Cuenta activa"
-                    : "Cuenta suspendida"}
+                    ? t("profile.accountActive")
+                    : t("profile.accountSuspended")}
                 </span>
               </div>
             </div>
@@ -336,13 +346,13 @@ export default function ProfilePage() {
 
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-md">
             <HeroMetric
-              label="Calificación"
+              label={t("profile.rating")}
               value={Number(profile.rating ?? 5).toFixed(1)}
               icon={Star}
             />
 
             <HeroMetric
-              label="Viajes"
+              label={t("profile.trips")}
               value={String(profile.total_trips ?? 0)}
               icon={Route}
             />
@@ -356,11 +366,11 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Resumen
+                  {t("profile.summary")}
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Información de cuenta
+                  {t("profile.accountInformation")}
                 </h2>
               </div>
 
@@ -372,28 +382,30 @@ export default function ProfilePage() {
             <div className="mt-7 space-y-3">
               <AccountRow
                 icon={Mail}
-                label="Correo electrónico"
-                value={email || "No registrado"}
+                label={t("profile.email")}
+                value={email || t("profile.notRegistered")}
               />
 
               <AccountRow
                 icon={Phone}
-                label="Teléfono"
-                value={formatInternationalPhone(
+                label={t("profile.phone")}
+                value={
                   profile.phone
-                )}
+                    ? formatInternationalPhone(profile.phone)
+                    : t("profile.notRegistered")
+                }
               />
 
               <AccountRow
                 icon={ShieldCheck}
-                label="Tipo de cuenta"
-                value={roleLabels[profile.role]}
+                label={t("profile.accountType")}
+                value={t(roleLabelKeys[profile.role])}
               />
 
               <AccountRow
                 icon={CalendarDays}
-                label="Miembro desde"
-                value={formatDate(profile.created_at)}
+                label={t("profile.memberSince")}
+                value={formatDate(profile.created_at, locale)}
               />
             </div>
           </Card>
@@ -406,20 +418,19 @@ export default function ProfilePage() {
 
               <div>
                 <h2 className="text-lg font-black">
-                  Seguridad de tu cuenta
+                  {t("profile.accountSecurity")}
                 </h2>
 
                 <p className="mt-2 text-sm leading-7 text-slate-400">
-                  Usa una contraseña única y evita compartir tus datos de
-                  acceso con otras personas.
+                  {t("profile.securityDescription")}
                 </p>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              <SecurityItem label="Sesión protegida con Supabase Auth" />
-              <SecurityItem label="Contraseña cifrada" />
-              <SecurityItem label="Acceso según tu rol" />
+              <SecurityItem label={t("profile.protectedSession")} />
+              <SecurityItem label={t("profile.encryptedPassword")} />
+              <SecurityItem label={t("profile.roleBasedAccess")} />
             </div>
           </Card>
         </div>
@@ -429,15 +440,15 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Datos personales
+                  {t("profile.personalData")}
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Editar perfil
+                  {t("profile.editProfile")}
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Mantén actualizada tu información de contacto.
+                  {t("profile.editProfileDescription")}
                 </p>
               </div>
 
@@ -455,7 +466,7 @@ export default function ProfilePage() {
                   htmlFor="full-name"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Nombre completo
+                  {t("profile.fullName")}
                 </label>
 
                 <div className="relative">
@@ -470,7 +481,7 @@ export default function ProfilePage() {
                     onChange={(event) =>
                       setName(event.target.value)
                     }
-                    placeholder="Escribe tu nombre completo"
+                    placeholder={t("profile.fullNamePlaceholder")}
                     className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                   />
                 </div>
@@ -478,17 +489,43 @@ export default function ProfilePage() {
 
               <InternationalPhoneInput
                 id="phone"
-                label="Teléfono internacional"
+                label={t("profile.phone")}
                 value={phone}
                 onChange={setPhone}
               />
 
               <div>
                 <label
+                  htmlFor="language"
+                  className="mb-2 block text-sm font-black text-slate-700"
+                >
+                  {t("profile.language")}
+                </label>
+
+                <select
+                  id="language"
+                  value={language}
+                  onChange={(event) =>
+                    setLanguage(event.target.value as "es" | "en")
+                  }
+                  className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
+                >
+                  <option value="es">{t("profile.spanish")}</option>
+                  <option value="en">{t("profile.english")}</option>
+                </select>
+
+                <p className="mt-2 text-xs text-slate-400">
+                  {t("profile.languageDescription")}
+                </p>
+              </div>
+
+
+              <div>
+                <label
                   htmlFor="email"
                   className="mb-2 block text-sm font-black text-slate-700"
                 >
-                  Correo electrónico
+                  {t("profile.email")}
                 </label>
 
                 <div className="relative">
@@ -506,7 +543,7 @@ export default function ProfilePage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  El cambio de correo se habilitará posteriormente.
+                  {t("profile.emailChangeLater")}
                 </p>
               </div>
 
@@ -525,12 +562,12 @@ export default function ProfilePage() {
                       size={19}
                       className="animate-spin"
                     />
-                    Guardando...
+                    {t("profile.saving")}
                   </>
                 ) : (
                   <>
                     <Save size={19} />
-                    Guardar cambios
+                    {t("profile.saveChanges")}
                   </>
                 )}
               </button>
@@ -541,15 +578,14 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Seguridad
+                  {t("profile.security")}
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  Cambiar contraseña
-                </h2>
+                  {t("profile.changePassword")}</h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  La nueva contraseña debe tener al menos 8 caracteres.
+                  {t("profile.passwordDescription")}
                 </p>
               </div>
 
@@ -564,24 +600,30 @@ export default function ProfilePage() {
             >
               <PasswordInput
                 id="new-password"
-                label="Nueva contraseña"
+                label={t("profile.newPassword")}
                 value={newPassword}
                 showPassword={showPassword}
                 onChange={setNewPassword}
                 onToggle={() =>
                   setShowPassword((current) => !current)
                 }
+                placeholder={t("profile.passwordPlaceholder")}
+                showLabel={t("profile.showPassword")}
+                hideLabel={t("profile.hidePassword")}
               />
 
               <PasswordInput
                 id="confirm-password"
-                label="Confirmar contraseña"
+                label={t("profile.confirmPassword")}
                 value={confirmPassword}
                 showPassword={showPassword}
                 onChange={setConfirmPassword}
                 onToggle={() =>
                   setShowPassword((current) => !current)
                 }
+                placeholder={t("profile.passwordPlaceholder")}
+                showLabel={t("profile.showPassword")}
+                hideLabel={t("profile.hidePassword")}
               />
 
               {passwordMessage && (
@@ -599,17 +641,18 @@ export default function ProfilePage() {
                       size={19}
                       className="animate-spin"
                     />
-                    Actualizando...
+                    {t("profile.updating")}
                   </>
                 ) : (
                   <>
                     <KeyRound size={19} />
-                    Actualizar contraseña
-                  </>
+                    {t("profile.updatePassword")}</>
                 )}
               </button>
             </form>
           </Card>
+        
+          <PushNotificationsCard />
         </div>
       </div>
     </section>
@@ -675,6 +718,9 @@ function PasswordInput({
   showPassword,
   onChange,
   onToggle,
+  placeholder,
+  showLabel,
+  hideLabel,
 }: {
   id: string;
   label: string;
@@ -682,6 +728,9 @@ function PasswordInput({
   showPassword: boolean;
   onChange: (value: string) => void;
   onToggle: () => void;
+  placeholder: string;
+  showLabel: string;
+  hideLabel: string;
 }) {
   return (
     <div>
@@ -705,7 +754,8 @@ function PasswordInput({
           onChange={(event) =>
             onChange(event.target.value)
           }
-          placeholder="Mínimo 8 caracteres"
+          placeholder={placeholder}
+          autoComplete="new-password"
           className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-14 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
         />
 
@@ -713,9 +763,7 @@ function PasswordInput({
           type="button"
           onClick={onToggle}
           aria-label={
-            showPassword
-              ? "Ocultar contraseña"
-              : "Mostrar contraseña"
+            showPassword ? hideLabel : showLabel
           }
           className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-950"
         >
@@ -730,6 +778,7 @@ function PasswordInput({
   );
 }
 
+
 function MessageBox({
   message,
 }: {
@@ -737,7 +786,9 @@ function MessageBox({
 }) {
   const successful =
     message.toLowerCase().includes("correctamente") ||
-    message.toLowerCase().includes("actualizado");
+    message.toLowerCase().includes("actualizado") ||
+    message.toLowerCase().includes("successfully") ||
+    message.toLowerCase().includes("saved");
 
   return (
     <div
@@ -770,3 +821,9 @@ function SecurityItem({
     </div>
   );
 }
+
+
+
+
+
+

@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
+import { useLanguage } from "@/hooks/useLanguage";
 import {
   canManageDrivers,
   canManagePassengers,
@@ -36,36 +37,41 @@ interface SidebarProps {
 
 type MenuItem = {
   href: string;
-  label: string;
+  labelKey?: string;
+  label?: string;
   icon: LucideIcon;
   visible: boolean;
 };
 
-export function Sidebar({ role, onLogout }: SidebarProps) {
+export function Sidebar({
+  role,
+  onLogout,
+}: SidebarProps) {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   const menuItems: MenuItem[] = [
     {
       href: "/dashboard",
-      label: "Inicio",
+      labelKey: "navigation.home",
       icon: Home,
       visible: true,
     },
     {
       href: "/dashboard/trips",
-      label: "Mis viajes",
+      labelKey: "navigation.myTrips",
       icon: Route,
       visible: true,
     },
     {
       href: "/dashboard/driver/status",
-      label: "Disponibilidad",
+      labelKey: "navigation.availability",
       icon: Gauge,
       visible: isDriver(role),
     },
     {
       href: "/dashboard/driver/available-trips",
-      label: "Viajes disponibles",
+      labelKey: "navigation.availableTrips",
       icon: CarFront,
       visible: isDriver(role),
     },
@@ -77,61 +83,61 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
     },
     {
       href: "/dashboard/driver-application",
-      label: "Ser conductor",
+      labelKey: "navigation.becomeDriver",
       icon: ClipboardCheck,
       visible: isPassenger(role),
     },
     {
       href: "/dashboard/vehicles",
-      label: "Mis vehículos",
+      labelKey: "navigation.myVehicles",
       icon: CarFront,
       visible: canManageVehicles(role),
     },
     {
       href: "/dashboard/payments",
-      label: "Pagos",
+      labelKey: "navigation.payments",
       icon: CreditCard,
       visible: true,
     },
     {
       href: "/dashboard/profile",
-      label: "Perfil",
+      labelKey: "navigation.profile",
       icon: UserRound,
       visible: true,
     },
     {
       href: "/dashboard/admin/driver-applications",
-      label: "Solicitudes",
+      labelKey: "navigation.applications",
       icon: ClipboardCheck,
       visible: canManageDrivers(role),
     },
     {
       href: "/dashboard/admin/drivers",
-      label: "Conductores",
+      labelKey: "navigation.drivers",
       icon: CarFront,
       visible: canManageDrivers(role),
     },
     {
       href: "/dashboard/admin/passengers",
-      label: "Pasajeros",
+      labelKey: "navigation.passengers",
       icon: UsersRound,
       visible: canManagePassengers(role),
     },
     {
       href: "/dashboard/admin/vehicles",
-      label: "Vehículos admin",
+      labelKey: "navigation.adminVehicles",
       icon: CarFront,
       visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/trips",
-      label: "Viajes admin",
+      labelKey: "navigation.adminTrips",
       icon: ShieldCheck,
       visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/support",
-      label: "Soporte",
+      labelKey: "navigation.support",
       icon: Headphones,
       visible: canViewSupport(role),
     },
@@ -142,7 +148,10 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       return pathname === href;
     }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
   }
 
   return (
@@ -153,7 +162,7 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
 
       <div className="mt-10 px-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">
-          Navegación
+          {t("navigation.navigation")}
         </p>
       </div>
 
@@ -183,19 +192,25 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
                       : "bg-white/5 group-hover:bg-white/10"
                   )}
                 >
-                  <Icon size={20} strokeWidth={2.2} />
+                  <Icon
+                    size={20}
+                    strokeWidth={2.2}
+                  />
                 </span>
 
-                <span>{item.label}</span>
+                <span>{item.labelKey ? t(item.labelKey) : item.label}</span>
               </Link>
             );
           })}
       </nav>
 
       <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="text-sm font-bold text-white">AXI Mobility</p>
+        <p className="text-sm font-bold text-white">
+          AXI Mobility
+        </p>
+
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          Movilidad segura, rápida e inteligente.
+          {t("navigation.mobilityDescription")}
         </p>
 
         <button
@@ -204,7 +219,7 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
         >
           <LogOut size={17} />
-          Cerrar sesión
+          {t("navigation.logout")}
         </button>
       </div>
     </aside>

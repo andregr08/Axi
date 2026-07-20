@@ -17,11 +17,13 @@ import { InternationalPhoneInput } from "@/components/forms/InternationalPhoneIn
 import { Logo } from "@/components/shared/Logo";
 import { normalizeInternationalPhone } from "@/lib/phone";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type AccountType = "passenger" | "driver";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t, locale, setLocale } = useLanguage();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -33,10 +35,15 @@ export default function RegisterPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [registrationComplete, setRegistrationComplete] =
+    useState(false);
 
-  async function handleRegister(event: FormEvent<HTMLFormElement>) {
+  async function handleRegister(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     setErrorMessage("");
+    setRegistrationComplete(false);
 
     if (
       !fullName.trim() ||
@@ -44,16 +51,12 @@ export default function RegisterPage() {
       !phone.trim() ||
       !password
     ) {
-      setErrorMessage(
-        "Completa todos los campos."
-      );
+      setErrorMessage(t("register.fillFields"));
       return;
     }
 
     const normalizedPhone =
-      normalizeInternationalPhone(
-        phone
-      );
+      normalizeInternationalPhone(phone);
 
     if (!normalizedPhone) {
       setErrorMessage(
@@ -63,12 +66,12 @@ export default function RegisterPage() {
     }
 
     if (password.length < 6) {
-      setErrorMessage("La contraseña debe tener al menos 6 caracteres.");
+      setErrorMessage(t("register.passwordLength"));
       return;
     }
 
     if (!acceptTerms) {
-      setErrorMessage("Debes aceptar los términos y el aviso de privacidad.");
+      setErrorMessage(t("register.acceptTerms"));
       return;
     }
 
@@ -82,8 +85,8 @@ export default function RegisterPage() {
           full_name: fullName.trim(),
           phone: normalizedPhone,
           role: "passenger",
-          requested_account_type:
-            accountType,
+          requested_account_type: accountType,
+          language: locale,
         },
       },
     });
@@ -92,7 +95,7 @@ export default function RegisterPage() {
       setLoading(false);
       setErrorMessage(
         error.message === "User already registered"
-          ? "Ya existe una cuenta con este correo."
+          ? t("register.alreadyRegistered")
           : error.message
       );
       return;
@@ -100,9 +103,8 @@ export default function RegisterPage() {
 
     if (!data.session) {
       setLoading(false);
-      setErrorMessage(
-        "Cuenta creada. Revisa tu correo para confirmar el registro."
-      );
+      setRegistrationComplete(true);
+      setErrorMessage(t("register.confirmEmail"));
       return;
     }
 
@@ -110,30 +112,35 @@ export default function RegisterPage() {
       await supabase
         .from("profiles")
         .update({
-          full_name:
-            fullName.trim(),
-          phone:
-            normalizedPhone,
+          full_name: fullName.trim(),
+          phone: normalizedPhone,
+          language: locale,
         })
-        .eq(
-          "id",
-          data.session.user.id
-        );
+        .eq("id", data.session.user.id);
 
     if (profileError) {
       console.error(
-        "No fue posible guardar el teléfono:",
+        "No fue posible actualizar el perfil:",
         profileError.message
       );
     }
+
+    localStorage.setItem("axi-language", locale);
 
     router.push(
       accountType === "driver"
         ? "/dashboard/driver-application"
         : "/dashboard"
     );
+
     router.refresh();
   }
+
+  const benefits = [
+    t("register.benefit1"),
+    t("register.benefit2"),
+    t("register.benefit3"),
+  ];
 
   return (
     <main className="min-h-screen bg-[#F4F6F8] lg:grid lg:grid-cols-[0.9fr_1.1fr]">
@@ -145,26 +152,28 @@ export default function RegisterPage() {
 
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-600">
-              Únete a AXI
+              {t("register.join")}
             </p>
 
             <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-              Crea tu cuenta
+              {t("register.title")}
             </h1>
 
             <p className="mt-4 text-base leading-7 text-slate-500">
-              Regístrate como pasajero o inicia tu solicitud para convertirte
-              en conductor.
+              {t("register.subtitle")}
             </p>
           </div>
 
-          <form onSubmit={handleRegister} className="mt-9 space-y-5">
+          <form
+            onSubmit={handleRegister}
+            className="mt-9 space-y-5"
+          >
             <div>
               <label
                 htmlFor="full-name"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                Nombre completo
+                {t("register.fullName")}
               </label>
 
               <div className="relative">
@@ -177,9 +186,13 @@ export default function RegisterPage() {
                   id="full-name"
                   type="text"
                   autoComplete="name"
-                  placeholder="Tu nombre completo"
+                  placeholder={t(
+                    "register.fullNamePlaceholder"
+                  )}
                   value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
+                  onChange={(event) =>
+                    setFullName(event.target.value)
+                  }
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/5"
                 />
               </div>
@@ -190,7 +203,7 @@ export default function RegisterPage() {
                 htmlFor="email"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                Correo electrónico
+                {t("register.email")}
               </label>
 
               <div className="relative">
@@ -203,9 +216,13 @@ export default function RegisterPage() {
                   id="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="tu@correo.com"
+                  placeholder={t(
+                    "register.emailPlaceholder"
+                  )}
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) =>
+                    setEmail(event.target.value)
+                  }
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/5"
                 />
               </div>
@@ -224,7 +241,7 @@ export default function RegisterPage() {
                 htmlFor="password"
                 className="mb-2 block text-sm font-bold text-slate-700"
               >
-                Contraseña
+                {t("register.password")}
               </label>
 
               <div className="relative">
@@ -235,36 +252,52 @@ export default function RegisterPage() {
 
                 <input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={
+                    showPassword ? "text" : "password"
+                  }
                   autoComplete="new-password"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={t(
+                    "register.passwordPlaceholder"
+                  )}
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) =>
+                    setPassword(event.target.value)
+                  }
                   className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-12 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/5"
                 />
 
                 <button
                   type="button"
-                  onClick={() => setShowPassword((current) => !current)}
+                  onClick={() =>
+                    setShowPassword((current) => !current)
+                  }
                   aria-label={
-                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                    showPassword
+                      ? t("register.hidePassword")
+                      : t("register.showPassword")
                   }
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-950"
                 >
-                  {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                  {showPassword ? (
+                    <EyeOff size={19} />
+                  ) : (
+                    <Eye size={19} />
+                  )}
                 </button>
               </div>
             </div>
 
             <div>
               <p className="mb-3 text-sm font-bold text-slate-700">
-                ¿Cómo usarás AXI?
+                {t("register.accountType")}
               </p>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => setAccountType("passenger")}
+                  onClick={() =>
+                    setAccountType("passenger")
+                  }
                   className={`rounded-3xl border p-5 text-left transition ${
                     accountType === "passenger"
                       ? "border-yellow-400 bg-yellow-50 ring-2 ring-yellow-400/20"
@@ -283,22 +316,27 @@ export default function RegisterPage() {
                     </span>
 
                     {accountType === "passenger" && (
-                      <CheckCircle2 size={20} className="text-yellow-600" />
+                      <CheckCircle2
+                        size={20}
+                        className="text-yellow-600"
+                      />
                     )}
                   </div>
 
                   <p className="mt-5 font-black text-slate-950">
-                    Soy pasajero
+                    {t("register.passenger")}
                   </p>
 
                   <p className="mt-1 text-sm leading-5 text-slate-500">
-                    Solicitar viajes y administrar pagos.
+                    {t("register.passengerDesc")}
                   </p>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setAccountType("driver")}
+                  onClick={() =>
+                    setAccountType("driver")
+                  }
                   className={`rounded-3xl border p-5 text-left transition ${
                     accountType === "driver"
                       ? "border-slate-950 bg-slate-950 text-white ring-2 ring-slate-950/15"
@@ -317,11 +355,16 @@ export default function RegisterPage() {
                     </span>
 
                     {accountType === "driver" && (
-                      <CheckCircle2 size={20} className="text-yellow-400" />
+                      <CheckCircle2
+                        size={20}
+                        className="text-yellow-400"
+                      />
                     )}
                   </div>
 
-                  <p className="mt-5 font-black">Quiero conducir</p>
+                  <p className="mt-5 font-black">
+                    {t("register.driver")}
+                  </p>
 
                   <p
                     className={`mt-1 text-sm leading-5 ${
@@ -330,8 +373,40 @@ export default function RegisterPage() {
                         : "text-slate-500"
                     }`}
                   >
-                    Crear cuenta y enviar solicitud.
+                    {t("register.driverDesc")}
                   </p>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-3 text-sm font-bold text-slate-700">
+                {t("register.language")}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLocale("es")}
+                  className={`h-14 rounded-2xl border font-black transition ${
+                    locale === "es"
+                      ? "border-yellow-400 bg-yellow-50 text-slate-950 ring-2 ring-yellow-400/20"
+                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
+                  }`}
+                >
+                  {t("register.spanish")}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLocale("en")}
+                  className={`h-14 rounded-2xl border font-black transition ${
+                    locale === "en"
+                      ? "border-yellow-400 bg-yellow-50 text-slate-950 ring-2 ring-yellow-400/20"
+                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
+                  }`}
+                >
+                  {t("register.english")}
                 </button>
               </div>
             </div>
@@ -340,19 +415,21 @@ export default function RegisterPage() {
               <input
                 type="checkbox"
                 checked={acceptTerms}
-                onChange={(event) => setAcceptTerms(event.target.checked)}
+                onChange={(event) =>
+                  setAcceptTerms(event.target.checked)
+                }
                 className="mt-1 h-4 w-4 accent-yellow-400"
               />
 
               <span className="text-sm leading-6 text-slate-500">
-                Acepto los términos de uso y el aviso de privacidad de AXI.
+                {t("register.terms")}
               </span>
             </label>
 
             {errorMessage && (
               <div
                 className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-                  errorMessage.startsWith("Cuenta creada")
+                  registrationComplete
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                     : "border-red-200 bg-red-50 text-red-700"
                 }`}
@@ -366,19 +443,21 @@ export default function RegisterPage() {
               disabled={loading}
               className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#0B0F19] px-6 font-black text-white shadow-xl shadow-slate-950/10 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-60"
             >
-              {loading ? "Creando cuenta..." : "Crear cuenta"}
+              {loading
+                ? t("register.creating")
+                : t("register.create")}
 
               {!loading && <ArrowRight size={19} />}
             </button>
           </form>
 
           <p className="mt-7 text-center text-sm text-slate-500">
-            ¿Ya tienes una cuenta?{" "}
+            {t("register.already")}{" "}
             <Link
               href="/login"
               className="font-black text-slate-950 hover:underline"
             >
-              Inicia sesión
+              {t("register.login")}
             </Link>
           </p>
         </div>
@@ -392,28 +471,23 @@ export default function RegisterPage() {
           <div className="mx-auto max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">
               <ShieldCheck size={15} />
-              Una cuenta, toda tu movilidad
+              {t("register.heroBadge")}
             </span>
 
             <h2 className="mt-7 text-6xl font-black leading-[1.02] tracking-tight">
-              Muévete.
+              {t("register.heroTitleLine1")}
               <br />
-              Conduce.
+              {t("register.heroTitleLine2")}
               <br />
-              Crece con AXI.
+              {t("register.heroTitleLine3")}
             </h2>
 
             <p className="mt-6 max-w-lg text-lg leading-8 text-slate-300">
-              Diseñado para conectar pasajeros y conductores mediante una
-              plataforma moderna, segura y sencilla.
+              {t("register.heroSubtitle")}
             </p>
 
             <div className="mt-10 space-y-4">
-              {[
-                "Seguimiento y gestión de viajes",
-                "Conductores y vehículos verificados",
-                "Pagos y actividad desde una sola cuenta",
-              ].map((benefit) => (
+              {benefits.map((benefit) => (
                 <div
                   key={benefit}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4"
@@ -422,7 +496,9 @@ export default function RegisterPage() {
                     <CheckCircle2 size={17} />
                   </span>
 
-                  <span className="font-bold text-slate-200">{benefit}</span>
+                  <span className="font-bold text-slate-200">
+                    {benefit}
+                  </span>
                 </div>
               ))}
             </div>
@@ -431,7 +507,7 @@ export default function RegisterPage() {
 
         <div className="relative flex items-center justify-between text-xs text-slate-500">
           <span>AXI Mobility</span>
-          <span>Registro seguro</span>
+          <span>{t("register.secure")}</span>
         </div>
       </section>
     </main>
