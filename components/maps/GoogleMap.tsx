@@ -10,6 +10,7 @@ import {
 import {
   AlertTriangle,
   CarFront,
+  Clock3,
   LocateFixed,
   MapPin,
   Navigation,
@@ -27,10 +28,31 @@ export type MapCoordinates = {
   lng: number;
 };
 
+export type RouteMetrics = {
+  distanceMeters: number;
+  distanceText: string;
+  durationSeconds: number;
+  durationText: string;
+};
+
 type GoogleMapViewProps = {
   origin?: MapCoordinates | null;
   destination?: MapCoordinates | null;
   driverLocation?: MapCoordinates | null;
+
+  /*
+   * routeOrigin y routeDestination permiten
+   * dibujar una ruta distinta a los marcadores
+   * generales del viaje.
+   */
+  routeOrigin?: MapCoordinates | null;
+  routeDestination?: MapCoordinates | null;
+  routeLabel?: string;
+
+  onRouteMetricsChange?: (
+    metrics: RouteMetrics | null
+  ) => void;
+
   showUserLocation?: boolean;
   showRoute?: boolean;
   heightClassName?: string;
@@ -56,12 +78,17 @@ function isValidCoordinate(
 function RouteRenderer({
   origin,
   destination,
+  onMetricsChange,
 }: {
   origin: MapCoordinates;
   destination: MapCoordinates;
+  onMetricsChange?: (
+    metrics: RouteMetrics | null
+  ) => void;
 }) {
   const map = useMap();
-  const routesLibrary = useMapsLibrary("routes");
+  const routesLibrary =
+    useMapsLibrary("routes");
 
   useEffect(() => {
     if (!map || !routesLibrary) {
@@ -78,49 +105,117 @@ function RouteRenderer({
         preserveViewport: false,
         polylineOptions: {
           strokeColor: "#111827",
-          strokeOpacity: 0.9,
+          strokeOpacity: 0.92,
           strokeWeight: 6,
         },
       });
 
     let cancelled = false;
 
-    async function calculateRoute() {
-      try {
-        const result =
-          await directionsService.route({
-            origin,
-            destination,
-            travelMode:
-              google.maps.TravelMode.DRIVING,
-            provideRouteAlternatives: false,
-          });
+    /*
+     * Pequeño retraso para evitar varias llamadas
+     * mientras Realtime está moviendo el marcador.
+     */
+    const timer = window.setTimeout(
+      async () => {
+        try {
+          const result =
+            await directionsService.route({
+              origin,
+              destination,
+              travelMode:
+                google.maps.TravelMode.DRIVING,
+              provideRouteAlternatives: false,
+            });
 
-        if (!cancelled) {
+          if (cancelled) {
+            return;
+          }
+
           directionsRenderer.setDirections(
             result
           );
-        }
-      } catch (error) {
-        console.error(
-          "No fue posible calcular la ruta:",
-          error
-        );
-      }
-    }
 
-    void calculateRoute();
+          const route =
+            result.routes[0];
+
+          if (!route) {
+            onMetricsChange?.(null);
+            return;
+          }
+
+          const totals = route.legs.reduce(
+            (accumulator, leg) => {
+              accumulator.distanceMeters +=
+                leg.distance?.value ?? 0;
+
+              accumulator.durationSeconds +=
+                leg.duration?.value ?? 0;
+
+              return accumulator;
+            },
+            {
+              distanceMeters: 0,
+              durationSeconds: 0,
+            }
+          );
+
+          const distanceText =
+            totals.distanceMeters < 1000
+              ? `${Math.round(
+                  totals.distanceMeters
+                )} m`
+              : `${(
+                  totals.distanceMeters / 1000
+                ).toFixed(1)} km`;
+
+          const durationMinutes =
+            Math.max(
+              1,
+              Math.ceil(
+                totals.durationSeconds / 60
+              )
+            );
+
+          const durationText =
+            durationMinutes < 60
+              ? `${durationMinutes} min`
+              : `${Math.floor(
+                  durationMinutes / 60
+                )} h ${durationMinutes % 60} min`;
+
+          onMetricsChange?.({
+            distanceMeters:
+              totals.distanceMeters,
+            distanceText,
+            durationSeconds:
+              totals.durationSeconds,
+            durationText,
+          });
+        } catch (error) {
+          if (!cancelled) {
+            console.error(
+              "No fue posible calcular la ruta:",
+              error
+            );
+
+            onMetricsChange?.(null);
+          }
+        }
+      },
+      750
+    );
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
       directionsRenderer.setMap(null);
     };
   }, [
-    destination,
     destination.lat,
     destination.lng,
     map,
-    origin,
+    onMetricsChange,
     origin.lat,
     origin.lng,
     routesLibrary,
@@ -134,11 +229,15 @@ function FitMapBounds({
   destination,
   driverLocation,
   userLocation,
+  routeOrigin,
+  routeDestination,
 }: {
   origin?: MapCoordinates | null;
   destination?: MapCoordinates | null;
   driverLocation?: MapCoordinates | null;
   userLocation?: MapCoordinates | null;
+  routeOrigin?: MapCoordinates | null;
+  routeDestination?: MapCoordinates | null;
 }) {
   const map = useMap();
 
@@ -147,12 +246,20 @@ function FitMapBounds({
       return;
     }
 
-    const positions = [
-      origin,
-      destination,
-      driverLocation,
-      userLocation,
+    const preferredPositions = [
+      routeOrigin,
+      routeDestination,
     ].filter(isValidCoordinate);
+
+    const positions =
+      preferredPositions.length > 0
+        ? preferredPositions
+        : [
+            origin,
+            destination,
+            driverLocation,
+            userLocation,
+          ].filter(isValidCoordinate);
 
     if (positions.length === 0) {
       return;
@@ -171,12 +278,14 @@ function FitMapBounds({
       bounds.extend(position);
     });
 
-    map.fitBounds(bounds, 70);
+    map.fitBounds(bounds, 75);
   }, [
     destination,
     driverLocation,
     map,
     origin,
+    routeDestination,
+    routeOrigin,
     userLocation,
   ]);
 
@@ -224,7 +333,7 @@ function LocationMarker({
       title={title}
     >
       <div
-        className={`flex h-11 w-11 items-center justify-center rounded-2xl border-4 border-white shadow-xl ${markerClasses[type]}`}
+        className={`flex h-11 w-11 items-center justify-center rounded-2xl border-4 border-white shadow-xl transition-transform duration-500 ${markerClasses[type]}`}
       >
         {icon}
       </div>
@@ -237,13 +346,21 @@ function MapContent({
   destination,
   driverLocation,
   userLocation,
+  routeOrigin,
+  routeDestination,
   showRoute,
+  onRouteMetricsChange,
 }: {
   origin?: MapCoordinates | null;
   destination?: MapCoordinates | null;
   driverLocation?: MapCoordinates | null;
   userLocation?: MapCoordinates | null;
+  routeOrigin?: MapCoordinates | null;
+  routeDestination?: MapCoordinates | null;
   showRoute: boolean;
+  onRouteMetricsChange?: (
+    metrics: RouteMetrics | null
+  ) => void;
 }) {
   const validOrigin =
     isValidCoordinate(origin)
@@ -265,6 +382,16 @@ function MapContent({
       ? userLocation
       : null;
 
+  const validRouteOrigin =
+    isValidCoordinate(routeOrigin)
+      ? routeOrigin
+      : validOrigin;
+
+  const validRouteDestination =
+    isValidCoordinate(routeDestination)
+      ? routeDestination
+      : validDestination;
+
   return (
     <>
       <FitMapBounds
@@ -274,14 +401,23 @@ function MapContent({
           validDriverLocation
         }
         userLocation={validUserLocation}
+        routeOrigin={validRouteOrigin}
+        routeDestination={
+          validRouteDestination
+        }
       />
 
       {showRoute &&
-        validOrigin &&
-        validDestination && (
+        validRouteOrigin &&
+        validRouteDestination && (
           <RouteRenderer
-            origin={validOrigin}
-            destination={validDestination}
+            origin={validRouteOrigin}
+            destination={
+              validRouteDestination
+            }
+            onMetricsChange={
+              onRouteMetricsChange
+            }
           />
         )}
 
@@ -324,6 +460,10 @@ export function GoogleMapView({
   origin = null,
   destination = null,
   driverLocation = null,
+  routeOrigin = null,
+  routeDestination = null,
+  routeLabel = "Ruta del viaje",
+  onRouteMetricsChange,
   showUserLocation = true,
   showRoute = true,
   heightClassName = "h-[520px]",
@@ -424,8 +564,12 @@ export function GoogleMapView({
   }
 
   const hasRoute =
-    isValidCoordinate(origin) &&
-    isValidCoordinate(destination);
+    isValidCoordinate(
+      routeOrigin ?? origin
+    ) &&
+    isValidCoordinate(
+      routeDestination ?? destination
+    );
 
   return (
     <div
@@ -450,7 +594,14 @@ export function GoogleMapView({
               driverLocation
             }
             userLocation={userLocation}
+            routeOrigin={routeOrigin}
+            routeDestination={
+              routeDestination
+            }
             showRoute={showRoute}
+            onRouteMetricsChange={
+              onRouteMetricsChange
+            }
           />
         </Map>
       </APIProvider>
@@ -468,13 +619,13 @@ export function GoogleMapView({
           <div>
             <p className="font-black text-slate-950">
               {hasRoute
-                ? "Ruta del viaje"
+                ? routeLabel
                 : "Mapa AXI"}
             </p>
 
             <p className="text-xs text-slate-500">
               {hasRoute
-                ? "Origen, destino y recorrido"
+                ? "Seguimiento actualizado en vivo"
                 : "Ubicación en tiempo real"}
             </p>
           </div>

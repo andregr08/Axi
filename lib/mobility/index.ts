@@ -50,3 +50,15 @@ export function estimateRouteSync(
     destination
   );
 }
+
+export {
+  createPricedTrip,
+  getDynamicFareEstimate,
+  getPricingPeriodLabel,
+} from "./pricing";
+
+export type {
+  CreatePricedTripInput,
+  DynamicFareEstimate,
+  RideType,
+} from "./pricing";

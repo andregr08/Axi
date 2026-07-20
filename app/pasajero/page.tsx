@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -32,6 +33,13 @@ import {
   PlaceAutocomplete,
   type SelectedPlace,
 } from "@/components/maps/PlaceAutocomplete";
+import {
+  createPricedTrip,
+  getDynamicFareEstimate,
+  getPricingPeriodLabel,
+  type DynamicFareEstimate,
+  type RideType,
+} from "@/lib/mobility";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/utils/cn";
 
@@ -41,11 +49,6 @@ type Coordinates = {
 };
 
 type PaymentMethod = "cash" | "card";
-
-type RideType =
-  | "economy"
-  | "comfort"
-  | "xl";
 
 type BookingStep =
   | "home"
@@ -198,6 +201,28 @@ export default function PasajeroPage() {
   const [message, setMessage] =
     useState("");
 
+  const [
+    dynamicFares,
+    setDynamicFares,
+  ] = useState<
+    Partial<
+      Record<
+        RideType,
+        DynamicFareEstimate
+      >
+    >
+  >({});
+
+  const [
+    pricingLoading,
+    setPricingLoading,
+  ] = useState(false);
+
+  const [
+    pricingError,
+    setPricingError,
+  ] = useState("");
+
   const selectedRide =
     rideOptions.find(
       (option) => option.id === rideType
@@ -276,12 +301,82 @@ export default function PasajeroPage() {
     originCoordinates,
   ]);
 
-  const selectedPrice = estimate
-    ? Math.round(
-        estimate.basePrice *
-          selectedRide.multiplier
-      )
-    : null;
+  const selectedFare =
+    dynamicFares[rideType];
+
+  const selectedPrice =
+    selectedFare?.estimated_price ??
+    (estimate
+      ? Math.round(
+          estimate.basePrice *
+            selectedRide.multiplier
+        )
+      : null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDynamicFares() {
+      if (!estimate) {
+        setDynamicFares({});
+        setPricingError("");
+        return;
+      }
+
+      setPricingLoading(true);
+      setPricingError("");
+
+      try {
+        const results =
+          await Promise.all(
+            rideOptions.map(
+              async (option) => {
+                const fare =
+                  await getDynamicFareEstimate(
+                    estimate.distanceKm,
+                    estimate.durationMinutes,
+                    option.id
+                  );
+
+                return [
+                  option.id,
+                  fare,
+                ] as const;
+              }
+            )
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        setDynamicFares(
+          Object.fromEntries(results)
+        );
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setDynamicFares({});
+        setPricingError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo calcular la tarifa."
+        );
+      } finally {
+        if (!cancelled) {
+          setPricingLoading(false);
+        }
+      }
+    }
+
+    void loadDynamicFares();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [estimate]);
 
   function getCurrentLocation() {
     setMessage("");
@@ -409,47 +504,37 @@ export default function PasajeroPage() {
       return;
     }
 
-    const {
-      data: trip,
-      error: tripError,
-    } = await supabase
-      .from("trips")
-      .insert({
-        passenger_id: session.user.id,
-        origin_address: origin.trim(),
-        origin_lat:
-          originCoordinates.latitude,
-        origin_lng:
-          originCoordinates.longitude,
-        destination_address:
-          destinationPlace.address,
-        destination_lat:
-          destinationPlace.latitude,
-        destination_lng:
-          destinationPlace.longitude,
-        distance_km: Number(
-          estimate.distanceKm.toFixed(2)
-        ),
-        duration_minutes:
-          estimate.durationMinutes,
-        estimated_price:
-          selectedPrice,
-        booking_fee: BOOKING_FEE,
-        payment_method:
-          paymentMethod,
-        status: "requested",
-      })
-      .select("id")
-      .single();
+    let tripId: string;
 
-    if (tripError || !trip) {
+    try {
+      tripId = await createPricedTrip({
+        originAddress: origin.trim(),
+        originLatitude:
+          originCoordinates.latitude,
+        originLongitude:
+          originCoordinates.longitude,
+        destinationAddress:
+          destinationPlace.address,
+        destinationLatitude:
+          destinationPlace.latitude,
+        destinationLongitude:
+          destinationPlace.longitude,
+        distanceKm:
+          estimate.distanceKm,
+        durationMinutes:
+          estimate.durationMinutes,
+        paymentMethod,
+        rideType,
+      });
+    } catch (error) {
       setLoading(false);
       setStep("options");
 
       setMessage(
         `No pudimos crear el viaje: ${
-          tripError?.message ??
-          "Error desconocido"
+          error instanceof Error
+            ? error.message
+            : "Error desconocido"
         }`
       );
 
@@ -460,7 +545,7 @@ export default function PasajeroPage() {
       await supabase.rpc(
         "process_trip_dispatch",
         {
-          requested_trip_id: trip.id,
+          requested_trip_id: tripId,
         }
       );
 
@@ -473,7 +558,7 @@ export default function PasajeroPage() {
     }
 
     router.push(
-      `/dashboard/trips/${trip.id}`
+      `/dashboard/trips/${tripId}`
     );
 
     router.refresh();
@@ -626,6 +711,15 @@ export default function PasajeroPage() {
                 paymentMethod
               }
               message={message}
+              dynamicFares={
+                dynamicFares
+              }
+              pricingLoading={
+                pricingLoading
+              }
+              pricingError={
+                pricingError
+              }
               onBack={goBack}
               onSelectRide={
                 setRideType
@@ -895,6 +989,9 @@ function OptionsPanel({
   selectedRideId,
   paymentMethod,
   message,
+  dynamicFares,
+  pricingLoading,
+  pricingError,
   onBack,
   onSelectRide,
   onSelectPayment,
@@ -907,6 +1004,14 @@ function OptionsPanel({
   selectedRideId: RideType;
   paymentMethod: PaymentMethod;
   message: string;
+  dynamicFares: Partial<
+    Record<
+      RideType,
+      DynamicFareEstimate
+    >
+  >;
+  pricingLoading: boolean;
+  pricingError: string;
   onBack: () => void;
   onSelectRide: (
     value: RideType
@@ -931,10 +1036,15 @@ function OptionsPanel({
         option.id === selectedRideId
     ) ?? rideOptions[0];
 
-  const selectedPrice = Math.round(
-    basePrice *
-      selectedOption.multiplier
-  );
+  const selectedFare =
+    dynamicFares[selectedRideId];
+
+  const selectedPrice =
+    selectedFare?.estimated_price ??
+    Math.round(
+      basePrice *
+        selectedOption.multiplier
+    );
 
   return (
     <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 sm:px-7">
@@ -987,6 +1097,46 @@ function OptionsPanel({
         </div>
       </div>
 
+      <div className="mt-4">
+        {pricingLoading && (
+          <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+            <LoaderCircle
+              size={16}
+              className="animate-spin"
+            />
+
+            Actualizando tarifas...
+          </div>
+        )}
+
+        {!pricingLoading &&
+          selectedFare && (
+            <div className="rounded-2xl bg-amber-50 px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">
+                {getPricingPeriodLabel(
+                  selectedFare.pricing_period
+                )}
+              </p>
+
+              <p className="mt-1 text-xs font-bold text-amber-900">
+                {selectedFare.surge_multiplier >
+                1
+                  ? `Tarifa dinámica ${selectedFare.surge_multiplier.toFixed(
+                      2
+                    )}x`
+                  : "Sin incremento por demanda"}
+              </p>
+            </div>
+          )}
+
+        {pricingError && (
+          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            Mostrando precio estimado
+            local. {pricingError}
+          </div>
+        )}
+      </div>
+
       <p className="mt-6 text-sm font-black text-slate-950">
         Elige un viaje
       </p>
@@ -997,10 +1147,15 @@ function OptionsPanel({
             selectedRideId ===
             option.id;
 
-          const price = Math.round(
-            basePrice *
-              option.multiplier
-          );
+          const fare =
+            dynamicFares[option.id];
+
+          const price =
+            fare?.estimated_price ??
+            Math.round(
+              basePrice *
+                option.multiplier
+            );
 
           return (
             <button

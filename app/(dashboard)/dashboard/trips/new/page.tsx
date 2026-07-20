@@ -1,6 +1,11 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -23,8 +28,12 @@ import {
 } from "@/components/maps/PlaceAutocomplete";
 import {
   MOBILITY_CONFIG,
+  createPricedTrip,
   estimateRouteSync,
+  getDynamicFareEstimate,
+  getPricingPeriodLabel,
   isMockMobilityMode,
+  type DynamicFareEstimate,
   type MobilityCoordinates,
 } from "@/lib/mobility";
 import { supabase } from "@/lib/supabaseClient";
@@ -77,6 +86,23 @@ export default function NewTripPage() {
   const [resolvedTrip, setResolvedTrip] =
     useState<ResolvedTripData | null>(null);
   const [message, setMessage] = useState("");
+
+  const [
+    dynamicFare,
+    setDynamicFare,
+  ] = useState<DynamicFareEstimate | null>(
+    null
+  );
+
+  const [
+    pricingLoading,
+    setPricingLoading,
+  ] = useState(false);
+
+  const [
+    pricingError,
+    setPricingError,
+  ] = useState("");
 
   function handleOriginTextChange(value: string) {
     setOrigin(value);
@@ -234,8 +260,6 @@ export default function NewTripPage() {
     const {
       distanceKm,
       durationMinutes,
-      estimatedPrice,
-      bookingFee,
     } = routeEstimate;
 
     const {
@@ -250,39 +274,35 @@ export default function NewTripPage() {
       return;
     }
 
-    const { data: trip, error: tripError } =
-      await supabase
-        .from("trips")
-        .insert({
-          passenger_id: session.user.id,
-          origin_address: origin.trim(),
-          origin_lat:
-            resolvedTrip.originCoordinates.latitude,
-          origin_lng:
-            resolvedTrip.originCoordinates.longitude,
-          destination_address:
-            resolvedTrip.destinationPlace.address,
-          destination_lat:
-            resolvedTrip.destinationPlace.latitude,
-          destination_lng:
-            resolvedTrip.destinationPlace.longitude,
-          distance_km: Number(distanceKm.toFixed(2)),
-          duration_minutes: durationMinutes,
-          estimated_price: estimatedPrice,
-          booking_fee: bookingFee,
-          payment_method: paymentMethod,
-          status: "requested",
-        })
-        .select("id")
-        .single();
+    let tripId: string;
 
-    if (tripError || !trip) {
+    try {
+      tripId = await createPricedTrip({
+        originAddress: origin.trim(),
+        originLatitude:
+          resolvedTrip.originCoordinates.latitude,
+        originLongitude:
+          resolvedTrip.originCoordinates.longitude,
+        destinationAddress:
+          resolvedTrip.destinationPlace.address,
+        destinationLatitude:
+          resolvedTrip.destinationPlace.latitude,
+        destinationLongitude:
+          resolvedTrip.destinationPlace.longitude,
+        distanceKm,
+        durationMinutes,
+        paymentMethod,
+        rideType: "economy",
+      });
+    } catch (error) {
       setLoading(false);
       setConfirmOpen(false);
 
       setMessage(
         `Error creando el viaje: ${
-          tripError?.message ?? "No se obtuvo el viaje"
+          error instanceof Error
+            ? error.message
+            : "No se pudo calcular el precio"
         }`
       );
 
@@ -295,7 +315,7 @@ export default function NewTripPage() {
     } = await supabase.rpc(
       "process_trip_dispatch",
       {
-        requested_trip_id: trip.id,
+        requested_trip_id: tripId,
       }
     );
 
@@ -308,7 +328,7 @@ export default function NewTripPage() {
       );
 
       window.setTimeout(() => {
-        router.push(`/dashboard/trips/${trip.id}`);
+        router.push(`/dashboard/trips/${tripId}`);
         router.refresh();
       }, 2000);
 
@@ -332,10 +352,70 @@ export default function NewTripPage() {
     );
 
     window.setTimeout(() => {
-      router.push(`/dashboard/trips/${trip.id}`);
+      router.push(`/dashboard/trips/${tripId}`);
       router.refresh();
     }, 1500);
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDynamicFare() {
+      if (!resolvedTrip) {
+        setDynamicFare(null);
+        setPricingError("");
+        return;
+      }
+
+      const routeEstimate =
+        estimateRouteSync(
+          resolvedTrip.originCoordinates,
+          {
+            latitude:
+              resolvedTrip.destinationPlace
+                .latitude,
+            longitude:
+              resolvedTrip.destinationPlace
+                .longitude,
+          }
+        );
+
+      setPricingLoading(true);
+      setPricingError("");
+
+      try {
+        const fare =
+          await getDynamicFareEstimate(
+            routeEstimate.distanceKm,
+            routeEstimate.durationMinutes,
+            "economy"
+          );
+
+        if (!cancelled) {
+          setDynamicFare(fare);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDynamicFare(null);
+          setPricingError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo calcular la tarifa."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setPricingLoading(false);
+        }
+      }
+    }
+
+    void loadDynamicFare();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedTrip]);
 
   const originReady =
     originCoordinates !== null ||
@@ -616,9 +696,15 @@ export default function NewTripPage() {
                   </p>
 
                   <p className="mt-2 text-4xl font-black text-yellow-400">
-                    {estimate
-                      ? formatCurrency(estimate.estimatedPrice)
-                      : "--"}
+                    {dynamicFare
+                      ? formatCurrency(
+                          dynamicFare.estimated_price
+                        )
+                      : estimate
+                        ? formatCurrency(
+                            estimate.estimatedPrice
+                          )
+                        : "--"}
                   </p>
                 </div>
 
@@ -632,11 +718,52 @@ export default function NewTripPage() {
                 <span>Incluye tarifa de servicio</span>
                 <span>
                   {formatCurrency(
-                    estimate?.bookingFee ??
+                    dynamicFare?.booking_fee ??
+                      estimate?.bookingFee ??
                       MOBILITY_CONFIG.bookingFee
                   )}
                 </span>
               </div>
+            </div>
+
+            <div className="mt-4">
+              {pricingLoading && (
+                <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+                  <Clock3
+                    size={16}
+                    className="animate-pulse"
+                  />
+
+                  Actualizando tarifa...
+                </div>
+              )}
+
+              {!pricingLoading &&
+                dynamicFare && (
+                  <div className="rounded-2xl bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">
+                      {getPricingPeriodLabel(
+                        dynamicFare.pricing_period
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-xs font-bold text-amber-900">
+                      {dynamicFare.surge_multiplier >
+                      1
+                        ? `Tarifa dinámica ${dynamicFare.surge_multiplier.toFixed(
+                            2
+                          )}x`
+                        : "Sin incremento por demanda"}
+                    </p>
+                  </div>
+                )}
+
+              {pricingError && (
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                  Mostrando estimación local.{" "}
+                  {pricingError}
+                </div>
+              )}
             </div>
 
             <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 p-4">
@@ -755,7 +882,8 @@ export default function NewTripPage() {
                   icon={CircleDollarSign}
                   label="Estimado"
                   value={formatCurrency(
-                    estimate.estimatedPrice
+                    dynamicFare?.estimated_price ??
+                      estimate.estimatedPrice
                   )}
                 />
               </div>

@@ -168,14 +168,23 @@ export default function TripChatPage() {
   async function markReceivedAsRead(
     userId: string
   ) {
-    await supabase
-      .from("trip_messages")
-      .update({
-        read_at: new Date().toISOString(),
-      })
-      .eq("trip_id", tripId)
-      .neq("sender_id", userId)
-      .is("read_at", null);
+    if (!userId) {
+      return;
+    }
+
+    const { error } = await supabase.rpc(
+      "mark_trip_messages_read",
+      {
+        requested_trip_id: tripId,
+      }
+    );
+
+    if (error) {
+      console.error(
+        "Error marcando mensajes como leídos:",
+        error.message
+      );
+    }
   }
 
   function refreshTypingState(

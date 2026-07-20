@@ -132,37 +132,78 @@ export default function TripsPage() {
   }, []);
 
   async function cancelTrip(tripId: string) {
+    const selectedTrip = trips.find(
+      (trip) => trip.id === tripId
+    );
+
+    if (!selectedTrip) {
+      window.alert("No se encontró el viaje.");
+      return;
+    }
+
+    const estimatedFee =
+      selectedTrip.status === "driver_arrived"
+        ? 40
+        : ["accepted", "driver_arriving"].includes(
+              selectedTrip.status
+            )
+          ? 20
+          : 0;
+
+    const feeMessage =
+      estimatedFee > 0
+        ? ` Se aplicará una penalización estimada de ${formatCurrency(
+            estimatedFee
+          )}.`
+        : " No se aplicará penalización.";
+
     const confirmed = window.confirm(
-      "¿Seguro que quieres cancelar este viaje?"
+      `¿Seguro que quieres cancelar este viaje?${feeMessage}`
     );
 
     if (!confirmed) return;
 
-    setCancellingId(tripId);
+    const cancellationReason = window.prompt(
+      "Indica brevemente el motivo de la cancelación:",
+      "Ya no necesito el viaje"
+    );
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    if (cancellationReason === null) return;
 
-    if (!session) {
-      setCancellingId(null);
+    const normalizedReason = cancellationReason.trim();
+
+    if (normalizedReason.length < 5) {
+      window.alert(
+        "El motivo debe tener al menos 5 caracteres."
+      );
       return;
     }
 
-    const { error } = await supabase
-      .from("trips")
-      .update({
-        status: "cancelled",
-        cancelled_by: session.user.id,
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: "Cancelado por el pasajero",
-      })
-      .eq("id", tripId)
-      .in("status", ["requested", "searching", "accepted"]);
+    setCancellingId(tripId);
+
+    const { data, error } = await supabase.rpc(
+      "passenger_cancel_trip",
+      {
+        requested_trip_id: tripId,
+        cancellation_reason_value: normalizedReason,
+      }
+    );
 
     if (error) {
-      window.alert(`Error al cancelar: ${error.message}`);
+      window.alert(
+        `Error al cancelar: ${error.message}`
+      );
     } else {
+      const cancellationFee = Number(data ?? 0);
+
+      window.alert(
+        cancellationFee > 0
+          ? `Viaje cancelado. Penalización aplicada: ${formatCurrency(
+              cancellationFee
+            )}.`
+          : "Viaje cancelado correctamente sin penalización."
+      );
+
       await loadTrips();
     }
 

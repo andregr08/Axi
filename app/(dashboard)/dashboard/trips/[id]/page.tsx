@@ -33,6 +33,7 @@ import {
 import {
   GoogleMapView,
   type MapCoordinates,
+  type RouteMetrics,
 } from "@/components/maps/GoogleMap";
 import { SOSButton } from "@/components/safety/SOSButton";
 import {
@@ -203,6 +204,10 @@ export default function ActiveTripPage({
 
   const [driverLocation, setDriverLocation] =
     useState<MapCoordinates | null>(null);
+
+  const [routeMetrics, setRouteMetrics] =
+    useState<RouteMetrics | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -210,7 +215,19 @@ export default function ActiveTripPage({
   const [dispatchRound, setDispatchRound] = useState(1);
   const [dispatchRadius, setDispatchRadius] = useState(3);
   const dispatchProcessingRef = useRef(false);
+
+  const tripLocationWatchId =
+    useRef<number | null>(null);
+
+  const lastTripLocationUpdate =
+    useRef(0);
+
   const [message, setMessage] = useState("");
+  const [tripPin, setTripPin] =
+    useState<string | null>(null);
+  const [pinInput, setPinInput] = useState("");
+  const [verifyingPin, setVerifyingPin] =
+    useState(false);
 
   const loadTrip = useCallback(async () => {
     const { data, error } = await supabase
@@ -323,29 +340,29 @@ export default function ActiveTripPage({
         data: locationData,
         error: locationError,
       } = await supabase
-        .from("drivers")
+        .from("driver_locations")
         .select(
-          "current_lat, current_lng"
+          "latitude, longitude, updated_at"
         )
         .eq(
-          "id",
+          "driver_id",
           loadedTrip.driver_id
         )
         .maybeSingle();
 
       if (
         !locationError &&
-        locationData?.current_lat !== null &&
-        locationData?.current_lat !== undefined &&
-        locationData?.current_lng !== null &&
-        locationData?.current_lng !== undefined
+        locationData?.latitude !== null &&
+        locationData?.latitude !== undefined &&
+        locationData?.longitude !== null &&
+        locationData?.longitude !== undefined
       ) {
         setDriverLocation({
           lat: Number(
-            locationData.current_lat
+            locationData.latitude
           ),
           lng: Number(
-            locationData.current_lng
+            locationData.longitude
           ),
         });
       } else {
@@ -416,9 +433,58 @@ export default function ActiveTripPage({
   }, [id, loadTrip, router]);
 
   useEffect(() => {
+    async function loadSecurityPin() {
+      const passengerCanSeePin =
+        role === "passenger" &&
+        Boolean(trip?.driver_id) &&
+        trip !== null &&
+        [
+          "accepted",
+          "driver_arriving",
+          "driver_arrived",
+        ].includes(trip.status);
+
+      if (!passengerCanSeePin || !trip) {
+        setTripPin(null);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc(
+        "get_trip_security_pin",
+        {
+          p_trip_id: trip.id,
+        }
+      );
+
+      if (error) {
+        console.error(
+          "Error cargando PIN del viaje:",
+          error.message
+        );
+        setTripPin(null);
+        return;
+      }
+
+      setTripPin(
+        typeof data === "string"
+          ? data
+          : null
+      );
+    }
+
+    void loadSecurityPin();
+  }, [
+    role,
+    trip?.id,
+    trip?.driver_id,
+    trip?.status,
+  ]);
+
+  useEffect(() => {
     const driverId = trip?.driver_id;
 
     if (!driverId) {
+      setDriverLocation(null);
       return;
     }
 
@@ -429,31 +495,29 @@ export default function ActiveTripPage({
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
-          table: "drivers",
-          filter: `id=eq.${driverId}`,
+          table: "driver_locations",
+          filter: `driver_id=eq.${driverId}`,
         },
         (payload) => {
-          const updatedDriver =
+          const location =
             payload.new as {
-              current_lat?: number | null;
-              current_lng?: number | null;
+              driver_id?: string;
+              latitude?: number | null;
+              longitude?: number | null;
+              updated_at?: string;
             };
 
           if (
-            updatedDriver.current_lat !== null &&
-            updatedDriver.current_lat !== undefined &&
-            updatedDriver.current_lng !== null &&
-            updatedDriver.current_lng !== undefined
+            location.latitude !== null &&
+            location.latitude !== undefined &&
+            location.longitude !== null &&
+            location.longitude !== undefined
           ) {
             setDriverLocation({
-              lat: Number(
-                updatedDriver.current_lat
-              ),
-              lng: Number(
-                updatedDriver.current_lng
-              ),
+              lat: Number(location.latitude),
+              lng: Number(location.longitude),
             });
           }
         }
@@ -464,6 +528,123 @@ export default function ActiveTripPage({
       void supabase.removeChannel(channel);
     };
   }, [trip?.driver_id]);
+
+
+  useEffect(() => {
+    const activeStatuses: TripStatus[] = [
+      "accepted",
+      "driver_arriving",
+      "driver_arrived",
+      "in_progress",
+    ];
+
+    const shouldTrack =
+      role === "driver" &&
+      trip?.driver_id !== null &&
+      activeStatuses.includes(
+        trip?.status as TripStatus
+      );
+
+    if (
+      !shouldTrack ||
+      !navigator.geolocation
+    ) {
+      if (
+        tripLocationWatchId.current !== null
+      ) {
+        navigator.geolocation.clearWatch(
+          tripLocationWatchId.current
+        );
+
+        tripLocationWatchId.current = null;
+      }
+
+      return;
+    }
+
+    tripLocationWatchId.current =
+      navigator.geolocation.watchPosition(
+        (position) => {
+          const now = Date.now();
+
+          setDriverLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+
+          if (
+            now -
+              lastTripLocationUpdate.current <
+            5000
+          ) {
+            return;
+          }
+
+          lastTripLocationUpdate.current = now;
+
+          void supabase
+            .rpc(
+              "update_driver_location",
+              {
+                latitude_value:
+                  position.coords.latitude,
+                longitude_value:
+                  position.coords.longitude,
+                speed_value:
+                  position.coords.speed,
+                heading_value:
+                  position.coords.heading,
+                accuracy_value:
+                  position.coords.accuracy,
+              }
+            )
+            .then(({ error }) => {
+              if (error) {
+                console.error(
+                  "Error actualizando GPS del viaje:",
+                  error.message
+                );
+              }
+            });
+        },
+        (error) => {
+          if (
+            error.code ===
+            error.PERMISSION_DENIED
+          ) {
+            setMessage(
+              "Debes permitir el acceso al GPS para compartir tu ubicación durante el viaje."
+            );
+          } else {
+            console.error(
+              "Error obteniendo GPS del viaje:",
+              error.message
+            );
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 3000,
+        }
+      );
+
+    return () => {
+      if (
+        tripLocationWatchId.current !== null
+      ) {
+        navigator.geolocation.clearWatch(
+          tripLocationWatchId.current
+        );
+
+        tripLocationWatchId.current = null;
+      }
+    };
+  }, [
+    role,
+    trip?.driver_id,
+    trip?.status,
+  ]);
 
   useEffect(() => {
     const searching =
@@ -600,41 +781,71 @@ export default function ActiveTripPage({
   async function cancelCurrentTrip() {
     if (!trip) return;
 
+    const estimatedFee =
+      trip.status === "driver_arrived"
+        ? 40
+        : ["accepted", "driver_arriving"].includes(trip.status)
+          ? 20
+          : 0;
+
+    const feeMessage =
+      estimatedFee > 0
+        ? ` Se aplicará una penalización estimada de ${formatCurrency(
+            estimatedFee
+          )}.`
+        : " No se aplicará penalización.";
+
     const confirmed = window.confirm(
-      "¿Seguro que quieres cancelar la solicitud? Los conductores dejarán de verla."
+      `¿Seguro que quieres cancelar este viaje?${feeMessage}`
     );
 
     if (!confirmed) return;
 
+    const cancellationReason = window.prompt(
+      "Indica brevemente el motivo de la cancelación:",
+      "Ya no necesito el viaje"
+    );
+
+    if (cancellationReason === null) return;
+
+    const normalizedReason = cancellationReason.trim();
+
+    if (normalizedReason.length < 5) {
+      setMessage(
+        "El motivo de cancelación debe tener al menos 5 caracteres."
+      );
+      return;
+    }
+
     setCancelling(true);
     setMessage("");
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      setCancelling(false);
-      router.replace("/login");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("trips")
-      .update({
-        status: "cancelled",
-      })
-      .eq("id", trip.id)
-      .eq("passenger_id", session.user.id)
-      .in("status", ["requested", "searching"]);
+    const { data, error } = await supabase.rpc(
+      "passenger_cancel_trip",
+      {
+        requested_trip_id: trip.id,
+        cancellation_reason_value: normalizedReason,
+      }
+    );
 
     if (error) {
-      setMessage(`No fue posible cancelar el viaje: ${error.message}`);
+      setMessage(
+        `No fue posible cancelar el viaje: ${error.message}`
+      );
       setCancelling(false);
       return;
     }
 
-    setMessage("La solicitud fue cancelada correctamente.");
+    const cancellationFee = Number(data ?? 0);
+
+    setMessage(
+      cancellationFee > 0
+        ? `Viaje cancelado correctamente. Penalización aplicada: ${formatCurrency(
+            cancellationFee
+          )}.`
+        : "El viaje fue cancelado correctamente sin penalización."
+    );
+
     setCancelling(false);
     await loadTrip();
   }
@@ -725,8 +936,124 @@ export default function ActiveTripPage({
     );
   }
 
+  async function cancelDriverAndReassignTrip() {
+    if (!trip) return;
+
+    const confirmed = window.confirm(
+      "¿Seguro que quieres cancelar este viaje? AXI buscará automáticamente otro conductor para el pasajero."
+    );
+
+    if (!confirmed) return;
+
+    const cancellationReason = window.prompt(
+      "Indica brevemente el motivo de la cancelación:",
+      "No puedo continuar con el viaje"
+    );
+
+    if (cancellationReason === null) return;
+
+    setCancelling(true);
+    setMessage("");
+
+    const { data, error } = await supabase.rpc(
+      "cancel_driver_and_reassign_trip",
+      {
+        requested_trip_id: trip.id,
+        cancellation_reason_value:
+          cancellationReason.trim() ||
+          "Cancelado por el conductor",
+      }
+    );
+
+    if (error) {
+      setMessage(
+        `No fue posible cancelar y reasignar el viaje: ${error.message}`
+      );
+      setCancelling(false);
+      return;
+    }
+
+    const result = data as {
+      status?: string;
+      dispatch?: {
+        notified_drivers?: number;
+      };
+    } | null;
+
+    const notifiedDrivers =
+      result?.dispatch?.notified_drivers ?? 0;
+
+    setMessage(
+      notifiedDrivers > 0
+        ? `Viaje cancelado. AXI notificó a ${notifiedDrivers} conductor${
+            notifiedDrivers === 1 ? "" : "es"
+          } cercano${notifiedDrivers === 1 ? "" : "s"}.`
+        : "Viaje cancelado. AXI ya está buscando otro conductor para el pasajero."
+    );
+
+    setCancelling(false);
+    await loadTrip();
+    router.push("/dashboard/driver/available-trips");
+  }
+
+  async function verifyPinAndStartTrip() {
+    if (!trip) return;
+
+    const normalizedPin =
+      pinInput.replace(/\D/g, "").slice(0, 4);
+
+    if (normalizedPin.length !== 4) {
+      setMessage(
+        "Ingresa los 4 dígitos del PIN del pasajero."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "¿Confirmas que el pasajero está dentro del vehículo y deseas iniciar el viaje?"
+    );
+
+    if (!confirmed) return;
+
+    setVerifyingPin(true);
+    setProcessing(true);
+    setMessage("");
+
+    const { error } = await supabase.rpc(
+      "verify_trip_pin_and_start",
+      {
+        p_trip_id: trip.id,
+        p_security_pin: normalizedPin,
+      }
+    );
+
+    if (error) {
+      setMessage(
+        `No fue posible iniciar el viaje: ${error.message}`
+      );
+      setVerifyingPin(false);
+      setProcessing(false);
+      return;
+    }
+
+    setPinInput("");
+    setMessage(
+      "PIN correcto. El viaje comenzó correctamente."
+    );
+
+    await loadTrip();
+
+    setVerifyingPin(false);
+    setProcessing(false);
+  }
+
   async function advanceStatus(nextStatus: TripStatus) {
     if (!trip) return;
+
+    if (nextStatus === "in_progress") {
+      await verifyPinAndStartTrip();
+      return;
+    }
 
     const confirmed = window.confirm(
       `¿Confirmas la acción "${statusLabels[nextStatus]}"?`
@@ -851,6 +1178,66 @@ export default function ActiveTripPage({
 
   const displayPrice =
     trip.final_price ?? trip.estimated_price;
+
+  const originCoordinates:
+    MapCoordinates | null =
+    trip.origin_lat !== null &&
+    trip.origin_lng !== null
+      ? {
+          lat: Number(trip.origin_lat),
+          lng: Number(trip.origin_lng),
+        }
+      : null;
+
+  const destinationCoordinates:
+    MapCoordinates | null =
+    trip.destination_lat !== null &&
+    trip.destination_lng !== null
+      ? {
+          lat: Number(
+            trip.destination_lat
+          ),
+          lng: Number(
+            trip.destination_lng
+          ),
+        }
+      : null;
+
+  const trackingToOrigin =
+    trip.status === "accepted" ||
+    trip.status === "driver_arriving" ||
+    trip.status === "driver_arrived";
+
+  const trackingToDestination =
+    trip.status === "in_progress";
+
+  const activeRouteOrigin =
+    (trackingToOrigin ||
+      trackingToDestination) &&
+    driverLocation
+      ? driverLocation
+      : originCoordinates;
+
+  const activeRouteDestination =
+    trackingToOrigin
+      ? originCoordinates
+      : destinationCoordinates;
+
+  const activeRouteLabel =
+    trackingToOrigin
+      ? "Conductor hacia el pasajero"
+      : trackingToDestination
+        ? "Camino al destino"
+        : "Ruta del viaje";
+
+  const trackingDescription =
+    trackingToOrigin
+      ? "El conductor se dirige al punto de recogida."
+      : trackingToDestination
+        ? "El vehículo avanza hacia el destino final."
+        : isCompleted
+          ? "Recorrido final del viaje."
+          : "Ruta programada del viaje.";
 
   return (
     <section className="space-y-8">
@@ -1107,33 +1494,325 @@ export default function ActiveTripPage({
 
       {!isSearching && (
         <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
-          <GoogleMapView
-            origin={
-              trip.origin_lat !== null &&
-              trip.origin_lng !== null
-                ? {
-                    lat: trip.origin_lat,
-                    lng: trip.origin_lng,
-                  }
-                : null
-            }
-            destination={
-              trip.destination_lat !== null &&
-              trip.destination_lng !== null
-                ? {
-                    lat: trip.destination_lat,
-                    lng: trip.destination_lng,
-                  }
-                : null
-            }
-            driverLocation={
-              driverLocation
-            }
-            showUserLocation={false}
-            showRoute
-          />
+          <div className="relative min-w-0">
+            <GoogleMapView
+              origin={originCoordinates}
+              destination={
+                destinationCoordinates
+              }
+              driverLocation={
+                driverLocation
+              }
+              routeOrigin={
+                activeRouteOrigin
+              }
+              routeDestination={
+                activeRouteDestination
+              }
+              routeLabel={
+                activeRouteLabel
+              }
+              onRouteMetricsChange={
+                setRouteMetrics
+              }
+              showUserLocation={false}
+              showRoute
+              heightClassName="h-[680px]"
+            />
+
+            {trip.driver_id &&
+              driverIdentity &&
+              !isCancelled && (
+                <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 sm:inset-x-5 sm:bottom-5">
+                  <div className="pointer-events-auto overflow-hidden rounded-[2rem] border border-white/80 bg-white/95 shadow-[0_25px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl">
+                    <div className="h-1.5 bg-yellow-400" />
+
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="relative shrink-0">
+                          {driverIdentity.avatarUrl ? (
+                            <img
+                              src={
+                                driverIdentity.avatarUrl
+                              }
+                              alt={
+                                driverIdentity.name
+                              }
+                              className="h-16 w-16 rounded-2xl object-cover shadow-lg"
+                            />
+                          ) : (
+                            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-950 text-xl font-black text-yellow-400 shadow-lg">
+                              {driverIdentity.name
+                                .trim()
+                                .charAt(0)
+                                .toUpperCase()}
+                            </span>
+                          )}
+
+                          {driverLocation && (
+                            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-4 border-white bg-emerald-500">
+                              <span className="h-2 w-2 rounded-full bg-white" />
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-700">
+                                Tu conductor
+                              </p>
+
+                              <h2 className="mt-1 truncate text-xl font-black text-slate-950">
+                                {driverIdentity.name}
+                              </h2>
+
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-slate-500">
+                                {driverIdentity.rating !==
+                                  null && (
+                                  <span className="inline-flex items-center gap-1 text-slate-700">
+                                    <Star
+                                      size={14}
+                                      className="fill-yellow-400 text-yellow-400"
+                                    />
+                                    {driverIdentity.rating.toFixed(
+                                      1
+                                    )}
+                                  </span>
+                                )}
+
+                                {driverIdentity.verified && (
+                                  <span className="inline-flex items-center gap-1 text-emerald-700">
+                                    <ShieldCheck
+                                      size={14}
+                                    />
+                                    Verificado
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 rounded-2xl bg-slate-950 px-3 py-2 text-right text-white shadow-lg">
+                              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                                Llegada
+                              </p>
+
+                              <p className="mt-0.5 text-sm font-black text-yellow-400">
+                                {routeMetrics?.durationText ??
+                                  "Calculando"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+                              <CarFront size={19} />
+                            </span>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-black text-slate-950">
+                                {[
+                                  driverIdentity.vehicleColor,
+                                  driverIdentity.vehicleBrand,
+                                  driverIdentity.vehicleModel,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ") ||
+                                  "Vehículo AXI"}
+                              </p>
+
+                              <p className="mt-0.5 truncate text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                {driverIdentity.vehiclePlates
+                                  ? `Placas ${driverIdentity.vehiclePlates}`
+                                  : "Placas por confirmar"}
+                              </p>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                                Distancia
+                              </p>
+
+                              <p className="mt-0.5 text-sm font-black text-slate-950">
+                                {routeMetrics?.distanceText ??
+                                  "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <Link
+                          href={`/dashboard/trips/${trip.id}/chat`}
+                          className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-3 text-sm font-black text-black transition hover:bg-yellow-300"
+                        >
+                          <MessageCircle size={18} />
+                          <span className="hidden sm:inline">
+                            Chat
+                          </span>
+                        </Link>
+
+                        <button
+                          type="button"
+                          disabled
+                          title="La llamada protegida se habilitará al integrar el proveedor telefónico."
+                          className="flex h-12 cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-100 px-3 text-sm font-black text-slate-400"
+                        >
+                          <Phone size={18} />
+                          <span className="hidden sm:inline">
+                            Llamar
+                          </span>
+                        </button>
+
+                        <a
+                          href="#trip-security-pin"
+                          className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 text-sm font-black text-white transition hover:bg-slate-800"
+                        >
+                          <ShieldCheck size={18} />
+                          <span className="hidden sm:inline">
+                            PIN
+                          </span>
+                        </a>
+                      </div>
+
+                      {role === "passenger" &&
+                        [
+                          "accepted",
+                          "driver_arriving",
+                          "driver_arrived",
+                        ].includes(
+                          trip.status
+                        ) && (
+                          <button
+                            type="button"
+                            onClick={
+                              cancelCurrentTrip
+                            }
+                            disabled={cancelling}
+                            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:pointer-events-none disabled:opacity-50"
+                          >
+                            <XCircle size={16} />
+
+                            {cancelling
+                              ? "Cancelando..."
+                              : "Cancelar viaje"}
+                          </button>
+                        )}
+
+                      <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-400">
+                        <span className="relative flex h-2.5 w-2.5">
+                          {driverLocation && (
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                          )}
+
+                          <span
+                            className={cn(
+                              "relative inline-flex h-2.5 w-2.5 rounded-full",
+                              driverLocation
+                                ? "bg-emerald-500"
+                                : "bg-amber-500"
+                            )}
+                          />
+                        </span>
+
+                        {driverLocation
+                          ? "Ubicación del conductor actualizándose en vivo"
+                          : "Esperando ubicación del conductor"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+          </div>
 
         <div className="space-y-6">
+          {!isCancelled && (
+            <Card className="overflow-hidden border-yellow-200 bg-[linear-gradient(135deg,#fffbeb,#ffffff)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-3 w-3">
+                      {(trackingToOrigin ||
+                        trackingToDestination) && (
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      )}
+
+                      <span
+                        className={cn(
+                          "relative inline-flex h-3 w-3 rounded-full",
+                          trackingToOrigin ||
+                            trackingToDestination
+                            ? "bg-emerald-500"
+                            : "bg-slate-400"
+                        )}
+                      />
+                    </span>
+
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-700">
+                      Seguimiento en vivo
+                    </p>
+                  </div>
+
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">
+                    {activeRouteLabel}
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {trackingDescription}
+                  </p>
+                </div>
+
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-yellow-400">
+                  <Navigation size={22} />
+                </span>
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-yellow-100 bg-white p-4 shadow-sm">
+                  <Route
+                    size={20}
+                    className="text-blue-600"
+                  />
+
+                  <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Distancia restante
+                  </p>
+
+                  <p className="mt-1 text-xl font-black text-slate-950">
+                    {routeMetrics?.distanceText ??
+                      "Calculando..."}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-100 bg-white p-4 shadow-sm">
+                  <Clock3
+                    size={20}
+                    className="text-emerald-600"
+                  />
+
+                  <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Tiempo estimado
+                  </p>
+
+                  <p className="mt-1 text-xl font-black text-slate-950">
+                    {routeMetrics?.durationText ??
+                      "Calculando..."}
+                  </p>
+                </div>
+              </div>
+
+              {!driverLocation &&
+                !isCompleted && (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-semibold leading-5 text-amber-800">
+                      Esperando la ubicación actual del conductor para calcular el recorrido en vivo.
+                    </p>
+                  </div>
+                )}
+            </Card>
+          )}
+
           <Card>
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-black">
@@ -1262,10 +1941,14 @@ export default function ActiveTripPage({
           {trip.driver_id &&
             !isCompleted &&
             !isCancelled && (
-              <TripPinCard
-                pin={null}
-                visibleToPassenger={role === "passenger"}
-              />
+              <div id="trip-security-pin">
+                <TripPinCard
+                  pin={tripPin}
+                  visibleToPassenger={
+                    role === "passenger"
+                  }
+                />
+              </div>
             )}
 
           {trip.driver_id &&
@@ -1361,6 +2044,51 @@ export default function ActiveTripPage({
               </p>
             </Card>
           )}
+
+
+          {role === "passenger" &&
+            [
+              "accepted",
+              "driver_arriving",
+              "driver_arrived",
+            ].includes(trip.status) && (
+              <Card className="border-red-100 bg-red-50">
+                <div className="flex items-start gap-4">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-700">
+                    <XCircle size={23} />
+                  </span>
+
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-red-600">
+                      Cancelación
+                    </p>
+
+                    <h2 className="mt-1 text-xl font-black text-slate-950">
+                      ¿Ya no necesitas el viaje?
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {trip.status === "driver_arrived"
+                        ? "El conductor ya llegó. La cancelación puede generar una penalización de $40 MXN."
+                        : "Ya existe un conductor asignado. La cancelación puede generar una penalización de $20 MXN."}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={cancelCurrentTrip}
+                  disabled={cancelling}
+                  className="mt-5 flex h-13 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-white px-5 font-black text-red-700 transition hover:bg-red-100 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <XCircle size={19} />
+
+                  {cancelling
+                    ? "Cancelando viaje..."
+                    : "Cancelar viaje"}
+                </button>
+              </Card>
+            )}
 
           {role === "driver" &&
             navigationTarget &&
@@ -1469,20 +2197,84 @@ export default function ActiveTripPage({
                   pasajero en tiempo real.
                 </p>
 
+                {trip.status ===
+                  "driver_arrived" && (
+                  <div className="mt-6">
+                    <label
+                      htmlFor="trip-security-pin-input"
+                      className="text-xs font-black uppercase tracking-[0.18em] text-slate-400"
+                    >
+                      PIN del pasajero
+                    </label>
+
+                    <input
+                      id="trip-security-pin-input"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={4}
+                      value={pinInput}
+                      onChange={(event) =>
+                        setPinInput(
+                          event.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 4)
+                        )
+                      }
+                      placeholder="0000"
+                      className="mt-3 h-16 w-full rounded-2xl border border-white/10 bg-white/10 px-5 text-center text-3xl font-black tracking-[0.5em] text-yellow-400 outline-none transition placeholder:text-slate-600 focus:border-yellow-400"
+                    />
+
+                    <p className="mt-3 text-center text-xs leading-5 text-slate-400">
+                      Solicita al pasajero el código de
+                      4 dígitos antes de iniciar.
+                    </p>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() =>
                     advanceStatus(driverAction.status)
                   }
-                  disabled={processing}
+                  disabled={
+                    processing ||
+                    cancelling ||
+                    (
+                      trip.status ===
+                        "driver_arrived" &&
+                      pinInput.length !== 4
+                    )
+                  }
                   className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-50"
                 >
-                  {processing
-                    ? "Actualizando..."
-                    : driverAction.label}
+                  {verifyingPin
+                    ? "Verificando PIN..."
+                    : processing
+                      ? "Actualizando..."
+                      : driverAction.label}
 
                   {!processing && <ArrowRight size={19} />}
                 </button>
+
+                {[
+                  "accepted",
+                  "driver_arriving",
+                  "driver_arrived",
+                ].includes(trip.status) && (
+                  <button
+                    type="button"
+                    onClick={cancelDriverAndReassignTrip}
+                    disabled={processing || cancelling}
+                    className="mt-3 flex h-13 w-full items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-5 font-black text-red-300 transition hover:border-red-400/50 hover:bg-red-500/20 hover:text-red-200 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <XCircle size={19} />
+
+                    {cancelling
+                      ? "Cancelando y reasignando..."
+                      : "Cancelar viaje"}
+                  </button>
+                )}
               </Card>
             )}
 
