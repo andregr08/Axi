@@ -113,6 +113,9 @@ export default function DriverProfilePage() {
         data: { session },
       } = await supabase.auth.getSession();
 
+      console.log("[AXI DRIVER] SESSION USER ID:", session?.user.id);
+      console.log("[AXI DRIVER] SESSION EMAIL:", session?.user.email);
+
       if (!session) {
         router.replace("/login");
         return;
