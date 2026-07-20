@@ -424,15 +424,99 @@ function shareLocation() {
     setProcessing(true);
     setMessage("");
 
-    if (
-      nextOnline &&
-      (latitude === null || longitude === null)
-    ) {
-      setProcessing(false);
-      setMessage(
-        "Actualiza tu ubicación antes de conectarte."
-      );
-      return;
+    if (nextOnline) {
+      if (!navigator.geolocation) {
+        setProcessing(false);
+        setMessage(
+          "Tu dispositivo o navegador no permite utilizar el GPS."
+        );
+        return;
+      }
+
+      let position: GeolocationPosition;
+
+      try {
+        position =
+          await new Promise<GeolocationPosition>(
+            (resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(
+                resolve,
+                reject,
+                {
+                  enableHighAccuracy: true,
+                  timeout: 20000,
+                  maximumAge: 0,
+                }
+              );
+            }
+          );
+      } catch (locationError) {
+        setProcessing(false);
+
+        const error =
+          locationError as GeolocationPositionError;
+
+        if (
+          error.code ===
+          error.PERMISSION_DENIED
+        ) {
+          setMessage(
+            "Debes permitir el acceso a tu ubicación para ponerte en línea."
+          );
+          return;
+        }
+
+        if (
+          error.code ===
+          error.POSITION_UNAVAILABLE
+        ) {
+          setMessage(
+            "No pudimos detectar tu ubicación. Revisa que el GPS esté activado."
+          );
+          return;
+        }
+
+        setMessage(
+          "La ubicación tardó demasiado en responder. Inténtalo nuevamente."
+        );
+        return;
+      }
+
+      const newLatitude =
+        position.coords.latitude;
+      const newLongitude =
+        position.coords.longitude;
+      const newAccuracy =
+        position.coords.accuracy;
+
+      const { error: locationError } =
+        await supabase.rpc(
+          "update_driver_location",
+          {
+            latitude_value: newLatitude,
+            longitude_value: newLongitude,
+            speed_value:
+              position.coords.speed,
+            heading_value:
+              position.coords.heading,
+            accuracy_value:
+              newAccuracy,
+          }
+        );
+
+      if (locationError) {
+        setProcessing(false);
+        setMessage(
+          `Error actualizando ubicación: ${locationError.message}`
+        );
+        return;
+      }
+
+      setLatitude(newLatitude);
+      setLongitude(newLongitude);
+      setAccuracy(newAccuracy);
+      lastLocationUpdate.current =
+        Date.now();
     }
 
     const { error } = await supabase.rpc(
@@ -456,7 +540,7 @@ function shareLocation() {
 
     setMessage(
       nextOnline
-        ? "Ya estás disponible para recibir solicitudes."
+        ? "Ya estás disponible. Tu ubicación se actualizará automáticamente mientras permanezcas en línea."
         : "Ahora estás fuera de línea y el seguimiento GPS se detuvo."
     );
   }
