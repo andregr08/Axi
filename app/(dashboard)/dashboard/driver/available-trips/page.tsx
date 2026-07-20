@@ -84,7 +84,6 @@ export default function AvailableTripsPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(0);
-const [driverId, setDriverId] = useState<string | null>(null);
 
   const loadOffers = useCallback(async (silent = false) => {
     if (!silent) {
@@ -114,7 +113,6 @@ const [driverId, setDriverId] = useState<string | null>(null);
           requested_at
         )
       `)
-      .eq("driver_id", driverId)
       .eq("status", "pending")
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: true });
@@ -127,7 +125,7 @@ const [driverId, setDriverId] = useState<string | null>(null);
 
     setLoading(false);
     setRefreshing(false);
-  }, [driverId]);
+  }, []);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -661,4 +659,5 @@ const [driverId, setDriverId] = useState<string | null>(null);
     </section>
   );
 }
+
 
