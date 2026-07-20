@@ -2,8 +2,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 export type RideType =
   | "economy"
-  | "comfort"
-  | "xl";
+  | "comfort";
 
 export type DynamicFareEstimate = {
   distance_km: number;
@@ -65,9 +64,8 @@ function parseFareEstimate(
       fare.duration_minutes ?? 0
     ),
     ride_type:
-      fare.ride_type === "comfort" ||
-      fare.ride_type === "xl"
-        ? fare.ride_type
+      fare.ride_type === "comfort"
+        ? "comfort"
         : "economy",
     base_fare: Number(
       fare.base_fare ?? 0

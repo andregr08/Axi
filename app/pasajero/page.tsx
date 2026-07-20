@@ -72,27 +72,19 @@ const BOOKING_FEE = 8;
 const rideOptions: RideOption[] = [
   {
     id: "economy",
-    name: "AXI Eco",
-    description: "Viajes cómodos a mejor precio",
+    name: "AXI 4",
+    description: "Hasta 4 pasajeros",
     passengers: 4,
     multiplier: 1,
     pickupMinutes: 4,
   },
   {
     id: "comfort",
-    name: "AXI Comfort",
-    description: "Autos más espaciosos y recientes",
-    passengers: 4,
-    multiplier: 1.35,
-    pickupMinutes: 6,
-  },
-  {
-    id: "xl",
-    name: "AXI XL",
-    description: "Más espacio para grupos",
+    name: "AXI 6",
+    description: "Hasta 6 pasajeros y equipaje",
     passengers: 6,
-    multiplier: 1.75,
-    pickupMinutes: 8,
+    multiplier: 1.25,
+    pickupMinutes: 6,
   },
 ];
 
@@ -1295,15 +1287,9 @@ function OptionsPanel({
                     : "bg-slate-100 text-slate-700"
                 )}
               >
-                {option.id === "xl" ? (
-                  <UsersRound
-                    size={27}
-                  />
-                ) : (
-                  <CarFront
-                    size={28}
-                  />
-                )}
+                <CarFront
+                  size={28}
+                />
               </span>
 
               <span className="min-w-0 flex-1">
