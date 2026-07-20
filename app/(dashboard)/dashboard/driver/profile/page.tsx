@@ -356,14 +356,26 @@ export default function DriverProfilePage() {
         <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="relative">
-              <span className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-yellow-400 text-3xl font-black text-black shadow-2xl shadow-yellow-400/20">
-                {initials || "AX"}
-              </span>
+  <AvatarUploader
+    userId={userId!}
+    fullName={profile.full_name}
+    currentAvatarUrl={profile.avatar_url}
+    onUploaded={(url) =>
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              avatar_url: url,
+            }
+          : prev
+      )
+    }
+  />
 
-              <span className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full border-4 border-slate-950 bg-emerald-500 text-white">
-                <BadgeCheck size={18} />
-              </span>
-            </div>
+  <span className="absolute -bottom-2 -right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full border-4 border-slate-950 bg-emerald-500 text-white">
+    <BadgeCheck size={18} />
+  </span>
+</div>
 
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
@@ -1022,6 +1034,7 @@ function ActivityCard({
     </article>
   );
 }
+
 
 
 
