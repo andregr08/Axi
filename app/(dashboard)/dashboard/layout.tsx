@@ -48,21 +48,32 @@ export default function DashboardLayout({
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, account_active")
         .eq("id", session.user.id)
         .single();
 
       if (error) {
         console.error(
-          "Error cargando rol:",
+          "Error cargando perfil:",
           error.message
         );
-        setRole("passenger");
-      } else {
-        setRole(
-          (data?.role as UserRole) ?? "passenger"
+
+        await supabase.auth.signOut();
+        router.replace(
+          "/login?error=account-verification"
         );
+        return;
       }
+
+      if (data?.account_active === false) {
+        await supabase.auth.signOut();
+        router.replace("/login?error=suspended");
+        return;
+      }
+
+      setRole(
+        (data?.role as UserRole) ?? "passenger"
+      );
 
       setLoadingRole(false);
     }
