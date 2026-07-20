@@ -147,6 +147,31 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function getPassengerFareTotal(
+  fare: DynamicFareEstimate | null | undefined
+) {
+  if (!fare) {
+    return null;
+  }
+
+  const platformCommission = Number(
+    fare.platform_commission ?? 0
+  );
+
+  const driverEarnings = Number(
+    fare.driver_earnings ?? 0
+  );
+
+  const fullFare =
+    platformCommission + driverEarnings;
+
+  if (fullFare > 0) {
+    return Number(fullFare.toFixed(2));
+  }
+
+  return Number(fare.estimated_price ?? 0);
+}
+
 function shortAddress(value: string) {
   const firstPart =
     value.split(",")[0]?.trim();
@@ -305,7 +330,7 @@ export default function PasajeroPage() {
     dynamicFares[rideType];
 
   const selectedPrice =
-    selectedFare?.estimated_price ??
+    getPassengerFareTotal(selectedFare) ??
     (estimate
       ? Math.round(
           estimate.basePrice *
@@ -1040,7 +1065,7 @@ function OptionsPanel({
     dynamicFares[selectedRideId];
 
   const selectedPrice =
-    selectedFare?.estimated_price ??
+    getPassengerFareTotal(selectedFare) ??
     Math.round(
       basePrice *
         selectedOption.multiplier
@@ -1151,7 +1176,7 @@ function OptionsPanel({
             dynamicFares[option.id];
 
           const price =
-            fare?.estimated_price ??
+            getPassengerFareTotal(fare) ??
             Math.round(
               basePrice *
                 option.multiplier
