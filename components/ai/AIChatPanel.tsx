@@ -89,9 +89,26 @@ export default function AIChatPanel({
   useEffect(() => {
     if (!open) return;
 
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscrollBehavior =
+      document.body.style.overscrollBehavior;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior =
+        previousOverscrollBehavior;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        handleClose();
       }
     }
 
@@ -104,6 +121,15 @@ export default function AIChatPanel({
       );
     };
   }, [open, onClose]);
+
+  function handleClose() {
+    const activeElement =
+      document.activeElement as HTMLElement | null;
+
+    activeElement?.blur();
+    setShowMobileHistory(false);
+    onClose();
+  }
 
   function submitMessage(
     event: FormEvent<HTMLFormElement>
@@ -131,19 +157,19 @@ export default function AIChatPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[998]">
+    <div className="fixed inset-0 z-[10050] h-[100dvh] overflow-hidden">
       <button
         type="button"
         aria-label="Cerrar AXI AI"
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full bg-slate-950/40 backdrop-blur-sm"
+        onClick={handleClose}
+        className="absolute inset-0 hidden h-full w-full bg-slate-950/40 backdrop-blur-sm lg:block"
       />
 
       <section
         role="dialog"
         aria-modal="true"
         aria-label="AXI AI"
-        className="absolute right-0 top-0 flex h-full w-full overflow-hidden bg-white shadow-2xl lg:max-w-5xl"
+        className="absolute inset-0 flex h-[100dvh] w-full overflow-hidden bg-white shadow-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:max-w-5xl"
       >
         <div className="hidden md:flex">
           <ConversationSidebar
@@ -187,7 +213,7 @@ export default function AIChatPanel({
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-5">
+          <header className="relative z-30 flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-5 lg:py-4">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -220,15 +246,15 @@ export default function AIChatPanel({
 
             <button
               type="button"
-              onClick={onClose}
-              aria-label="Cerrar panel"
-              className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
+              onClick={handleClose}
+              aria-label="Cerrar AXI AI"
+              className="ml-3 flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-2xl border border-slate-200 bg-slate-950 text-white shadow-lg transition active:scale-95 lg:bg-slate-100 lg:text-slate-700 lg:shadow-none lg:hover:bg-slate-200"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" strokeWidth={2.5} />
             </button>
           </header>
 
-          <div className="flex-1 overflow-y-auto bg-slate-50 px-4 py-5 sm:px-6">
+          <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto bg-slate-50 px-4 py-5 sm:px-6">
             <div className="mx-auto max-w-3xl space-y-4">
               {messages.map((message) => {
                 const isUser =
@@ -312,7 +338,7 @@ export default function AIChatPanel({
 
           <form
             onSubmit={submitMessage}
-            className="border-t border-slate-200 bg-white p-4"
+            className="shrink-0 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 sm:p-4"
           >
             <div className="mx-auto max-w-3xl">
               <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-white p-2 focus-within:border-yellow-400 focus-within:ring-2 focus-within:ring-yellow-100">
