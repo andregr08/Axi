@@ -7,8 +7,9 @@ import AIChatPanel from "@/components/ai/AIChatPanel";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Navbar } from "@/components/layout/Navbar";
 import { Sidebar } from "@/components/layout/Sidebar";
-import type { UserRole } from "@/lib/auth/roles";
+import { PushServiceWorker } from "@/components/notifications/PushServiceWorker";
 import { useAI } from "@/hooks/useAI";
+import type { UserRole } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabaseClient";
 import type { AIUserRole } from "@/types/ai";
 

@@ -26,6 +26,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { InternationalPhoneInput } from "@/components/forms/InternationalPhoneInput";
+import { PushNotificationsCard } from "@/components/notifications/PushNotificationsCard";
 import { Card } from "@/components/ui/Card";
 import {
   formatInternationalPhone,
