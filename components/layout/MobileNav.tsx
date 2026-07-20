@@ -60,8 +60,14 @@ export function MobileNav({
       visible: true,
     },
     {
-      href: "/dashboard/trips",
-      labelKey: "navigation.trips",
+      href:
+        role === "driver"
+          ? "/dashboard/driver/available-trips"
+          : "/dashboard/trips",
+      labelKey:
+        role === "driver"
+          ? "navigation.availableTrips"
+          : "navigation.myTrips",
       icon: Route,
       visible: true,
     },

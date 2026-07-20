@@ -12,6 +12,9 @@ import {
 } from "@/components/layout/Sidebar";
 import type { UserRole } from "@/lib/auth/roles";
 import { PushServiceWorker } from "@/components/notifications/PushServiceWorker";
+import AIFloatingButton from "@/components/ai/AIFloatingButton";
+import AIChatPanel from "@/components/ai/AIChatPanel";
+import { useAI } from "@/hooks/useAI";
 import { supabase } from "@/lib/supabaseClient";
 
 const AVAILABLE_TRIPS_PATH =
@@ -30,6 +33,16 @@ export default function DashboardLayout({
 
   const [loadingRole, setLoadingRole] =
     useState(true);
+
+  const {
+    open: aiOpen,
+    messages: aiMessages,
+    suggestions: aiSuggestions,
+    isStreaming: aiIsStreaming,
+    openAI,
+    closeAI,
+    sendMessage: sendAIMessage,
+  } = useAI(role ?? "passenger");
 
   useEffect(() => {
     async function loadRole() {
@@ -217,6 +230,20 @@ export default function DashboardLayout({
       </div>
 
       <PushServiceWorker />
+
+      {!aiOpen && (
+        <AIFloatingButton onClick={openAI} />
+      )}
+
+      <AIChatPanel
+        open={aiOpen}
+        role={role ?? "passenger"}
+        messages={aiMessages}
+        suggestions={aiSuggestions}
+        isStreaming={aiIsStreaming}
+        onClose={closeAI}
+        onSendMessage={sendAIMessage}
+      />
 
       <MobileNav
         role={role}
