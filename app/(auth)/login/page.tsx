@@ -191,12 +191,12 @@ export default function LoginPage() {
                   {t("login.password")}
                 </label>
 
-                <button
-                  type="button"
+                <Link
+                  href="/forgot-password"
                   className="text-xs font-bold text-slate-500 transition hover:text-slate-950"
                 >
                   {t("login.forgotPassword")}
-                </button>
+                </Link>
               </div>
 
               <div className="relative">

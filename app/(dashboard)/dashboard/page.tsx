@@ -16,6 +16,9 @@ import {
   Star,
   UserRound,
 } from "lucide-react";
+import { DriverHome } from "@/components/dashboard/DriverHome";
+import { AdminHome } from "@/components/dashboard/AdminHome";
+import { PassengerHome } from "@/components/dashboard/PassengerHome";
 import { Hero } from "@/components/dashboard/Hero";
 import { GoogleMapView } from "@/components/maps/GoogleMap";
 import { RideActionPanel } from "@/components/trips/RideActionPanel";
@@ -23,25 +26,35 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { useLanguage } from "@/hooks/useLanguage";
-
-type UserRole = "admin" | "driver" | "passenger";
+import {
+  isAdmin,
+  isSupport,
+  type UserRole,
+} from "@/lib/auth/roles";
 
 type Profile = {
   full_name: string | null;
   role: UserRole;
 };
 
-const roleNameKey: Record<UserRole, string> = {
-  admin: "roles.admin",
-  driver: "roles.driver",
-  passenger: "roles.passenger",
+const roleName: Record<UserRole, string> = {
+  director_general: "Director General",
+  admin: "Administrador",
+  support: "Soporte",
+  finance: "Finanzas",
+  driver: "Conductor",
+  passenger: "Pasajero",
 };
 
-const roleDescriptionKey: Record<UserRole, string> = {
-  admin: "roles.adminDescription",
-  driver: "roles.driverDescription",
-  passenger: "roles.passengerDescription",
+const roleDescription: Record<UserRole, string> = {
+  director_general: "Dirección y control total de la plataforma",
+  admin: "Control operativo de la plataforma",
+  support: "Atención y soporte a usuarios",
+  finance: "Administración financiera de la plataforma",
+  driver: "Listo para recibir viajes",
+  passenger: "Tu movilidad, en un solo lugar",
 };
+
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -105,6 +118,63 @@ export default function DashboardPage() {
 
   const role = profile?.role ?? "passenger";
   const displayName = profile?.full_name || t("common.user");
+
+  if (role === "driver") {
+    return (
+      <DriverHome
+        name={displayName}
+        email={email}
+      />
+    );
+  }
+
+  if (role === "passenger") {
+    return (
+      <PassengerHome
+        name={displayName}
+        email={email}
+      />
+    );
+  }
+
+
+  if (isAdmin(role)) {
+    return (
+      <AdminHome
+        name={displayName}
+        email={email}
+      />
+    );
+  }
+
+  if (isSupport(role)) {
+    return (
+      <section className="space-y-6">
+        <div className="overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-10 text-white sm:px-10">
+          <p className="text-sm font-semibold text-yellow-400">
+            Centro de soporte
+          </p>
+
+          <h1 className="mt-3 text-4xl font-black tracking-tight">
+            Hola, {displayName}
+          </h1>
+
+          <p className="mt-4 max-w-2xl leading-7 text-slate-300">
+            Consulta solicitudes, incidentes, viajes reportados y conversaciones
+            que necesitan atención.
+          </p>
+
+          <Link
+            href="/dashboard/admin/support"
+            className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-black text-black transition hover:bg-yellow-300"
+          >
+            Abrir panel de soporte
+            <ArrowUpRight size={18} />
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-8">
@@ -229,7 +299,7 @@ export default function DashboardPage() {
                 </span>
 
                 <Badge className="bg-white/10 text-white">
-                  {t(roleNameKey[role])}
+                  {roleName[role]}
                 </Badge>
               </div>
 
@@ -237,7 +307,7 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-slate-400">{email}</p>
 
               <p className="mt-5 text-sm leading-6 text-slate-300">
-                {t(roleDescriptionKey[role])}
+                {roleDescription[role]}
               </p>
 
               <Link
@@ -278,25 +348,25 @@ export default function DashboardPage() {
                 <ChevronRight size={18} className="text-slate-400" />
               </Link>
 
-              {(role === "driver" || role === "admin") && (
-                <Link
-                  href="/dashboard/vehicles"
-                  className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                    <CarFront size={20} />
-                  </span>
+              <Link
+                href="/dashboard/admin/finance"
+                className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+                  <CreditCard size={20} />
+                </span>
 
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-bold">{t("dashboard.vehicles")}</span>
-                    <span className="block truncate text-sm text-slate-500">
-                      {t("dashboard.vehicleDescription")}
-                    </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold">
+                    Panel financiero
                   </span>
+                  <span className="block truncate text-sm text-slate-500">
+                    Pagos, retiros, comisiones e incentivos
+                  </span>
+                </span>
 
-                  <ChevronRight size={18} className="text-slate-400" />
-                </Link>
-              )}
+                <ChevronRight size={18} className="text-slate-400" />
+              </Link>
             </div>
           </Card>
         </div>

@@ -8,6 +8,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth/roles";
 
 type DiscountType =
   | "percentage"
@@ -104,7 +105,7 @@ export default function AdminPromotionsPage() {
 
     if (
       profileError ||
-      profile?.role !== "admin"
+      !isAdmin(profile?.role)
     ) {
       router.replace("/dashboard");
       return;

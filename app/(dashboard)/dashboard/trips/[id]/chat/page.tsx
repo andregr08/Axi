@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   ChangeEvent,
   FormEvent,
@@ -8,6 +9,19 @@ import {
   useState,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Camera,
+  CheckCheck,
+  ImagePlus,
+  MapPin,
+  MessageCircle,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  X,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 type TripData = {
@@ -44,6 +58,14 @@ const ACTIVE_CHAT_STATUSES = [
   "driver_arriving",
   "driver_arrived",
   "in_progress",
+];
+
+const QUICK_MESSAGES = [
+  "Ya estoy en el punto de recogida.",
+  "Voy en camino.",
+  "Estoy afuera.",
+  "¿Me puedes compartir una referencia?",
+  "Gracias, te espero aquí.",
 ];
 
 export default function TripChatPage() {
@@ -146,14 +168,23 @@ export default function TripChatPage() {
   async function markReceivedAsRead(
     userId: string
   ) {
-    await supabase
-      .from("trip_messages")
-      .update({
-        read_at: new Date().toISOString(),
-      })
-      .eq("trip_id", tripId)
-      .neq("sender_id", userId)
-      .is("read_at", null);
+    if (!userId) {
+      return;
+    }
+
+    const { error } = await supabase.rpc(
+      "mark_trip_messages_read",
+      {
+        requested_trip_id: tripId,
+      }
+    );
+
+    if (error) {
+      console.error(
+        "Error marcando mensajes como leídos:",
+        error.message
+      );
+    }
   }
 
   function refreshTypingState(
@@ -717,46 +748,73 @@ export default function TripChatPage() {
   }
 
   return (
-    <section className="mx-auto max-w-3xl">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-gray-500">
-            Chat del viaje
-          </p>
+    <section className="mx-auto max-w-4xl space-y-6">
+      <div className="overflow-hidden rounded-[2rem] bg-[#0B0F19] text-white shadow-[0_25px_80px_rgba(15,23,42,0.2)]">
+        <div className="relative p-6 sm:p-8">
+          <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-yellow-400/20 blur-3xl" />
 
-          <h1 className="mt-1 text-2xl font-bold">
-            {otherUserName}
-          </h1>
+          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(`/dashboard/trips/${trip.id}`)
+                }
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition hover:bg-white/10"
+                aria-label="Volver al viaje"
+              >
+                <ArrowLeft size={20} />
+              </button>
 
-          {otherUserTyping && (
-            <p className="mt-1 text-sm text-green-600">
-              Escribiendo...
-            </p>
-          )}
-        </div>
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                <UserRound size={25} />
+              </span>
 
-        <button
-          type="button"
-          onClick={() =>
-            router.push(`/dashboard/trips/${trip.id}`)
-          }
-          className="rounded-xl border px-4 py-2 font-semibold hover:bg-gray-50"
-        >
-          Volver al viaje
-        </button>
-      </div>
-
-      <div className="flex h-[650px] flex-col overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="flex-1 overflow-y-auto p-5">
-          {messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-center">
-              <div>
-                <p className="font-semibold text-gray-700">
-                  Todavía no hay mensajes
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
+                  Chat protegido por AXI
                 </p>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Escribe el primero para coordinar el viaje.
+                <h1 className="mt-1 truncate text-2xl font-black">
+                  {otherUserName}
+                </h1>
+
+                <p className="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  {otherUserTyping
+                    ? "Escribiendo..."
+                    : "Disponible durante el viaje"}
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href={`/dashboard/trips/${trip.id}/report`}
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-red-500/10 px-5 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+            >
+              <ShieldCheck size={18} />
+              Seguridad
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex h-[min(720px,calc(100vh-210px))] min-h-[580px] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)]">
+        <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.08),_transparent_28%)] p-4 sm:p-6">
+          {messages.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-center">
+              <div className="max-w-sm">
+                <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-yellow-100 text-yellow-700">
+                  <MessageCircle size={34} />
+                </span>
+
+                <h2 className="mt-6 text-2xl font-black text-slate-950">
+                  Inicia la conversación
+                </h2>
+
+                <p className="mt-3 text-sm leading-6 text-slate-500">
+                  Coordina el punto de encuentro sin compartir tu número
+                  personal.
                 </p>
               </div>
             </div>
@@ -787,10 +845,10 @@ export default function TripChatPage() {
                     }`}
                   >
                     <div
-                      className={`max-w-[78%] overflow-hidden rounded-2xl ${
+                      className={`max-w-[84%] overflow-hidden shadow-sm sm:max-w-[72%] ${
                         isMine
-                          ? "bg-black text-white"
-                          : "bg-gray-100 text-gray-900"
+                          ? "rounded-[1.4rem] rounded-br-md bg-slate-950 text-white"
+                          : "rounded-[1.4rem] rounded-bl-md border border-slate-200 bg-white text-slate-900"
                       }`}
                     >
                       {attachment && imageUrl && (
@@ -833,7 +891,16 @@ export default function TripChatPage() {
                           </span>
 
                           {isMine && (
-                            <span>
+                            <span className="flex items-center gap-1">
+                              <CheckCheck
+                                size={13}
+                                className={
+                                  chatMessage.read_at
+                                    ? "text-blue-400"
+                                    : ""
+                                }
+                              />
+
                               {chatMessage.read_at
                                 ? "Leído"
                                 : "Enviado"}
@@ -859,8 +926,29 @@ export default function TripChatPage() {
           )}
         </div>
 
+        <div className="border-t border-slate-100 bg-white px-4 py-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="flex shrink-0 items-center gap-1 text-xs font-black text-slate-400">
+              <Sparkles size={14} />
+              Respuestas rápidas
+            </span>
+
+            {QUICK_MESSAGES.map((quickMessage) => (
+              <button
+                key={quickMessage}
+                type="button"
+                onClick={() => handleTextChange(quickMessage)}
+                disabled={sending}
+                className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-yellow-300 hover:bg-yellow-50 disabled:opacity-50"
+              >
+                {quickMessage}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {previewUrl && selectedImage && (
-          <div className="border-t bg-gray-50 p-4">
+          <div className="border-t border-slate-100 bg-slate-50 p-4">
             <div className="flex items-start gap-4 rounded-xl bg-white p-3">
               <img
                 src={previewUrl}
@@ -880,8 +968,9 @@ export default function TripChatPage() {
                 <button
                   type="button"
                   onClick={clearSelectedImage}
-                  className="mt-3 text-sm font-semibold text-red-600"
+                  className="mt-3 inline-flex items-center gap-1 text-sm font-black text-red-600"
                 >
+                  <X size={15} />
                   Quitar imagen
                 </button>
               </div>
@@ -897,7 +986,7 @@ export default function TripChatPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="border-t p-4"
+          className="border-t border-slate-100 bg-white p-4 sm:p-5"
         >
           <input
             ref={fileInputRef}
@@ -915,10 +1004,10 @@ export default function TripChatPage() {
                 fileInputRef.current?.click()
               }
               disabled={sending}
-              className="flex h-12 w-12 flex-none items-center justify-center rounded-xl border text-xl hover:bg-gray-50 disabled:opacity-50"
+              className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-yellow-300 hover:bg-yellow-50 disabled:opacity-50"
               aria-label="Adjuntar imagen"
             >
-              +
+              <ImagePlus size={21} />
             </button>
 
             <textarea
@@ -933,7 +1022,7 @@ export default function TripChatPage() {
                   ? "Agrega un comentario opcional..."
                   : "Escribe un mensaje..."
               }
-              className="min-h-12 flex-1 resize-none rounded-xl border px-4 py-3 outline-none focus:border-black"
+              className="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-yellow-400 focus:bg-white"
             />
 
             <button
@@ -942,13 +1031,20 @@ export default function TripChatPage() {
                 sending ||
                 (!text.trim() && !selectedImage)
               }
-              className="h-12 rounded-xl bg-black px-6 font-semibold text-white disabled:opacity-50"
+              className="flex h-12 min-w-12 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-4 font-black text-black transition hover:bg-yellow-300 disabled:opacity-50 sm:px-6"
             >
-              {sending
-                ? "Enviando..."
-                : selectedImage
-                  ? "Enviar foto"
-                  : "Enviar"}
+              {sending ? (
+                "Enviando..."
+              ) : (
+                <>
+                  <Send size={18} />
+                  <span className="hidden sm:inline">
+                    {selectedImage
+                      ? "Enviar foto"
+                      : "Enviar"}
+                  </span>
+                </>
+              )}
             </button>
           </div>
 

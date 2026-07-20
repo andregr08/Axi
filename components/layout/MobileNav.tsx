@@ -18,7 +18,13 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import type { UserRole } from "@/components/layout/Sidebar";
+import {
+  getRoleLabel,
+  isAdmin,
+  isFinance,
+  isSupport,
+  type UserRole,
+} from "@/lib/auth/roles";
 import { Logo } from "@/components/shared/Logo";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
@@ -30,8 +36,10 @@ interface MobileNavProps {
 
 type NavigationItem = {
   href: string;
-  labelKey: string;
+  labelKey?: string;
+  label?: string;
   descriptionKey?: string;
+  description?: string;
   icon: LucideIcon;
   visible: boolean;
 };
@@ -97,12 +105,20 @@ export function MobileNav({
       visible: role === "driver",
     },
     {
+      href: "/dashboard/driver/profile",
+      label: "Mi rendimiento",
+      description: "Consulta ganancias, viajes y calificación",
+      icon: UserRound,
+      visible: role === "driver",
+    },
+    {
       href: "/dashboard/vehicles",
       labelKey: "navigation.myVehicles",
       descriptionKey: "navigation.manageFleet",
       icon: CarFront,
-      visible:
-        role === "driver" || role === "admin",
+
+      visible: role === "driver" || isAdmin(role),
+
     },
     {
       href:
@@ -111,7 +127,7 @@ export function MobileNav({
       descriptionKey:
         "navigation.reviewDrivers",
       icon: ClipboardCheck,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/drivers",
@@ -119,7 +135,7 @@ export function MobileNav({
       descriptionKey:
         "navigation.manageDrivers",
       icon: CarFront,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/passengers",
@@ -127,7 +143,7 @@ export function MobileNav({
       descriptionKey:
         "navigation.registeredUsers",
       icon: UsersRound,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/vehicles",
@@ -135,7 +151,7 @@ export function MobileNav({
       descriptionKey:
         "navigation.superviseFleet",
       icon: CarFront,
-      visible: role === "admin",
+      visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/trips",
@@ -143,7 +159,21 @@ export function MobileNav({
       descriptionKey:
         "navigation.superviseTrips",
       icon: ShieldCheck,
-      visible: role === "admin",
+      visible: isAdmin(role),
+    },
+    {
+      href: "/dashboard/admin/support",
+      label: "Soporte",
+      description: "Gestiona tickets, reportes e incidentes",
+      icon: ShieldCheck,
+      visible: isSupport(role),
+    },
+    {
+      href: "/dashboard/admin/finance",
+      label: "Finanzas",
+      description: "Pagos, retiros, comisiones e incentivos",
+      icon: CreditCard,
+      visible: isFinance(role),
     },
   ];
 
@@ -214,7 +244,9 @@ export function MobileNav({
 
                   <div>
                     <p className="font-black">
-                      {roleName}
+
+                      {getRoleLabel(role)}
+
                     </p>
 
                     <p className="mt-1 text-xs text-slate-400">
@@ -265,7 +297,7 @@ export function MobileNav({
 
                         <span className="min-w-0 flex-1">
                           <span className="block font-black text-slate-950">
-                            {t(item.labelKey)}
+                            {item.labelKey ? t(item.labelKey) : item.label}
                           </span>
 
                           {item.descriptionKey && (
@@ -329,7 +361,7 @@ export function MobileNav({
                 </span>
 
                 <span className="truncate">
-                  {t(item.labelKey)}
+                  {item.labelKey ? t(item.labelKey) : item.label}
                 </span>
               </Link>
             );

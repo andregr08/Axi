@@ -18,6 +18,8 @@ import {
   LocateFixed,
   MapPin,
   Navigation,
+  PauseCircle,
+  PlayCircle,
   Power,
   Radio,
   RefreshCw,
@@ -26,163 +28,310 @@ import {
   ShieldCheck,
   Signal,
   SignalZero,
+  Star,
+  WalletCards,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { isDriver } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
+
+type DriverOperationalStatus =
+  | "offline"
+  | "available"
+  | "offer_pending"
+  | "to_pickup"
+  | "on_trip"
+  | "paused";
+
+type DriverStats = {
+  earnings_today: number;
+  earnings_week: number;
+  earnings_month: number;
+  completed_trips: number;
+  trips_today: number;
+  trips_week: number;
+  worked_hours: number;
+  average_rating: number;
+  rating_count: number;
+};
+
+const operationalStatusLabels: Record<
+  DriverOperationalStatus,
+  string
+> = {
+  offline: "Fuera de línea",
+  available: "Disponible",
+  offer_pending: "Oferta pendiente",
+  to_pickup: "Recogiendo pasajero",
+  on_trip: "En viaje",
+  paused: "Solicitudes pausadas",
+};
+
+const operationalStatusDescriptions: Record<
+  DriverOperationalStatus,
+  string
+> = {
+  offline:
+    "Conéctate para comenzar a recibir solicitudes de viaje.",
+  available:
+    "Estás disponible y puedes recibir nuevas solicitudes.",
+  offer_pending:
+    "Tienes una solicitud pendiente por aceptar o rechazar.",
+  to_pickup:
+    "Tienes un viaje aceptado y debes dirigirte al pasajero.",
+  on_trip:
+    "Actualmente estás realizando un viaje.",
+  paused:
+    "Sigues conectado, pero no recibirás nuevas solicitudes.",
+};
+
+const EMPTY_STATS: DriverStats = {
+  earnings_today: 0,
+  earnings_week: 0,
+  earnings_month: 0,
+  completed_trips: 0,
+  trips_today: 0,
+  trips_week: 0,
+  worked_hours: 0,
+  average_rating: 0,
+  rating_count: 0,
+};
 
 export default function DriverStatusPage() {
   const router = useRouter();
 
   const [online, setOnline] = useState(false);
+  const [
+    operationalStatus,
+    setOperationalStatus,
+  ] = useState<DriverOperationalStatus>("offline");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [stats, setStats] = useState<DriverStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [refreshingStats, setRefreshingStats] = useState(false);
   const [message, setMessage] = useState("");
 
-  const watchIdRef = useRef<number | null>(null);
-  const lastLocationSentAtRef = useRef(0);
+  const locationWatchId = useRef<number | null>(null);
+  const lastLocationUpdate = useRef(0);
 
-  const loadDriverStatus = useCallback(async () => {
-    setLoading(true);
-    setMessage("");
+  const loadDriverStatus = useCallback(
+    async (silent = false) => {
+      if (silent) {
+        setRefreshingStats(true);
+      } else {
+        setLoading(true);
+      }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      setMessage("");
 
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", session.user.id)
-      .single();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
 
-    if (profile?.role !== "driver") {
-      router.replace("/dashboard");
-      return;
-    }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
 
-    const { data: driver, error } = await supabase
-      .from("drivers")
-      .select("online, current_lat, current_lng")
-      .eq("id", session.user.id)
-      .single();
+      if (!isDriver(profile?.role)) {
+        router.replace("/dashboard");
+        return;
+      }
 
-    if (error) {
-      setMessage(`Error cargando estado: ${error.message}`);
-    } else {
-      setOnline(Boolean(driver.online));
-      setLatitude(driver.current_lat);
-      setLongitude(driver.current_lng);
-    }
+      const [
+        driverResult,
+        statsResult,
+      ] = await Promise.all([
+        supabase
+          .from("drivers")
+          .select(
+            "online, operational_status, current_lat, current_lng"
+          )
+          .eq("id", session.user.id)
+          .single(),
 
-    setLoading(false);
-  }, [router]);
+        supabase.rpc(
+          "get_driver_dashboard_stats"
+        ),
+      ]);
+
+      if (driverResult.error) {
+        setMessage(
+          `Error cargando estado: ${driverResult.error.message}`
+        );
+      } else {
+        setOnline(
+          Boolean(driverResult.data.online)
+        );
+        setOperationalStatus(
+          (
+            driverResult.data.operational_status ??
+            (driverResult.data.online
+              ? "available"
+              : "offline")
+          ) as DriverOperationalStatus
+        );
+        setLatitude(
+          driverResult.data.current_lat
+        );
+        setLongitude(
+          driverResult.data.current_lng
+        );
+      }
+
+      if (statsResult.error) {
+        setMessage(
+          `Error cargando estadísticas: ${statsResult.error.message}`
+        );
+      } else {
+        const resolvedStats =
+          Array.isArray(statsResult.data)
+            ? statsResult.data[0]
+            : statsResult.data;
+
+        setStats({
+          ...EMPTY_STATS,
+          ...(resolvedStats as Partial<DriverStats> | null),
+        });
+      }
+
+      setLoading(false);
+      setRefreshingStats(false);
+    },
+    [router]
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDriverStatus();
   }, [loadDriverStatus]);
 
-  async function saveDriverPosition(
-    position: GeolocationPosition,
-    showSuccessMessage = false
-  ) {
-    const now = Date.now();
+  useEffect(() => {
+    const channel = supabase
+      .channel(
+        `driver-operational-status-${crypto.randomUUID()}`
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "drivers",
+        },
+        (payload) => {
+          const nextDriver = payload.new as {
+            id?: string;
+            online?: boolean;
+            operational_status?: DriverOperationalStatus;
+          };
 
-    // Evita mandar demasiadas escrituras a Supabase.
+          void supabase.auth
+            .getSession()
+            .then(({ data }) => {
+              if (
+                data.session?.user.id !==
+                nextDriver.id
+              ) {
+                return;
+              }
+
+              setOnline(
+                Boolean(nextDriver.online)
+              );
+
+              if (
+                nextDriver.operational_status
+              ) {
+                setOperationalStatus(
+                  nextDriver.operational_status
+                );
+              }
+            });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
     if (
-      !showSuccessMessage &&
-      now - lastLocationSentAtRef.current < 4000
+      !online ||
+      !navigator.geolocation
     ) {
-      return;
-    }
+      if (locationWatchId.current !== null) {
+        navigator.geolocation.clearWatch(
+          locationWatchId.current
+        );
 
-    lastLocationSentAtRef.current = now;
-
-    const newLatitude =
-      position.coords.latitude;
-
-    const newLongitude =
-      position.coords.longitude;
-
-    const newAccuracy =
-      position.coords.accuracy;
-
-    const speedKmh =
-      position.coords.speed === null
-        ? null
-        : position.coords.speed * 3.6;
-
-    const { error } = await supabase.rpc(
-      "update_driver_location",
-      {
-        latitude_value: newLatitude,
-        longitude_value: newLongitude,
-        speed_value: speedKmh,
-        heading_value:
-          position.coords.heading,
-        accuracy_value: newAccuracy,
+        locationWatchId.current = null;
       }
-    );
 
-    if (error) {
-      setMessage(
-        `Error actualizando ubicaciÃƒÂ³n: ${error.message}`
-      );
       return;
     }
 
-    setLatitude(newLatitude);
-    setLongitude(newLongitude);
-    setAccuracy(newAccuracy);
-
-    if (showSuccessMessage) {
-      setMessage(
-        "UbicaciÃƒÂ³n actualizada correctamente."
-      );
-    }
-  }
-
-  function stopLocationTracking() {
-    if (
-      watchIdRef.current !== null &&
-      navigator.geolocation
-    ) {
-      navigator.geolocation.clearWatch(
-        watchIdRef.current
-      );
-
-      watchIdRef.current = null;
-    }
-  }
-
-  function startLocationTracking() {
-    setMessage("");
-
-    if (!navigator.geolocation) {
-      setMessage(
-        "Tu navegador no permite utilizar la ubicaciÃƒÂ³n."
-      );
-      return;
-    }
-
-    if (watchIdRef.current !== null) {
-      return;
-    }
-
-    watchIdRef.current =
+    locationWatchId.current =
       navigator.geolocation.watchPosition(
         (position) => {
-          void saveDriverPosition(position);
+          const now = Date.now();
+
+          setLatitude(
+            position.coords.latitude
+          );
+          setLongitude(
+            position.coords.longitude
+          );
+          setAccuracy(
+            position.coords.accuracy
+          );
+
+          if (
+            now -
+              lastLocationUpdate.current <
+            5000
+          ) {
+            return;
+          }
+
+          lastLocationUpdate.current = now;
+
+          void supabase
+            .rpc(
+              "update_driver_location",
+              {
+                latitude_value:
+                  position.coords.latitude,
+                longitude_value:
+                  position.coords.longitude,
+                speed_value:
+                  position.coords.speed,
+                heading_value:
+                  position.coords.heading,
+                accuracy_value:
+                  position.coords.accuracy,
+              }
+            )
+            .then(({ error }) => {
+              if (error) {
+                console.error(
+                  "Error actualizando GPS continuo:",
+                  error.message
+                );
+              }
+            });
         },
         (error) => {
           if (
@@ -190,54 +339,35 @@ export default function DriverStatusPage() {
             error.PERMISSION_DENIED
           ) {
             setMessage(
-              "Debes permitir el acceso al GPS."
+              "Debes permitir el acceso continuo al GPS para permanecer en línea."
             );
-            stopLocationTracking();
-            return;
           }
-
-          if (
-            error.code ===
-            error.POSITION_UNAVAILABLE
-          ) {
-            setMessage(
-              "La ubicaciÃƒÂ³n no estÃƒÂ¡ disponible en este momento."
-            );
-            return;
-          }
-
-          setMessage(
-            "No pudimos actualizar tu ubicaciÃƒÂ³n."
-          );
         },
         {
           enableHighAccuracy: true,
-          timeout: 15000,
+          timeout: 20000,
           maximumAge: 5000,
         }
       );
-  }
 
-  useEffect(() => {
     return () => {
       if (
-        watchIdRef.current !== null &&
-        navigator.geolocation
+        locationWatchId.current !== null
       ) {
         navigator.geolocation.clearWatch(
-          watchIdRef.current
+          locationWatchId.current
         );
+
+        locationWatchId.current = null;
       }
     };
-  }, []);
+  }, [online]);
 
 function shareLocation() {
     setMessage("");
 
     if (!navigator.geolocation) {
-      setMessage(
-        "Tu navegador no permite utilizar la ubicaciÃƒÂ³n."
-      );
+      setMessage("Tu navegador no permite utilizar la ubicación.");
       return;
     }
 
@@ -245,37 +375,51 @@ function shareLocation() {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        await saveDriverPosition(
-          position,
-          true
+        const newLatitude = position.coords.latitude;
+        const newLongitude = position.coords.longitude;
+        const newAccuracy = position.coords.accuracy;
+
+        const { error } = await supabase.rpc(
+          "update_driver_location",
+          {
+            latitude_value: newLatitude,
+            longitude_value: newLongitude,
+            speed_value: position.coords.speed,
+            heading_value: position.coords.heading,
+            accuracy_value: newAccuracy,
+          }
         );
 
         setLocating(false);
+
+        if (error) {
+          setMessage(`Error actualizando ubicación: ${error.message}`);
+          return;
+        }
+
+        setLatitude(newLatitude);
+        setLongitude(newLongitude);
+        setAccuracy(newAccuracy);
+        setMessage("Ubicación actualizada correctamente.");
       },
       (error) => {
         setLocating(false);
 
-        if (
-          error.code ===
-          error.PERMISSION_DENIED
-        ) {
-          setMessage(
-            "Debes permitir el acceso al GPS."
-          );
+        if (error.code === error.PERMISSION_DENIED) {
+          setMessage("Debes permitir el acceso al GPS.");
           return;
         }
 
-        setMessage(
-          "No pudimos obtener tu ubicaciÃƒÂ³n."
-        );
+        setMessage("No pudimos obtener tu ubicación.");
       },
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 5000,
+        maximumAge: 10000,
       }
     );
   }
+
   async function changeOnlineStatus(nextOnline: boolean) {
     setProcessing(true);
     setMessage("");
@@ -286,7 +430,7 @@ function shareLocation() {
     ) {
       setProcessing(false);
       setMessage(
-        "Actualiza tu ubicaciÃƒÆ’Ã‚Â³n antes de conectarte."
+        "Actualiza tu ubicación antes de conectarte."
       );
       return;
     }
@@ -306,17 +450,64 @@ function shareLocation() {
     }
 
     setOnline(nextOnline);
+    setOperationalStatus(
+      nextOnline ? "available" : "offline"
+    );
 
-    if (nextOnline) {
-      startLocationTracking();
-    } else {
-      stopLocationTracking();
-    }
     setMessage(
       nextOnline
-        ? "Ya estÃƒÆ’Ã‚Â¡s en lÃƒÆ’Ã‚Â­nea y puedes recibir viajes."
-        : "Ahora estÃƒÆ’Ã‚Â¡s fuera de lÃƒÆ’Ã‚Â­nea."
+        ? "Ya estás disponible para recibir solicitudes."
+        : "Ahora estás fuera de línea y el seguimiento GPS se detuvo."
     );
+  }
+
+  async function changeOperationalStatus(
+    nextStatus: "available" | "paused"
+  ) {
+    setProcessing(true);
+    setMessage("");
+
+    const { data, error } = await supabase.rpc(
+      "set_driver_operational_status",
+      {
+        next_status: nextStatus,
+      }
+    );
+
+    setProcessing(false);
+
+    if (error) {
+      setMessage(`Error: ${error.message}`);
+      return;
+    }
+
+    const resolvedStatus =
+      (data ?? nextStatus) as DriverOperationalStatus;
+
+    setOperationalStatus(resolvedStatus);
+
+    setMessage(
+      resolvedStatus === "paused"
+        ? "Pausaste las solicitudes. Seguirás conectado y compartiendo tu ubicación."
+        : "Reanudaste las solicitudes y ya estás disponible."
+    );
+  }
+
+  function formatMoney(value: number) {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+    }).format(Number(value ?? 0));
+  }
+
+  function formatHours(value: number) {
+    const hours = Number(value ?? 0);
+
+    if (hours < 1) {
+      return `${Math.round(hours * 60)} min`;
+    }
+
+    return `${hours.toFixed(1)} h`;
   }
 
   if (loading) {
@@ -335,9 +526,27 @@ function shareLocation() {
   const hasLocation =
     latitude !== null && longitude !== null;
 
+  const currentStatusLabel =
+    operationalStatusLabels[operationalStatus];
+
+  const currentStatusDescription =
+    operationalStatusDescriptions[operationalStatus];
+
+  const isBusy =
+    operationalStatus === "to_pickup" ||
+    operationalStatus === "on_trip";
+
+  const canPause =
+    online &&
+    operationalStatus === "available";
+
+  const canResume =
+    online &&
+    operationalStatus === "paused";
+
   const locationQuality =
     accuracy === null
-      ? "Sin mediciÃƒÆ’Ã‚Â³n"
+      ? "Sin medición"
       : accuracy <= 20
         ? "Excelente"
         : accuracy <= 50
@@ -381,20 +590,27 @@ function shareLocation() {
                 <SignalZero size={15} />
               )}
 
-              {online
-                ? "Conductor conectado"
-                : "Conductor desconectado"}
+              {currentStatusLabel}
             </span>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
-              {online
+              {operationalStatus === "available"
                 ? "Ya puedes recibir viajes"
-                : "Inicia tu jornada con AXI"}
+                : operationalStatus === "offer_pending"
+                  ? "Tienes una nueva solicitud"
+                  : operationalStatus === "to_pickup"
+                    ? "Dirígete al pasajero"
+                    : operationalStatus === "on_trip"
+                      ? "Viaje en curso"
+                      : operationalStatus === "paused"
+                        ? "Solicitudes pausadas"
+                        : "Inicia tu jornada con AXI"}
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Comparte tu ubicaciÃƒÆ’Ã‚Â³n, activa tu disponibilidad y mantÃƒÆ’Ã‚Â©n
-              actualizado tu estado para recibir solicitudes cercanas.
+              {currentStatusDescription} Mientras permanezcas en línea,
+              AXI actualizará automáticamente tu posición para solicitudes
+              y viajes activos.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -418,7 +634,7 @@ function shareLocation() {
                 </p>
 
                 <p className="mt-2 text-3xl font-black">
-                  {online ? "En lÃƒÆ’Ã‚Â­nea" : "Fuera de lÃƒÆ’Ã‚Â­nea"}
+                  {currentStatusLabel}
                 </p>
               </div>
 
@@ -434,12 +650,42 @@ function shareLocation() {
               </span>
             </div>
 
+            {(canPause || canResume) && (
+              <button
+                type="button"
+                onClick={() =>
+                  changeOperationalStatus(
+                    canPause
+                      ? "paused"
+                      : "available"
+                  )
+                }
+                disabled={processing}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 font-black text-white transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-50"
+              >
+                {canPause ? (
+                  <PauseCircle size={20} />
+                ) : (
+                  <PlayCircle size={20} />
+                )}
+
+                {processing
+                  ? "Procesando..."
+                  : canPause
+                    ? "Pausar solicitudes"
+                    : "Reanudar solicitudes"}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => changeOnlineStatus(!online)}
-              disabled={processing}
+              disabled={processing || isBusy}
               className={cn(
-                "mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-5 font-black transition disabled:pointer-events-none disabled:opacity-50",
+                "flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-5 font-black transition disabled:pointer-events-none disabled:opacity-50",
+                canPause || canResume
+                  ? "mt-3"
+                  : "mt-6",
                 online
                   ? "bg-white text-red-700 hover:bg-red-50"
                   : "bg-yellow-400 text-black hover:bg-yellow-300"
@@ -447,9 +693,11 @@ function shareLocation() {
             >
               {processing
                 ? "Procesando..."
-                : online
-                  ? "Terminar jornada"
-                  : "Ponerme en lÃƒÆ’Ã‚Â­nea"}
+                : isBusy
+                  ? "Viaje activo"
+                  : online
+                    ? "Terminar jornada"
+                    : "Ponerme en línea"}
 
               {!processing && <ArrowRight size={19} />}
             </button>
@@ -478,15 +726,15 @@ function shareLocation() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  PosiciÃƒÆ’Ã‚Â³n del conductor
+                  Posición del conductor
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  UbicaciÃƒÆ’Ã‚Â³n GPS
+                  Ubicación GPS
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Actualiza tu ubicaciÃƒÆ’Ã‚Â³n antes de conectarte.
+                  Actualiza tu ubicación antes de conectarte.
                 </p>
               </div>
 
@@ -533,7 +781,7 @@ function shareLocation() {
                   <Gauge size={21} className="text-blue-600" />
 
                   <p className="mt-4 text-xs font-black uppercase tracking-wider text-slate-400">
-                    PrecisiÃƒÆ’Ã‚Â³n
+                    Precisión
                   </p>
 
                   <p className="mt-2 font-black text-slate-950">
@@ -556,10 +804,10 @@ function shareLocation() {
                 />
 
                 {locating
-                  ? "Obteniendo ubicaciÃƒÆ’Ã‚Â³n..."
+                  ? "Obteniendo ubicación..."
                   : hasLocation
-                    ? "Actualizar mi ubicaciÃƒÆ’Ã‚Â³n"
-                    : "Compartir mi ubicaciÃƒÆ’Ã‚Â³n"}
+                    ? "Actualizar mi ubicación"
+                    : "Compartir mi ubicación"}
               </button>
             </div>
           </div>
@@ -567,10 +815,10 @@ function shareLocation() {
 
         <div className="space-y-6">
           <Card>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Resumen
+                  Resumen real
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
@@ -578,48 +826,150 @@ function shareLocation() {
                 </h2>
               </div>
 
-              <Activity size={25} className="text-yellow-600" />
+              <button
+                type="button"
+                onClick={() =>
+                  loadDriverStatus(true)
+                }
+                disabled={refreshingStats}
+                aria-label="Actualizar estadísticas"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700 transition hover:bg-yellow-200 disabled:opacity-50"
+              >
+                <RefreshCw
+                  size={20}
+                  className={
+                    refreshingStats
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+              </button>
             </div>
 
             <div className="mt-7 grid grid-cols-2 gap-3">
               <div className="rounded-3xl bg-slate-50 p-5">
-                <Route size={21} className="text-blue-600" />
+                <Route
+                  size={21}
+                  className="text-blue-600"
+                />
 
                 <p className="mt-5 text-3xl font-black">
-                  0
+                  {stats.trips_today}
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  Viajes realizados
+                  Viajes de hoy
                 </p>
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-5">
-                <Clock3 size={21} className="text-violet-600" />
+                <Clock3
+                  size={21}
+                  className="text-violet-600"
+                />
 
                 <p className="mt-5 text-3xl font-black">
-                  0 h
+                  {formatHours(
+                    stats.worked_hours
+                  )}
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  Tiempo conectado
+                  Horas trabajadas
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <Star
+                  size={21}
+                  className="text-amber-500"
+                />
+
+                <p className="mt-5 text-3xl font-black">
+                  {stats.rating_count > 0
+                    ? Number(
+                        stats.average_rating
+                      ).toFixed(2)
+                    : "—"}
+                </p>
+
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  {stats.rating_count} reseña
+                  {stats.rating_count === 1
+                    ? ""
+                    : "s"}
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <Activity
+                  size={21}
+                  className="text-emerald-600"
+                />
+
+                <p className="mt-5 text-3xl font-black">
+                  {stats.completed_trips}
+                </p>
+
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  Viajes históricos
                 </p>
               </div>
             </div>
 
             <div className="mt-4 rounded-3xl bg-[#0B0F19] p-5 text-white">
-              <p className="text-sm font-semibold text-slate-400">
-                Ganancias de hoy
-              </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-400">
+                    Ganancias de hoy
+                  </p>
 
-              <p className="mt-2 text-4xl font-black">
-                $0.00
-              </p>
+                  <p className="mt-2 text-4xl font-black">
+                    {formatMoney(
+                      stats.earnings_today
+                    )}
+                  </p>
+                </div>
 
-              <p className="mt-2 text-xs text-slate-500">
-                Se actualizarÃƒÆ’Ã‚Â¡ con los viajes completados.
-              </p>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                  <WalletCards size={22} />
+                </span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
+                <div>
+                  <p className="text-xs text-slate-500">
+                    Esta semana
+                  </p>
+
+                  <p className="mt-1 text-sm font-black">
+                    {formatMoney(
+                      stats.earnings_week
+                    )}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-slate-500">
+                    Este mes
+                  </p>
+
+                  <p className="mt-1 text-sm font-black">
+                    {formatMoney(
+                      stats.earnings_month
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <Link
+              href="/dashboard/driver/profile"
+              className="mt-4 flex h-13 items-center justify-center gap-2 rounded-2xl border border-slate-200 font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
+            >
+              Ver ganancias e historial
+              <ArrowRight size={18} />
+            </Link>
           </Card>
 
           <Card>
@@ -648,8 +998,8 @@ function shareLocation() {
 
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {hasLocation
-                    ? "Tu posiciÃƒÆ’Ã‚Â³n estÃƒÆ’Ã‚Â¡ lista para recibir solicitudes."
-                    : "AXI necesita tu ubicaciÃƒÆ’Ã‚Â³n para mostrarte viajes cercanos."}
+                    ? "Tu posición está lista para recibir solicitudes."
+                    : "AXI necesita tu ubicación para mostrarte viajes cercanos."}
                 </p>
               </div>
             </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { isFinance } from "@/lib/auth/roles";
 
 type UserRole = "admin" | "driver" | "passenger";
 
@@ -300,7 +301,7 @@ export default function TripReceiptPage() {
             </div>
           )}
 
-          {role === "admin" && (
+          {isFinance(role) && (
             <>
               <div className="flex justify-between gap-5 rounded-xl bg-gray-50 p-4">
                 <span className="font-semibold">Comisión AXI</span>

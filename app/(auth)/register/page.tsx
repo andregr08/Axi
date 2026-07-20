@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
+import { InternationalPhoneInput } from "@/components/forms/InternationalPhoneInput";
 import { Logo } from "@/components/shared/Logo";
+import { normalizeInternationalPhone } from "@/lib/phone";
 import { supabase } from "@/lib/supabaseClient";
 import { useLanguage } from "@/hooks/useLanguage";
 
@@ -25,6 +27,7 @@ export default function RegisterPage() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [accountType, setAccountType] =
     useState<AccountType>("passenger");
@@ -42,8 +45,23 @@ export default function RegisterPage() {
     setErrorMessage("");
     setRegistrationComplete(false);
 
-    if (!fullName.trim() || !email.trim() || !password) {
+    if (
+      !fullName.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      !password
+    ) {
       setErrorMessage(t("register.fillFields"));
+      return;
+    }
+
+    const normalizedPhone =
+      normalizeInternationalPhone(phone);
+
+    if (!normalizedPhone) {
+      setErrorMessage(
+        "Escribe un número de teléfono internacional válido."
+      );
       return;
     }
 
@@ -65,6 +83,7 @@ export default function RegisterPage() {
       options: {
         data: {
           full_name: fullName.trim(),
+          phone: normalizedPhone,
           role: "passenger",
           requested_account_type: accountType,
           language: locale,
@@ -87,6 +106,23 @@ export default function RegisterPage() {
       setRegistrationComplete(true);
       setErrorMessage(t("register.confirmEmail"));
       return;
+    }
+
+    const { error: profileError } =
+      await supabase
+        .from("profiles")
+        .update({
+          full_name: fullName.trim(),
+          phone: normalizedPhone,
+          language: locale,
+        })
+        .eq("id", data.session.user.id);
+
+    if (profileError) {
+      console.error(
+        "No fue posible actualizar el perfil:",
+        profileError.message
+      );
     }
 
     localStorage.setItem("axi-language", locale);
@@ -191,6 +227,14 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
+
+            <InternationalPhoneInput
+              id="register-phone"
+              label="Teléfono internacional"
+              value={phone}
+              onChange={setPhone}
+              required
+            />
 
             <div>
               <label

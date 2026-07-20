@@ -25,8 +25,13 @@ import {
   Star,
   UserRound,
 } from "lucide-react";
+import { InternationalPhoneInput } from "@/components/forms/InternationalPhoneInput";
 import { PushNotificationsCard } from "@/components/notifications/PushNotificationsCard";
 import { Card } from "@/components/ui/Card";
+import {
+  formatInternationalPhone,
+  normalizeInternationalPhone,
+} from "@/lib/phone";
 import { supabase } from "@/lib/supabaseClient";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
@@ -153,7 +158,12 @@ const savedLanguage =
       return;
     }
 
-    if (phone.trim() && phone.replace(/\D/g, "").length < 10) {
+    const normalizedPhone =
+      phone.trim()
+        ? normalizeInternationalPhone(phone)
+        : null;
+
+    if (phone.trim() && !normalizedPhone) {
       setProfileMessage(t("profile.invalidPhone"));
       return;
     }
@@ -174,7 +184,7 @@ const savedLanguage =
       .from("profiles")
       .update({
         full_name: name.trim(),
-        phone: phone.trim() || null,
+        phone: normalizedPhone,
         language,
       })
       .eq("id", session.user.id);
@@ -379,7 +389,11 @@ const savedLanguage =
               <AccountRow
                 icon={Phone}
                 label={t("profile.phone")}
-                value={profile.phone || t("profile.notRegistered")}
+                value={
+                  profile.phone
+                    ? formatInternationalPhone(profile.phone)
+                    : t("profile.notRegistered")
+                }
               />
 
               <AccountRow
@@ -473,32 +487,14 @@ const savedLanguage =
                 </div>
               </div>
 
+              <InternationalPhoneInput
+                id="phone"
+                label={t("profile.phone")}
+                value={phone}
+                onChange={setPhone}
+              />
+
               <div>
-                <label
-                  htmlFor="phone"
-                  className="mb-2 block text-sm font-black text-slate-700"
-                >
-                  {t("profile.phone")}
-                </label>
-
-                <div className="relative">
-                  <Phone
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(event) =>
-                      setPhone(event.target.value)
-                    }
-                    placeholder={t("profile.phonePlaceholder")}
-                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
-                  />
-                </div>
-              </div>              <div>
                 <label
                   htmlFor="language"
                   className="mb-2 block text-sm font-black text-slate-700"

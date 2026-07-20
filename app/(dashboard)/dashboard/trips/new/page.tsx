@@ -1,54 +1,72 @@
-﻿"use client";
+"use client";
 
 import {
-  type FormEvent,
-  type ReactNode,
+  FormEvent,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  Banknote,
   CheckCircle2,
+  CircleDollarSign,
   Clock3,
+  CreditCard,
   LocateFixed,
   MapPin,
   Navigation,
   Route,
-  WalletCards,
+  ShieldCheck,
+  X,
 } from "lucide-react";
-
 import {
   PlaceAutocomplete,
   type SelectedPlace,
 } from "@/components/maps/PlaceAutocomplete";
 import {
-  TripRouteMap,
-  type RoutePoint,
-} from "@/components/maps/TripRouteMap";
+  MOBILITY_CONFIG,
+  createPricedTrip,
+  estimateRouteSync,
+  getDynamicFareEstimate,
+  getPricingPeriodLabel,
+  isMockMobilityMode,
+  type DynamicFareEstimate,
+  type MobilityCoordinates,
+} from "@/lib/mobility";
 import { supabase } from "@/lib/supabaseClient";
-import { useLanguage } from "@/hooks/useLanguage";
+import { cn } from "@/utils/cn";
 
-type Coordinates = {
-  latitude: number;
-  longitude: number;
+type Coordinates = MobilityCoordinates;
+
+type PaymentMethod = "cash" | "card";
+
+type ResolvedTripData = {
+  originCoordinates: Coordinates;
+  destinationPlace: SelectedPlace;
 };
 
-type RouteData = {
-  distanceKm: number;
-  durationMinutes: number;
-  routePoints: RoutePoint[];
-};
-
-const BOOKING_FEE = 8;
-const BASE_FARE = 35;
-const PRICE_PER_KM = 9;
-const MINIMUM_FARE = 55;
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
 export default function NewTripPage() {
   const router = useRouter();
-  const { t } = useLanguage();
+
+  const mockMobilityMode =
+    isMockMobilityMode();
+
+  const placesConfigured =
+    !mockMobilityMode &&
+    Boolean(
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    );
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -59,176 +77,68 @@ export default function NewTripPage() {
   const [destinationPlace, setDestinationPlace] =
     useState<SelectedPlace | null>(null);
 
-  const [routeData, setRouteData] =
-    useState<RouteData | null>(null);
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>("cash");
 
-  const [routeLoading, setRouteLoading] =
-    useState(false);
+  const [locating, setLocating] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [resolvedTrip, setResolvedTrip] =
+    useState<ResolvedTripData | null>(null);
+  const [message, setMessage] = useState("");
 
-  const [routeError, setRouteError] =
-    useState("");
+  const [
+    dynamicFare,
+    setDynamicFare,
+  ] = useState<DynamicFareEstimate | null>(
+    null
+  );
 
-  const [locating, setLocating] =
-    useState(false);
+  const [
+    pricingLoading,
+    setPricingLoading,
+  ] = useState(false);
 
-  const [submitting, setSubmitting] =
-    useState(false);
-
-  const [message, setMessage] =
-    useState("");
-
-  useEffect(() => {
-    if (!originCoordinates || !destinationPlace) {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const originCoords = originCoordinates;
-    const destinationCoords = destinationPlace;
-
-    async function loadRoute() {
-      setRouteLoading(true);
-      setRouteData(null);
-      setRouteError("");
-
-      try {
-        const params = new URLSearchParams({
-          originLat: String(originCoordinates!.latitude),
-          originLng: String(originCoordinates!.longitude),
-          destinationLat: String(destinationPlace!.latitude),
-          destinationLng: String(destinationPlace!.longitude),
-        });
-
-        const response = await fetch(
-          `/api/route?${params.toString()}`,
-          {
-            signal: controller.signal,
-          }
-        );
-
-        const result: {
-          distanceKm?: number;
-          durationMinutes?: number;
-          routePoints?: RoutePoint[];
-          error?: string;
-        } = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            result.error ??
-              t("tripNew.routeCalculationFailed")
-          );
-        }
-
-        setRouteData({
-          distanceKm: Number(result.distanceKm ?? 0),
-          durationMinutes: Number(
-            result.durationMinutes ?? 0
-          ),
-          routePoints: Array.isArray(result.routePoints)
-            ? result.routePoints
-            : [],
-        });
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.name === "AbortError"
-        ) {
-          return;
-        }
-
-        console.error("Error calculando ruta:", error);
-
-        setRouteError(
-          error instanceof Error
-            ? error.message
-            : t("tripNew.routeCalculationFailed")
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setRouteLoading(false);
-        }
-      }
-    }
-
-    void loadRoute();
-
-    return () => {
-      controller.abort();
-    };
-  }, [originCoordinates, destinationPlace]);
-
-  const estimatedPrice =
-    routeData === null
-      ? null
-      : Math.max(
-          MINIMUM_FARE,
-          Math.round(
-            (BASE_FARE +
-              routeData.distanceKm * PRICE_PER_KM +
-              BOOKING_FEE) *
-              100
-          ) / 100
-        );
-
-  const originReady =
-    originCoordinates !== null;
-
-  const destinationReady =
-    destinationPlace !== null;
-
-  const formReady =
-    originReady &&
-    destinationReady &&
-    routeData !== null &&
-    estimatedPrice !== null &&
-    !routeLoading;
-
-  function clearRoute() {
-    setRouteData(null);
-    setRouteError("");
-    setMessage("");
-  }
+  const [
+    pricingError,
+    setPricingError,
+  ] = useState("");
 
   function handleOriginTextChange(value: string) {
     setOrigin(value);
     setOriginCoordinates(null);
-    clearRoute();
+    setMessage("");
   }
 
   function handleOriginSelect(place: SelectedPlace) {
     setOrigin(place.address);
+
     setOriginCoordinates({
       latitude: place.latitude,
       longitude: place.longitude,
     });
-    clearRoute();
+
+    setMessage("");
   }
 
-  function handleDestinationTextChange(
-    value: string
-  ) {
+  function handleDestinationTextChange(value: string) {
     setDestination(value);
     setDestinationPlace(null);
-    clearRoute();
+    setMessage("");
   }
 
-  function handleDestinationSelect(
-    place: SelectedPlace
-  ) {
+  function handleDestinationSelect(place: SelectedPlace) {
     setDestination(place.address);
     setDestinationPlace(place);
-    clearRoute();
+    setMessage("");
   }
 
   function getCurrentLocation() {
     setMessage("");
-    setRouteError("");
 
     if (!navigator.geolocation) {
       setMessage(
-        t("tripNew.browserLocationUnsupported")
+        "Tu navegador no permite obtener la ubicación."
       );
       return;
     }
@@ -242,27 +152,22 @@ export default function NewTripPage() {
           longitude: position.coords.longitude,
         });
 
-        setOrigin(t("tripNew.currentLocation"));
+        setOrigin("Mi ubicación actual");
         setLocating(false);
-
-        setMessage(
-          t("tripNew.locationSuccess")
-        );
+        setMessage("Ubicación actual obtenida correctamente.");
       },
       (error) => {
         setLocating(false);
 
-        if (
-          error.code === error.PERMISSION_DENIED
-        ) {
+        if (error.code === error.PERMISSION_DENIED) {
           setMessage(
-            t("tripNew.locationPermissionRequired")
+            "Debes permitir el acceso a tu ubicación para solicitar un viaje."
           );
           return;
         }
 
         setMessage(
-          t("tripNew.locationFailed")
+          "No pudimos obtener tu ubicación. Intenta nuevamente."
         );
       },
       {
@@ -273,365 +178,769 @@ export default function NewTripPage() {
     );
   }
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  function resolveTripData(): ResolvedTripData | null {
+    if (!origin.trim()) {
+      setMessage("Selecciona tu punto de partida.");
+      return null;
+    }
+
+    let resolvedOriginCoordinates = originCoordinates;
+
+    if (!resolvedOriginCoordinates) {
+      if (placesConfigured) {
+        setMessage(
+          "Selecciona una dirección real como origen o usa tu ubicación actual."
+        );
+        return null;
+      }
+
+      resolvedOriginCoordinates = {
+        ...MOBILITY_CONFIG.defaultOrigin,
+      };
+    }
+
+    if (!destination.trim()) {
+      setMessage("Escribe el destino.");
+      return null;
+    }
+
+    let resolvedDestinationPlace = destinationPlace;
+
+    if (!resolvedDestinationPlace) {
+      if (placesConfigured) {
+        setMessage(
+          "Selecciona una de las ubicaciones sugeridas para confirmar el destino."
+        );
+        return null;
+      }
+
+      resolvedDestinationPlace = {
+        placeId: "demo-manual-destination",
+        name: destination.trim(),
+        address: destination.trim(),
+        ...MOBILITY_CONFIG.defaultDestination,
+      };
+    }
+
+    return {
+      originCoordinates: resolvedOriginCoordinates,
+      destinationPlace: resolvedDestinationPlace,
+    };
+  }
+
+  function handleReviewTrip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
 
-    if (!originCoordinates) {
-      setMessage(
-        t("tripNew.invalidOrigin")
+    const resolved = resolveTripData();
+
+    if (!resolved) return;
+
+    setResolvedTrip(resolved);
+    setConfirmOpen(true);
+  }
+
+  async function createTrip() {
+    if (!resolvedTrip) return;
+
+    setLoading(true);
+    setMessage("");
+
+    const routeEstimate =
+      estimateRouteSync(
+        resolvedTrip.originCoordinates,
+        {
+          latitude:
+            resolvedTrip.destinationPlace.latitude,
+          longitude:
+            resolvedTrip.destinationPlace.longitude,
+        }
       );
+
+    const {
+      distanceKm,
+      durationMinutes,
+    } = routeEstimate;
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      setLoading(false);
+      setConfirmOpen(false);
+      router.replace("/login");
       return;
     }
 
-    if (!destinationPlace) {
-      setMessage(
-        t("tripNew.invalidDestination")
-      );
-      return;
-    }
-
-    if (!routeData || estimatedPrice === null) {
-      setMessage(
-        t("tripNew.waitForRoute")
-      );
-      return;
-    }
-
-    setSubmitting(true);
+    let tripId: string;
 
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+      tripId = await createPricedTrip({
+        originAddress: origin.trim(),
+        originLatitude:
+          resolvedTrip.originCoordinates.latitude,
+        originLongitude:
+          resolvedTrip.originCoordinates.longitude,
+        destinationAddress:
+          resolvedTrip.destinationPlace.address,
+        destinationLatitude:
+          resolvedTrip.destinationPlace.latitude,
+        destinationLongitude:
+          resolvedTrip.destinationPlace.longitude,
+        distanceKm,
+        durationMinutes,
+        paymentMethod,
+        rideType: "economy",
+      });
+    } catch (error) {
+      setLoading(false);
+      setConfirmOpen(false);
 
-      if (sessionError || !session) {
-        router.replace("/login");
+      setMessage(
+        `Error creando el viaje: ${
+          error instanceof Error
+            ? error.message
+            : "No se pudo calcular el precio"
+        }`
+      );
+
+      return;
+    }
+
+    const {
+      data: dispatchResult,
+      error: dispatchError,
+    } = await supabase.rpc(
+      "process_trip_dispatch",
+      {
+        requested_trip_id: tripId,
+      }
+    );
+
+    setLoading(false);
+    setConfirmOpen(false);
+
+    if (dispatchError) {
+      setMessage(
+        `El viaje se creó, pero ocurrió un error buscando conductores: ${dispatchError.message}`
+      );
+
+      window.setTimeout(() => {
+        router.push(`/dashboard/trips/${tripId}`);
+        router.refresh();
+      }, 2000);
+
+      return;
+    }
+
+    const count = Number(
+      (
+        dispatchResult as {
+          notified_drivers?: number;
+        } | null
+      )?.notified_drivers ?? 0
+    );
+
+    setMessage(
+      count === 0
+        ? "Viaje creado. Seguiremos buscando conductores cercanos."
+        : `Viaje creado. Se notificó a ${count} conductor${
+            count === 1 ? "" : "es"
+          } cercano${count === 1 ? "" : "s"}.`
+    );
+
+    window.setTimeout(() => {
+      router.push(`/dashboard/trips/${tripId}`);
+      router.refresh();
+    }, 1500);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDynamicFare() {
+      if (!resolvedTrip) {
+        setDynamicFare(null);
+        setPricingError("");
         return;
       }
 
-      const {
-        data: trip,
-        error: tripError,
-      } = await supabase
-        .from("trips")
-        .insert({
-          passenger_id: session.user.id,
-          origin_address: origin.trim(),
-          origin_lat: originCoordinates!.latitude,
-          origin_lng: originCoordinates!.longitude,
-          destination_address:
-            destinationPlace.address,
-          destination_lat:
-            destinationPlace!.latitude,
-          destination_lng:
-            destinationPlace!.longitude,
-          distance_km: routeData.distanceKm,
-          duration_minutes:
-            routeData.durationMinutes,
-          estimated_price: estimatedPrice,
-          booking_fee: BOOKING_FEE,
-          payment_method: "cash",
-          status: "requested",
-        })
-        .select("id")
-        .single();
-
-      if (tripError || !trip) {
-        throw new Error(
-          tripError?.message ??
-            t("tripNew.tripCreationFailed")
+      const routeEstimate =
+        estimateRouteSync(
+          resolvedTrip.originCoordinates,
+          {
+            latitude:
+              resolvedTrip.destinationPlace
+                .latitude,
+            longitude:
+              resolvedTrip.destinationPlace
+                .longitude,
+          }
         );
+
+      setPricingLoading(true);
+      setPricingError("");
+
+      try {
+        const fare =
+          await getDynamicFareEstimate(
+            routeEstimate.distanceKm,
+            routeEstimate.durationMinutes,
+            "economy"
+          );
+
+        if (!cancelled) {
+          setDynamicFare(fare);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDynamicFare(null);
+          setPricingError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo calcular la tarifa."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setPricingLoading(false);
+        }
       }
-
-      const {
-        data: notifiedDrivers,
-        error: dispatchError,
-      } = await supabase.rpc("dispatch_trip", {
-        requested_trip_id: trip.id,
-        search_radius_km: 10,
-        drivers_limit: 10,
-      });
-
-      if (dispatchError) {
-        setMessage(
-          t("tripNew.driverSearchError")
-        );
-      } else {
-        const count = Number(
-          notifiedDrivers ?? 0
-        );
-
-        setMessage(
-          count > 0
-            ? `${t("tripNew.tripCreatedNotified")} ${count} ${
-                count === 1
-                  ? t("tripNew.nearbyDriver")
-                  : t("tripNew.nearbyDrivers")
-              }.`
-            : t("tripNew.tripCreatedSearching")
-        );
-      }
-
-      window.setTimeout(() => {
-        router.push(
-          `/dashboard/trips/${trip.id}`
-        );
-        router.refresh();
-      }, 1800);
-    } catch (error) {
-      console.error("Error creando viaje:", error);
-
-      setMessage(
-        error instanceof Error
-          ? `${t("tripNew.creatingTripError")} ${error.message}`
-          : t("tripNew.generalTripError")
-      );
-    } finally {
-      setSubmitting(false);
     }
-  }
 
-  const successMessage =
-    message.toLowerCase().includes("correctamente") ||
-    message.toLowerCase().includes("viaje creado");
+    void loadDynamicFare();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedTrip]);
+
+  const originReady =
+    originCoordinates !== null ||
+    (!placesConfigured && origin.trim().length > 2);
+
+  const destinationReady =
+    destinationPlace !== null ||
+    (!placesConfigured && destination.trim().length > 2);
+
+  const estimate = useMemo(() => {
+    const previewOrigin =
+      originCoordinates ??
+      (!placesConfigured && originReady
+        ? {
+            ...MOBILITY_CONFIG.defaultOrigin,
+          }
+        : null);
+
+    const previewDestination =
+      destinationPlace ??
+      (!placesConfigured && destinationReady
+        ? {
+            placeId: "demo-preview",
+            name: destination,
+            address: destination,
+            ...MOBILITY_CONFIG.defaultDestination,
+          }
+        : null);
+
+    if (!previewOrigin || !previewDestination) {
+      return null;
+    }
+
+    return estimateRouteSync(
+      previewOrigin,
+      {
+        latitude: previewDestination.latitude,
+        longitude: previewDestination.longitude,
+      }
+    );
+  }, [
+    destination,
+    destinationPlace,
+    destinationReady,
+    originCoordinates,
+    originReady,
+    placesConfigured,
+  ]);
 
   return (
-    <section className="mx-auto max-w-5xl space-y-7 pb-12">
-      <header>
-        <button
-          type="button"
-          onClick={() =>
-            router.push("/dashboard/trips")
-          }
-          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-950 hover:text-white"
-        >
-          <ArrowLeft size={18} />{t("tripNew.backToTrips")}</button>
+    <>
+      <section className="mx-auto max-w-5xl space-y-8">
+        <div>
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/trips")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
+          >
+            <ArrowLeft size={18} />
+            Volver a viajes
+          </button>
 
-        <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-yellow-600">{t("tripNew.newRequest")}</p>
+          <p className="mt-8 text-xs font-black uppercase tracking-[0.2em] text-yellow-600">
+            Nueva solicitud
+          </p>
 
-        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">{t("tripNew.title")}</h1>
+          <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
+            ¿A dónde vamos?
+          </h1>
 
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">{t("tripNew.description")}</p>
-      </header>
-
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8"
-      >
-        <div className="rounded-[1.7rem] bg-slate-950 p-5 text-white">
-          <div className="flex items-center gap-4">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-              <Navigation size={22} />
-            </span>
-
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">{t("tripNew.axiRoute")}</p>
-
-              <p className="mt-1 font-black">{t("tripNew.selectOriginDestination")}</p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <LocationStatus
-              label={t("tripNew.origin")}
-              ready={originReady}
-            />
-
-            <LocationStatus
-              label={t("tripNew.destination")}
-              ready={destinationReady}
-            />
-          </div>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
+            Selecciona tu ruta, revisa el precio estimado y elige cómo
+            pagarás el viaje.
+          </p>
         </div>
 
-        <div className="mt-7 grid gap-7 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-6">
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-black text-slate-700">{t("tripNew.startingPoint")}</p>
-
-                <button
-                  type="button"
-                  onClick={getCurrentLocation}
-                  disabled={locating}
-                  className="inline-flex items-center gap-2 rounded-xl bg-yellow-100 px-3 py-2 text-xs font-black text-yellow-800 transition hover:bg-yellow-200 disabled:opacity-50"
-                >
-                  <LocateFixed
-                    size={15}
-                    className={
-                      locating
-                        ? "animate-pulse"
-                        : ""
-                    }
-                  />
-
-                  {locating
-                    ? t("tripNew.locating")
-                    : t("tripNew.useMyLocation")}
-                </button>
-              </div>
-
-              <PlaceAutocomplete
-                label={t("tripNew.originSearchLabel")}
-                placeholder={t("tripNew.originPlaceholder")}
-                value={origin}
-                onTextChange={
-                  handleOriginTextChange
-                }
-                onPlaceSelect={
-                  handleOriginSelect
-                }
-              />
-
-              {originCoordinates && (
-                <ConfirmedLocation
-                  origin
-                  text={origin}
-                />
-              )}
-            </div>
-
-            <div>
-              <PlaceAutocomplete
-                label={t("tripNew.destinationSearchLabel")}
-                placeholder={t("tripNew.destinationPlaceholder")}
-                value={destination}
-                onTextChange={
-                  handleDestinationTextChange
-                }
-                onPlaceSelect={
-                  handleDestinationSelect
-                }
-              />
-
-              {destinationPlace && (
-                <ConfirmedLocation
-                  text={
-                    destinationPlace.address
-                  }
-                />
-              )}
-            </div>
+        {!placesConfigured && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            Modo demo activo: las direcciones y estimaciones son
+            provisionales hasta configurar Google Places y Routes.
           </div>
+        )}
 
-          <div className="min-h-[360px]">
-            {originCoordinates &&
-            destinationPlace ? (
-              <TripRouteMap
-                origin={originCoordinates}
-                destination={{
-                  latitude:
-                    destinationPlace!.latitude,
-                  longitude:
-                    destinationPlace!.longitude,
-                }}
-                routePoints={
-                  routeData?.routePoints ?? []
-                }
-              />
-            ) : (
-              <div className="flex h-[360px] flex-col items-center justify-center rounded-[1.7rem] border border-slate-200 bg-slate-100 px-6 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
-                  <MapPin size={25} />
+        <form
+          onSubmit={handleReviewTrip}
+          className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]"
+        >
+          <div className="overflow-visible rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+            <div className="rounded-[1.7rem] bg-slate-950 p-5 text-white">
+              <div className="flex items-center gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                  <Navigation size={22} />
                 </span>
 
-                <p className="mt-4 font-black text-slate-900">{t("tripNew.mapAppearsHere")}</p>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
+                    Ruta AXI
+                  </p>
 
-                <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">{t("tripNew.confirmLocationsForMap")}</p>
+                  <p className="mt-1 font-black">
+                    Selecciona origen y destino
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <LocationStatus
+                  label="Origen"
+                  ready={originReady}
+                />
+
+                <LocationStatus
+                  label="Destino"
+                  ready={destinationReady}
+                />
+              </div>
+            </div>
+
+            <div className="mt-7 space-y-7">
+              <div>
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <p className="text-sm font-black text-slate-700">
+                    Punto de partida
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={getCurrentLocation}
+                    disabled={locating}
+                    className="inline-flex items-center gap-2 rounded-xl bg-yellow-100 px-3 py-2 text-xs font-black text-yellow-800 transition hover:bg-yellow-200 disabled:opacity-50"
+                  >
+                    <LocateFixed
+                      size={15}
+                      className={locating ? "animate-pulse" : ""}
+                    />
+
+                    {locating
+                      ? "Ubicando..."
+                      : "Usar mi ubicación"}
+                  </button>
+                </div>
+
+                <PlaceAutocomplete
+                  label="Busca el lugar donde te recogerán"
+                  placeholder="Ejemplo: UDLAP, Cholula"
+                  value={origin}
+                  onTextChange={handleOriginTextChange}
+                  onPlaceSelect={handleOriginSelect}
+                />
+
+                {originReady && (
+                  <ConfirmedLocation
+                    title="Punto de partida confirmado"
+                    value={origin}
+                    variant="origin"
+                  />
+                )}
+              </div>
+
+              <div className="relative pl-6">
+                <span className="absolute bottom-2 left-0 top-2 border-l-2 border-dashed border-slate-300" />
+
+                <PlaceAutocomplete
+                  label="¿A dónde quieres ir?"
+                  placeholder="Ejemplo: Angelópolis, Puebla"
+                  value={destination}
+                  onTextChange={handleDestinationTextChange}
+                  onPlaceSelect={handleDestinationSelect}
+                />
+
+                {destinationReady && (
+                  <ConfirmedLocation
+                    title="Destino confirmado"
+                    value={
+                      destinationPlace?.address ?? destination
+                    }
+                    variant="destination"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <p className="text-sm font-black text-slate-700">
+                Método de pago
+              </p>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <PaymentOption
+                  active={paymentMethod === "cash"}
+                  title="Efectivo"
+                  description="Paga directamente al taxista"
+                  icon={Banknote}
+                  onClick={() => setPaymentMethod("cash")}
+                />
+
+                <PaymentOption
+                  active={paymentMethod === "card"}
+                  title="Tarjeta"
+                  description="Cobro digital al terminar"
+                  icon={CreditCard}
+                  onClick={() => setPaymentMethod("card")}
+                />
+              </div>
+
+              {paymentMethod === "card" && (
+                <div className="mt-3 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <ShieldCheck
+                    size={18}
+                    className="mt-0.5 shrink-0 text-blue-600"
+                  />
+
+                  <p className="text-xs leading-6 text-blue-800">
+                    La tarjeta se elegirá o registrará en la pantalla
+                    segura de pagos.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {message && (
+              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                {message}
               </div>
             )}
           </div>
-        </div>
 
-        {routeLoading && (
-          <Notice>{t("tripNew.calculatingBestRoute")}</Notice>
-        )}
+          <aside className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] xl:sticky xl:top-8">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-600">
+              Resumen del viaje
+            </p>
 
-        {routeError && (
-          <Notice error>
-            {routeError}
-          </Notice>
-        )}
+            <h2 className="mt-2 text-2xl font-black text-slate-950">
+              Tu viaje AXI
+            </h2>
 
-        {routeData &&
-          estimatedPrice !== null && (
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <EstimateCard
-                icon={<Route size={20} />}
-                label={t("tripNew.distance")}
-                value={`${routeData.distanceKm.toFixed(
-                  1
-                )} km`}
+            <div className="mt-6 space-y-4">
+              <SummaryLocation
+                label="Origen"
+                value={origin || "Pendiente"}
+                active={originReady}
               />
 
-              <EstimateCard
-                icon={<Clock3 size={20} />}
-                label={t("tripNew.estimatedTime")}
-                value={`${routeData.durationMinutes} min`}
-              />
-
-              <EstimateCard
-                icon={
-                  <WalletCards size={20} />
-                }
-                label={t("tripNew.estimatedPrice")}
-                value={`$${estimatedPrice.toFixed(
-                  2
-                )} MXN`}
-                highlighted
+              <SummaryLocation
+                label="Destino"
+                value={destination || "Pendiente"}
+                active={destinationReady}
               />
             </div>
-          )}
 
-        {message && (
-          <div
-            className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${
-              successMessage
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-red-200 bg-red-50 text-red-700"
-            }`}
-          >
-            {message}
-          </div>
-        )}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <EstimateCard
+                icon={Route}
+                label="Distancia"
+                value={
+                  estimate
+                    ? `${estimate.distanceKm.toFixed(1)} km`
+                    : "--"
+                }
+              />
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/dashboard/trips")
-            }
-            className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-slate-200 px-5 font-black text-slate-600 transition hover:bg-slate-50"
-          >{t("tripNew.cancel")}</button>
+              <EstimateCard
+                icon={Clock3}
+                label="Tiempo"
+                value={
+                  estimate
+                    ? `${estimate.durationMinutes} min`
+                    : "--"
+                }
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={
-              submitting ||
-              locating ||
-              routeLoading ||
-              !formReady
-            }
-            className="flex h-14 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40"
-          >
-            {submitting
-              ? t("tripNew.searchingDrivers")
-              : routeLoading
-                ? t("tripNew.calculatingRoute")
-                : t("tripNew.confirmTrip")}
+            <div className="mt-6 rounded-[1.7rem] bg-slate-950 p-5 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Precio estimado
+                  </p>
 
-            {!submitting &&
-              !routeLoading && (
-                <ArrowRight size={19} />
+                  <p className="mt-2 text-4xl font-black text-yellow-400">
+                    {dynamicFare
+                      ? formatCurrency(
+                          dynamicFare.estimated_price
+                        )
+                      : estimate
+                        ? formatCurrency(
+                            estimate.estimatedPrice
+                          )
+                        : "--"}
+                  </p>
+                </div>
+
+                <CircleDollarSign
+                  size={31}
+                  className="text-yellow-400"
+                />
+              </div>
+
+              <div className="mt-4 flex justify-between text-xs text-slate-400">
+                <span>Incluye tarifa de servicio</span>
+                <span>
+                  {formatCurrency(
+                    dynamicFare?.booking_fee ??
+                      estimate?.bookingFee ??
+                      MOBILITY_CONFIG.bookingFee
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {pricingLoading && (
+                <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+                  <Clock3
+                    size={16}
+                    className="animate-pulse"
+                  />
+
+                  Actualizando tarifa...
+                </div>
               )}
-          </button>
+
+              {!pricingLoading &&
+                dynamicFare && (
+                  <div className="rounded-2xl bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">
+                      {getPricingPeriodLabel(
+                        dynamicFare.pricing_period
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-xs font-bold text-amber-900">
+                      {dynamicFare.surge_multiplier >
+                      1
+                        ? `Tarifa dinámica ${dynamicFare.surge_multiplier.toFixed(
+                            2
+                          )}x`
+                        : "Sin incremento por demanda"}
+                    </p>
+                  </div>
+                )}
+
+              {pricingError && (
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                  Mostrando estimación local.{" "}
+                  {pricingError}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+              <div className="flex items-center gap-3">
+                {paymentMethod === "cash" ? (
+                  <Banknote size={20} />
+                ) : (
+                  <CreditCard size={20} />
+                )}
+
+                <div>
+                  <p className="text-xs font-bold text-slate-400">
+                    Método
+                  </p>
+
+                  <p className="font-black">
+                    {paymentMethod === "cash"
+                      ? "Efectivo"
+                      : "Tarjeta"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={
+                loading ||
+                locating ||
+                !originReady ||
+                !destinationReady
+              }
+              className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-40"
+            >
+              Revisar y solicitar
+              <ArrowRight size={19} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/trips")}
+              className="mt-3 h-12 w-full rounded-2xl border border-slate-200 font-black text-slate-600 transition hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+          </aside>
+        </form>
+      </section>
+
+      {confirmOpen && resolvedTrip && estimate && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-4 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-trip-title"
+        >
+          <div className="w-full max-w-xl overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+            <div className="relative bg-slate-950 p-7 text-white">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                disabled={loading}
+                className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10"
+                aria-label="Cerrar"
+              >
+                <X size={20} />
+              </button>
+
+              <Navigation
+                size={31}
+                className="text-yellow-400"
+              />
+
+              <h2
+                id="confirm-trip-title"
+                className="mt-5 text-3xl font-black"
+              >
+                Confirma tu viaje
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Revisa la ruta, el método de pago y el precio antes de
+                buscar un conductor.
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8">
+              <div className="space-y-4">
+                <SummaryLocation
+                  label="Origen"
+                  value={origin}
+                  active
+                />
+
+                <SummaryLocation
+                  label="Destino"
+                  value={resolvedTrip.destinationPlace.address}
+                  active
+                />
+              </div>
+
+              <div className="mt-6 grid grid-cols-3 gap-3">
+                <EstimateCard
+                  icon={Route}
+                  label="Distancia"
+                  value={`${estimate.distanceKm.toFixed(1)} km`}
+                />
+
+                <EstimateCard
+                  icon={Clock3}
+                  label="Tiempo"
+                  value={`${estimate.durationMinutes} min`}
+                />
+
+                <EstimateCard
+                  icon={CircleDollarSign}
+                  label="Estimado"
+                  value={formatCurrency(
+                    dynamicFare?.estimated_price ??
+                      estimate.estimatedPrice
+                  )}
+                />
+              </div>
+
+              <div className="mt-6 flex items-center justify-between rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-center gap-3">
+                  {paymentMethod === "cash" ? (
+                    <Banknote size={21} />
+                  ) : (
+                    <CreditCard size={21} />
+                  )}
+
+                  <div>
+                    <p className="text-xs font-bold text-slate-400">
+                      Método de pago
+                    </p>
+
+                    <p className="font-black">
+                      {paymentMethod === "cash"
+                        ? "Efectivo"
+                        : "Tarjeta"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={createTrip}
+                disabled={loading}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 font-black text-black transition hover:bg-yellow-300 disabled:opacity-60"
+              >
+                {loading
+                  ? "Buscando conductores..."
+                  : "Confirmar y buscar conductor"}
+
+                {!loading && <ArrowRight size={19} />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                disabled={loading}
+                className="mt-3 h-12 w-full rounded-2xl border border-slate-200 font-black text-slate-600"
+              >
+                Modificar viaje
+              </button>
+
+              <p className="mt-5 text-center text-xs leading-5 text-slate-400">
+                El precio podrá ajustarse cuando Google Routes calcule
+                la ruta exacta.
+              </p>
+            </div>
+          </div>
         </div>
-      </form>
-    </section>
+      )}
+    </>
   );
 }
 
@@ -642,16 +951,13 @@ function LocationStatus({
   label: string;
   ready: boolean;
 }) {
-  const { t } = useLanguage();
-
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
       <span
-        className={`h-3 w-3 rounded-full ${
-          ready
-            ? "bg-emerald-400"
-            : "bg-slate-600"
-        }`}
+        className={cn(
+          "h-3 w-3 rounded-full",
+          ready ? "bg-emerald-400" : "bg-slate-600"
+        )}
       />
 
       <div>
@@ -660,9 +966,7 @@ function LocationStatus({
         </p>
 
         <p className="mt-0.5 text-xs font-bold text-slate-200">
-          {ready
-            ? "Ubicación confirmada"
-            : t("tripNew.pending")}
+          {ready ? "Ubicación confirmada" : "Pendiente"}
         </p>
       </div>
     </div>
@@ -670,23 +974,24 @@ function LocationStatus({
 }
 
 function ConfirmedLocation({
-  origin = false,
-  text,
+  title,
+  value,
+  variant,
 }: {
-  origin?: boolean;
-  text: string;
+  title: string;
+  value: string;
+  variant: "origin" | "destination";
 }) {
-  const { t } = useLanguage();
-
   return (
     <div
-      className={`mt-3 flex items-start gap-3 rounded-2xl border p-4 ${
-        origin
+      className={cn(
+        "mt-3 flex items-start gap-3 rounded-2xl border p-4",
+        variant === "origin"
           ? "border-emerald-100 bg-emerald-50"
           : "border-blue-100 bg-blue-50"
-      }`}
+      )}
     >
-      {origin ? (
+      {variant === "origin" ? (
         <CheckCircle2
           size={18}
           className="mt-0.5 shrink-0 text-emerald-600"
@@ -698,27 +1003,108 @@ function ConfirmedLocation({
         />
       )}
 
-      <div className="min-w-0">
+      <div>
         <p
-          className={`text-xs font-black ${
-            origin
+          className={cn(
+            "text-xs font-black",
+            variant === "origin"
               ? "text-emerald-800"
               : "text-blue-800"
-          }`}
+          )}
         >
-          {origin
-            ? t("tripNew.originConfirmed")
-            : t("tripNew.destinationConfirmed")}
+          {title}
         </p>
 
         <p
-          className={`mt-1 break-words text-xs leading-5 ${
-            origin
+          className={cn(
+            "mt-1 text-xs leading-5",
+            variant === "origin"
               ? "text-emerald-700"
               : "text-blue-700"
-          }`}
+          )}
         >
-          {text}
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PaymentOption({
+  active,
+  title,
+  description,
+  icon: Icon,
+  onClick,
+}: {
+  active: boolean;
+  title: string;
+  description: string;
+  icon: typeof Banknote;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-4 rounded-2xl border p-4 text-left transition",
+        active
+          ? "border-slate-950 bg-slate-950 text-white"
+          : "border-slate-200 bg-white text-slate-950 hover:border-slate-400"
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
+          active
+            ? "bg-yellow-400 text-black"
+            : "bg-slate-100 text-slate-600"
+        )}
+      >
+        <Icon size={22} />
+      </span>
+
+      <div>
+        <p className="font-black">{title}</p>
+        <p
+          className={cn(
+            "mt-1 text-xs",
+            active ? "text-slate-400" : "text-slate-500"
+          )}
+        >
+          {description}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function SummaryLocation({
+  label,
+  value,
+  active,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span
+        className={cn(
+          "mt-1 h-4 w-4 shrink-0 rounded-full border-4 border-white shadow",
+          active ? "bg-yellow-400" : "bg-slate-300"
+        )}
+      />
+
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+          {label}
+        </p>
+
+        <p className="mt-1 line-clamp-2 text-sm font-black leading-6 text-slate-800">
+          {value}
         </p>
       </div>
     </div>
@@ -726,64 +1112,25 @@ function ConfirmedLocation({
 }
 
 function EstimateCard({
-  icon,
+  icon: Icon,
   label,
   value,
-  highlighted = false,
 }: {
-  icon: ReactNode;
+  icon: typeof Route;
   label: string;
   value: string;
-  highlighted?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-2xl border p-4 ${
-        highlighted
-          ? "border-yellow-200 bg-yellow-50"
-          : "border-slate-200 bg-slate-50"
-      }`}
-    >
-      <div
-        className={`flex items-center gap-2 ${
-          highlighted
-            ? "text-yellow-700"
-            : "text-slate-500"
-        }`}
-      >
-        {icon}
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <Icon size={19} className="text-slate-600" />
 
-        <p className="text-xs font-black uppercase tracking-wider">
-          {label}
-        </p>
-      </div>
+      <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
 
-      <p className="mt-3 text-xl font-black text-slate-950">
+      <p className="mt-1 text-sm font-black text-slate-950">
         {value}
       </p>
     </div>
   );
 }
-
-function Notice({
-  children,
-  error = false,
-}: {
-  children: ReactNode;
-  error?: boolean;
-}) {
-  return (
-    <div
-      className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${
-        error
-          ? "border-red-200 bg-red-50 text-red-700"
-          : "border-slate-200 bg-slate-50 text-slate-600"
-      }`}
-    >
-      {children}
-    </div>
-  );
-}
-
-
-

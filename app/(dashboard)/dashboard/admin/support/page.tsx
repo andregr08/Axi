@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth/roles";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
@@ -62,7 +63,7 @@ export default function AdminSupportPage() {
       .eq("id", session.user.id)
       .single();
 
-    if (error || profile?.role !== "admin") {
+    if (error || !isAdmin(profile?.role)) {
       router.replace("/dashboard");
       return;
     }

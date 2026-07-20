@@ -1,12 +1,41 @@
 "use client";
 
+import Link from "next/link";
 import {
   FormEvent,
+  useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  Bookmark,
+  BriefcaseBusiness,
+  CheckCircle2,
+  CircleDollarSign,
+  Clock3,
+  Home,
+  LoaderCircle,
+  MapPin,
+  Navigation,
+  Phone,
+  Plus,
+  RefreshCw,
+  Route,
+  Sparkles,
+  Star,
+  Trash2,
+  UserRound,
+  WalletCards,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
+import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { isPassenger } from "@/lib/auth/roles";
+import { cn } from "@/utils/cn";
 
 type PlaceType =
   | "home"
@@ -38,20 +67,33 @@ type SavedPlace = {
   created_at: string;
 };
 
-const placeTypeLabels: Record<
-  PlaceType,
-  string
-> = {
+const EMPTY_STATS: PassengerStats = {
+  completed_trips: 0,
+  cancelled_trips: 0,
+  trips_this_month: 0,
+  total_spent: 0,
+  spent_this_month: 0,
+  average_rating: 0,
+  rating_count: 0,
+};
+
+const placeTypeLabels: Record<PlaceType, string> = {
   home: "Casa",
   work: "Trabajo",
   favorite: "Favorito",
+};
+
+const placeTypeIcons: Record<PlaceType, LucideIcon> = {
+  home: Home,
+  work: BriefcaseBusiness,
+  favorite: Star,
 };
 
 export default function PassengerProfilePage() {
   const router = useRouter();
 
   const [stats, setStats] =
-    useState<PassengerStats | null>(null);
+    useState<PassengerStats>(EMPTY_STATS);
 
   const [profile, setProfile] =
     useState<PassengerProfile | null>(null);
@@ -71,6 +113,9 @@ export default function PassengerProfilePage() {
   const [loading, setLoading] =
     useState(true);
 
+  const [refreshing, setRefreshing] =
+    useState(false);
+
   const [saving, setSaving] =
     useState(false);
 
@@ -80,131 +125,131 @@ export default function PassengerProfilePage() {
   const [message, setMessage] =
     useState("");
 
-  async function loadPassengerProfile() {
-    setLoading(true);
-    setMessage("");
+  const loadPassengerProfile = useCallback(
+    async (silent = false) => {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      setMessage("");
 
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const {
-      data: profileData,
-      error: profileError,
-    } = await supabase
-      .from("profiles")
-      .select(
-        "full_name, phone, role"
-      )
-      .eq("id", session.user.id)
-      .single();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
 
-    if (
-      profileError ||
-      !profileData ||
-      profileData.role !== "passenger"
-    ) {
-      router.replace("/dashboard");
-      return;
-    }
+      const [
+        profileResult,
+        statsResult,
+        placesResult,
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("full_name, phone, role")
+          .eq("id", session.user.id)
+          .single(),
 
-    setProfile({
-      full_name:
-        profileData.full_name,
-      phone:
-        profileData.phone,
-    });
+        supabase.rpc(
+          "get_passenger_dashboard_stats"
+        ),
 
-    const {
-      data: statsData,
-      error: statsError,
-    } = await supabase.rpc(
-      "get_passenger_dashboard_stats"
-    );
+        supabase
+          .from("saved_places")
+          .select(`
+            id,
+            type,
+            label,
+            address,
+            latitude,
+            longitude,
+            created_at
+          `)
+          .order("created_at", {
+            ascending: false,
+          }),
+      ]);
 
-    if (statsError) {
-      setMessage(
-        `Error cargando estadísticas: ${statsError.message}`
-      );
+      if (
+        profileResult.error ||
+        !profileResult.data ||
+        !isPassenger(profileResult.data.role)
+      ) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setProfile({
+        full_name:
+          profileResult.data.full_name,
+        phone:
+          profileResult.data.phone,
+      });
+
+      if (statsResult.error) {
+        setMessage(
+          `Error cargando estadísticas: ${statsResult.error.message}`
+        );
+      } else {
+        const resolvedStats =
+          Array.isArray(statsResult.data)
+            ? statsResult.data[0]
+            : statsResult.data;
+
+        setStats({
+          ...EMPTY_STATS,
+          ...(resolvedStats as
+            | Partial<PassengerStats>
+            | null),
+        });
+      }
+
+      if (placesResult.error) {
+        setMessage(
+          `Error cargando lugares: ${placesResult.error.message}`
+        );
+      } else {
+        setPlaces(
+          (placesResult.data ?? []) as SavedPlace[]
+        );
+      }
+
       setLoading(false);
-      return;
-    }
-
-    const statsResult =
-      Array.isArray(statsData)
-        ? statsData[0]
-        : statsData;
-
-    setStats(
-      statsResult as PassengerStats
-    );
-
-    const {
-      data: placesData,
-      error: placesError,
-    } = await supabase
-      .from("saved_places")
-      .select(`
-        id,
-        type,
-        label,
-        address,
-        latitude,
-        longitude,
-        created_at
-      `)
-      .order(
-        "created_at",
-        {
-          ascending: false,
-        }
-      );
-
-    if (placesError) {
-      setMessage(
-        `Error cargando lugares: ${placesError.message}`
-      );
-    } else {
-      setPlaces(
-        (placesData ?? []) as SavedPlace[]
-      );
-    }
-
-    setLoading(false);
-  }
+      setRefreshing(false);
+    },
+    [router]
+  );
 
   useEffect(() => {
-    const timer =
-      window.setTimeout(() => {
-        void loadPassengerProfile();
-      }, 0);
+    const timer = window.setTimeout(() => {
+      void loadPassengerProfile();
+    }, 0);
 
     return () =>
       window.clearTimeout(timer);
-  }, []);
+  }, [loadPassengerProfile]);
 
   async function handleSavePlace(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (
-      label.trim().length < 2
-    ) {
+    const cleanLabel = label.trim();
+    const cleanAddress = address.trim();
+
+    if (cleanLabel.length < 2) {
       setMessage(
         "La etiqueta debe tener al menos 2 caracteres."
       );
       return;
     }
 
-    if (
-      address.trim().length < 5
-    ) {
+    if (cleanAddress.length < 5) {
       setMessage(
         "La dirección debe tener al menos 5 caracteres."
       );
@@ -221,9 +266,9 @@ export default function PassengerProfilePage() {
           place_type_value:
             placeType,
           label_value:
-            label.trim(),
+            cleanLabel,
           address_value:
-            address.trim(),
+            cleanAddress,
           latitude_value:
             null,
           longitude_value:
@@ -248,7 +293,7 @@ export default function PassengerProfilePage() {
       "Lugar guardado correctamente."
     );
 
-    await loadPassengerProfile();
+    await loadPassengerProfile(true);
   }
 
   async function deletePlace(
@@ -283,6 +328,10 @@ export default function PassengerProfilePage() {
             place.id !== placeId
         )
       );
+
+      setMessage(
+        "Lugar eliminado correctamente."
+      );
     }
 
     setDeletingId(null);
@@ -291,310 +340,857 @@ export default function PassengerProfilePage() {
   function formatMoney(
     value: number
   ) {
-    return `$${Number(
-      value ?? 0
-    ).toFixed(2)} MXN`;
+    return new Intl.NumberFormat(
+      "es-MX",
+      {
+        style: "currency",
+        currency: "MXN",
+      }
+    ).format(Number(value ?? 0));
   }
+
+  const successRate = useMemo(() => {
+    const total =
+      Number(stats.completed_trips) +
+      Number(stats.cancelled_trips);
+
+    if (total === 0) {
+      return 100;
+    }
+
+    return Math.round(
+      (Number(stats.completed_trips) /
+        total) *
+        100
+    );
+  }, [
+    stats.cancelled_trips,
+    stats.completed_trips,
+  ]);
+
+  const formProgress = useMemo(() => {
+    const fields = [
+      placeType,
+      label.trim(),
+      address.trim(),
+    ];
+
+    const completed =
+      fields.filter(Boolean).length;
+
+    return Math.round(
+      (completed / fields.length) * 100
+    );
+  }, [address, label, placeType]);
+
+  const primaryPlace =
+    places.find(
+      (place) => place.type === "home"
+    ) ??
+    places.find(
+      (place) => place.type === "work"
+    ) ??
+    places[0] ??
+    null;
 
   if (loading) {
     return (
-      <p>
-        Cargando perfil del pasajero...
-      </p>
-    );
-  }
+      <section className="space-y-6">
+        <div className="h-72 animate-pulse rounded-[2rem] bg-slate-200" />
 
-  if (!stats || !profile) {
-    return (
-      <section>
-        <div className="rounded-2xl bg-red-50 p-6 text-red-700">
-          {message ||
-            "No fue posible cargar el perfil."}
+        <div className="grid gap-5 md:grid-cols-3">
+          {[1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="h-40 animate-pulse rounded-[2rem] bg-slate-200"
+            />
+          ))}
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
+          <div className="h-[620px] animate-pulse rounded-[2rem] bg-slate-200" />
+          <div className="h-[620px] animate-pulse rounded-[2rem] bg-slate-200" />
         </div>
       </section>
     );
   }
 
+  if (!profile) {
+    return (
+      <section className="flex min-h-[65vh] items-center justify-center">
+        <Card className="max-w-lg text-center">
+          <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-red-100 text-red-700">
+            <XCircle size={34} />
+          </span>
+
+          <h1 className="mt-6 text-3xl font-black">
+            Perfil no disponible
+          </h1>
+
+          <p className="mt-3 text-sm leading-7 text-slate-500">
+            {message ||
+              "No fue posible cargar tu perfil de pasajero."}
+          </p>
+
+          <Link
+            href="/dashboard"
+            className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white"
+          >
+            Volver al inicio
+            <ArrowRight size={18} />
+          </Link>
+        </Card>
+      </section>
+    );
+  }
+
   return (
-    <section>
-      <div className="mb-8">
-        <p className="mb-1 text-sm font-medium text-gray-500">
-          Cuenta de pasajero
-        </p>
+    <section className="space-y-8">
+      <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.2)] sm:px-9 sm:py-10">
+        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
+        <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 
-        <h1 className="text-3xl font-bold text-gray-900">
-          {profile.full_name ||
-            "Pasajero AXI"}
-        </h1>
+        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+              <Sparkles size={15} />
+              Perfil del pasajero
+            </span>
 
-        <p className="mt-2 text-gray-600">
-          Consulta tus viajes, gastos y lugares guardados.
-        </p>
+            <p className="mt-6 text-sm font-semibold text-slate-400">
+              Bienvenido de nuevo
+            </p>
+
+            <h1 className="mt-2 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
+              {profile.full_name ||
+                "Pasajero AXI"}
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+              Consulta tus gastos, viajes, reputación y lugares
+              frecuentes desde un solo lugar.
+            </p>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
+                <Route
+                  size={18}
+                  className="text-yellow-400"
+                />
+                {stats.completed_trips} viajes completados
+              </span>
+
+              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
+                <Bookmark
+                  size={18}
+                  className="text-emerald-400"
+                />
+                {places.length} lugares guardados
+              </span>
+            </div>
+          </div>
+
+          <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
+                  Gasto este mes
+                </p>
+
+                <p className="mt-2 text-4xl font-black">
+                  {formatMoney(
+                    stats.spent_this_month
+                  )}
+                </p>
+              </div>
+
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                <WalletCards size={26} />
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                loadPassengerProfile(true)
+              }
+              disabled={refreshing}
+              className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 font-black text-slate-950 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-60"
+            >
+              <RefreshCw
+                size={18}
+                className={
+                  refreshing
+                    ? "animate-spin"
+                    : ""
+                }
+              />
+
+              {refreshing
+                ? "Actualizando..."
+                : "Actualizar información"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {message && (
-        <div className="mb-6 rounded-xl bg-gray-100 p-4 text-sm">
+        <div
+          className={cn(
+            "rounded-2xl border px-5 py-4 text-sm font-semibold",
+            message
+              .toLowerCase()
+              .includes("correctamente") ||
+              message
+                .toLowerCase()
+                .includes("eliminado")
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          )}
+        >
           {message}
         </div>
       )}
 
-      <div className="mb-8 grid gap-5 md:grid-cols-3">
-        <div className="rounded-2xl bg-black p-6 text-white">
-          <p className="text-sm text-gray-300">
-            Gasto del mes
-          </p>
+      <div className="grid gap-5 md:grid-cols-3">
+        <StatCard
+          label="Gasto total"
+          value={formatMoney(
+            stats.total_spent
+          )}
+          description="Acumulado en AXI"
+          icon={CircleDollarSign}
+          iconClass="bg-emerald-100 text-emerald-700"
+        />
 
-          <p className="mt-3 text-3xl font-bold">
-            {formatMoney(
-              stats.spent_this_month
-            )}
-          </p>
-        </div>
+        <StatCard
+          label="Viajes este mes"
+          value={String(
+            stats.trips_this_month
+          )}
+          description="Actividad mensual"
+          icon={Route}
+          iconClass="bg-blue-100 text-blue-700"
+        />
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Gasto total
-          </p>
-
-          <p className="mt-3 text-3xl font-bold">
-            {formatMoney(
-              stats.total_spent
-            )}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Viajes este mes
-          </p>
-
-          <p className="mt-3 text-3xl font-bold">
-            {stats.trips_this_month}
-          </p>
-        </div>
+        <StatCard
+          label="Calificación"
+          value={
+            stats.rating_count > 0
+              ? `${Number(
+                  stats.average_rating
+                ).toFixed(2)} ★`
+              : "Sin reseñas"
+          }
+          description={`${stats.rating_count} reseña${
+            stats.rating_count === 1
+              ? ""
+              : "s"
+          } recibidas`}
+          icon={Star}
+          iconClass="bg-yellow-100 text-yellow-700"
+        />
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Viajes completados
-          </p>
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <Card>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                Actividad personal
+              </p>
 
-          <p className="mt-3 text-3xl font-bold">
-            {stats.completed_trips}
-          </p>
-        </div>
+              <h2 className="mt-1 text-2xl font-black">
+                Resumen de viajes
+              </h2>
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Viajes cancelados
-          </p>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Consulta el comportamiento general de tu cuenta.
+              </p>
+            </div>
 
-          <p className="mt-3 text-3xl font-bold">
-            {stats.cancelled_trips}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Calificación
-          </p>
-
-          <div className="mt-3 flex items-center gap-2">
-            <p className="text-3xl font-bold">
-              {Number(
-                stats.average_rating
-              ).toFixed(2)}
-            </p>
-
-            <span className="text-2xl text-yellow-400">
-              ★
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
+              <Navigation size={23} />
             </span>
           </div>
-        </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Reseñas recibidas
-          </p>
+          <div className="mt-7 grid gap-4 sm:grid-cols-3">
+            <MetricBlock
+              label="Completados"
+              value={String(
+                stats.completed_trips
+              )}
+              icon={CheckCircle2}
+              iconClass="text-emerald-600"
+            />
 
-          <p className="mt-3 text-3xl font-bold">
-            {stats.rating_count}
-          </p>
-        </div>
+            <MetricBlock
+              label="Cancelados"
+              value={String(
+                stats.cancelled_trips
+              )}
+              icon={XCircle}
+              iconClass="text-red-600"
+            />
+
+            <MetricBlock
+              label="Efectividad"
+              value={`${successRate}%`}
+              icon={Clock3}
+              iconClass="text-blue-600"
+            />
+          </div>
+
+          <div className="mt-6 rounded-3xl bg-slate-50 p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Viajes finalizados
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Porcentaje de solicitudes que terminaron
+                  correctamente.
+                </p>
+              </div>
+
+              <p className="text-3xl font-black text-slate-950">
+                {successRate}%
+              </p>
+            </div>
+
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-yellow-400 transition-all duration-500"
+                style={{
+                  width: `${successRate}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/dashboard/passenger/history"
+              className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white transition hover:bg-slate-800"
+            >
+              Ver historial completo
+              <ArrowRight size={19} />
+            </Link>
+
+            <Link
+              href="/dashboard/trips/new"
+              className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
+            >
+              Solicitar viaje
+              <Navigation size={19} />
+            </Link>
+          </div>
+        </Card>
+
+        <Card className="relative overflow-hidden bg-[#0B0F19] text-white">
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-yellow-400/15 blur-3xl" />
+
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                <UserRound size={26} />
+              </span>
+
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-emerald-300">
+                Cuenta activa
+              </span>
+            </div>
+
+            <p className="mt-8 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+              Información personal
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black">
+              {profile.full_name ||
+                "Pasajero AXI"}
+            </h2>
+
+            <div className="mt-6 space-y-3">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <Phone
+                  size={19}
+                  className="text-yellow-400"
+                />
+
+                <div>
+                  <p className="text-xs font-bold text-slate-500">
+                    Teléfono
+                  </p>
+
+                  <p className="mt-1 text-sm font-black">
+                    {profile.phone ||
+                      "Sin teléfono registrado"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <MapPin
+                  size={19}
+                  className="text-emerald-400"
+                />
+
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-500">
+                    Lugar principal
+                  </p>
+
+                  <p className="mt-1 truncate text-sm font-black">
+                    {primaryPlace?.label ||
+                      "Sin lugar principal"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/profile"
+              className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 font-black text-slate-950 transition hover:bg-slate-100"
+            >
+              Editar datos personales
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+        </Card>
       </div>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[400px_1fr]">
-        <form
-          onSubmit={handleSavePlace}
-          className="h-fit space-y-5 rounded-2xl bg-white p-7 shadow-sm"
-        >
-          <div>
-            <h2 className="text-xl font-bold">
-              Guardar lugar
-            </h2>
+      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <Card className="h-fit xl:sticky xl:top-28">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                Nueva dirección
+              </p>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Agrega casa, trabajo o una dirección frecuente.
-            </p>
+              <h2 className="mt-1 text-2xl font-black">
+                Guardar lugar
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Agrega una dirección frecuente para solicitar
+                viajes más rápido.
+              </p>
+            </div>
+
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-800">
+              <Plus size={23} />
+            </span>
           </div>
 
-          <div>
-            <label
-              htmlFor="placeType"
-              className="mb-2 block text-sm font-semibold"
-            >
-              Tipo
-            </label>
+          <div className="mt-6">
+            <div className="flex items-center justify-between text-xs font-black text-slate-500">
+              <span>Progreso</span>
+              <span>{formProgress}%</span>
+            </div>
 
-            <select
-              id="placeType"
-              value={placeType}
-              onChange={(event) =>
-                setPlaceType(
-                  event.target.value as PlaceType
-                )
-              }
-              className="w-full rounded-xl border px-4 py-3"
-            >
-              <option value="home">
-                Casa
-              </option>
-
-              <option value="work">
-                Trabajo
-              </option>
-
-              <option value="favorite">
-                Favorito
-              </option>
-            </select>
+            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-yellow-400 transition-all duration-300"
+                style={{
+                  width: `${formProgress}%`,
+                }}
+              />
+            </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="label"
-              className="mb-2 block text-sm font-semibold"
-            >
-              Nombre
-            </label>
-
-            <input
-              id="label"
-              value={label}
-              onChange={(event) =>
-                setLabel(
-                  event.target.value
-                )
-              }
-              maxLength={80}
-              placeholder="Ejemplo: Casa de mis papás"
-              className="w-full rounded-xl border px-4 py-3"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="address"
-              className="mb-2 block text-sm font-semibold"
-            >
-              Dirección
-            </label>
-
-            <textarea
-              id="address"
-              value={address}
-              onChange={(event) =>
-                setAddress(
-                  event.target.value
-                )
-              }
-              rows={4}
-              maxLength={300}
-              placeholder="Escribe la dirección completa..."
-              className="w-full resize-none rounded-xl border px-4 py-3"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full rounded-xl bg-black px-5 py-3 font-semibold text-white disabled:opacity-50"
+          <form
+            onSubmit={handleSavePlace}
+            className="mt-7 space-y-5"
           >
-            {saving
-              ? "Guardando..."
-              : "Guardar lugar"}
-          </button>
-        </form>
+            <div>
+              <p className="mb-3 text-sm font-black text-slate-700">
+                Tipo de lugar
+              </p>
 
-        <div>
-          <div className="mb-5">
-            <h2 className="text-xl font-bold">
-              Mis lugares
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    "home",
+                    "work",
+                    "favorite",
+                  ] as PlaceType[]
+                ).map((type) => {
+                  const Icon =
+                    placeTypeIcons[type];
+
+                  const selected =
+                    placeType === type;
+
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() =>
+                        setPlaceType(type)
+                      }
+                      className={cn(
+                        "flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border px-2 text-center text-xs font-black transition",
+                        selected
+                          ? "border-yellow-400 bg-yellow-50 text-slate-950 ring-2 ring-yellow-400/20"
+                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
+                      )}
+                    >
+                      <Icon size={21} />
+                      {placeTypeLabels[type]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <ProfileInput
+              label="Nombre del lugar"
+              value={label}
+              placeholder="Ejemplo: Casa de mis papás"
+              icon={Bookmark}
+              maxLength={80}
+              onChange={setLabel}
+            />
+
+            <div>
+              <label
+                htmlFor="savedAddress"
+                className="mb-2 block text-sm font-black text-slate-700"
+              >
+                Dirección completa
+              </label>
+
+              <div className="relative">
+                <MapPin
+                  size={18}
+                  className="absolute left-4 top-4 text-slate-400"
+                />
+
+                <textarea
+                  id="savedAddress"
+                  value={address}
+                  onChange={(event) =>
+                    setAddress(
+                      event.target.value
+                    )
+                  }
+                  rows={5}
+                  maxLength={300}
+                  placeholder="Calle, número, colonia, ciudad..."
+                  className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
+                />
+              </div>
+
+              <p className="mt-2 text-right text-xs text-slate-400">
+                {address.length}/300
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <MapPin
+                  size={19}
+                  className="mt-0.5 shrink-0 text-blue-700"
+                />
+
+                <p className="text-xs leading-6 text-blue-800">
+                  Podrás utilizar este lugar como origen o destino
+                  al solicitar futuros viajes.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white transition hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <LoaderCircle
+                    size={19}
+                    className="animate-spin"
+                  />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Plus size={19} />
+                  Guardar lugar
+                </>
+              )}
+            </button>
+          </form>
+        </Card>
+
+        <Card className="overflow-hidden p-0">
+          <div className="border-b border-slate-100 px-6 py-6 sm:px-8">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+              Direcciones frecuentes
+            </p>
+
+            <h2 className="mt-1 text-2xl font-black">
+              Mis lugares guardados
             </h2>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Usa estas direcciones al solicitar un viaje.
+            <p className="mt-2 text-sm text-slate-500">
+              Usa estas direcciones para ahorrar tiempo al
+              solicitar un viaje.
             </p>
           </div>
 
           {places.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
-              <p className="font-semibold text-gray-700">
-                Todavía no tienes lugares guardados.
-              </p>
+            <div className="relative flex min-h-[580px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.14),_transparent_32%),linear-gradient(to_bottom,_#ffffff,_#f8fafc)] px-6 py-12">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.45)_1px,transparent_1px)] bg-[size:42px_42px]" />
+
+              <div className="relative max-w-md text-center">
+                <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-slate-950 text-yellow-400 shadow-2xl shadow-slate-950/20">
+                  <MapPin size={35} />
+                </span>
+
+                <h3 className="mt-7 text-3xl font-black">
+                  Todavía no tienes lugares
+                </h3>
+
+                <p className="mt-4 text-sm leading-7 text-slate-500">
+                  Guarda casa, trabajo u otra dirección frecuente
+                  para preparar tus viajes más rápido.
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid gap-5 p-5 sm:p-7">
               {places.map((place) => (
-                <article
+                <SavedPlaceCard
                   key={place.id}
-                  className="rounded-2xl bg-white p-6 shadow-sm"
-                >
-                  <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-                    <div>
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold">
-                        {
-                          placeTypeLabels[
-                            place.type
-                          ]
-                        }
-                      </span>
-
-                      <h3 className="mt-3 text-lg font-bold">
-                        {place.label}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-gray-500">
-                        {place.address}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        deletePlace(
-                          place.id
-                        )
-                      }
-                      disabled={
-                        deletingId ===
-                        place.id
-                      }
-                      className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
-                    >
-                      {deletingId ===
-                      place.id
-                        ? "Eliminando..."
-                        : "Eliminar"}
-                    </button>
-                  </div>
-                </article>
+                  place={place}
+                  deleting={
+                    deletingId === place.id
+                  }
+                  onDelete={() =>
+                    deletePlace(place.id)
+                  }
+                />
               ))}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </section>
+  );
+}
+
+function SavedPlaceCard({
+  place,
+  deleting,
+  onDelete,
+}: {
+  place: SavedPlace;
+  deleting: boolean;
+  onDelete: () => void;
+}) {
+  const Icon =
+    placeTypeIcons[place.type];
+
+  return (
+    <article className="overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+      <div
+        className={cn(
+          "h-1.5",
+          place.type === "home" &&
+            "bg-emerald-500",
+          place.type === "work" &&
+            "bg-blue-500",
+          place.type === "favorite" &&
+            "bg-yellow-400"
+        )}
+      />
+
+      <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
+        <span
+          className={cn(
+            "flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.4rem]",
+            place.type === "home" &&
+              "bg-emerald-100 text-emerald-700",
+            place.type === "work" &&
+              "bg-blue-100 text-blue-700",
+            place.type === "favorite" &&
+              "bg-yellow-100 text-yellow-700"
+          )}
+        >
+          <Icon size={27} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xl font-black text-slate-950">
+              {place.label}
+            </h3>
+
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+              {placeTypeLabels[place.type]}
+            </span>
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {place.address}
+          </p>
+
+          {place.latitude !== null &&
+            place.longitude !== null && (
+              <p className="mt-2 text-xs font-semibold text-emerald-600">
+                Ubicación exacta registrada
+              </p>
+            )}
+        </div>
+
+        <div className="flex gap-3 sm:flex-col">
+          <Link
+            href={`/dashboard/trips/new?destination=${encodeURIComponent(
+              place.address
+            )}`}
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-slate-800"
+          >
+            <Navigation size={16} />
+            Usar
+          </Link>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {deleting ? (
+              <LoaderCircle
+                size={16}
+                className="animate-spin"
+              />
+            ) : (
+              <Trash2 size={16} />
+            )}
+
+            {deleting
+              ? "Eliminando"
+              : "Eliminar"}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  description,
+  icon: Icon,
+  iconClass,
+}: {
+  label: string;
+  value: string;
+  description: string;
+  icon: LucideIcon;
+  iconClass: string;
+}) {
+  return (
+    <Card className="group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-500">
+            {label}
+          </p>
+
+          <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
+            {value}
+          </p>
+
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            {description}
+          </p>
+        </div>
+
+        <span
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition group-hover:scale-110",
+            iconClass
+          )}
+        >
+          <Icon size={23} />
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function MetricBlock({
+  label,
+  value,
+  icon: Icon,
+  iconClass,
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  iconClass: string;
+}) {
+  return (
+    <div className="rounded-3xl bg-slate-50 p-5">
+      <Icon
+        size={21}
+        className={iconClass}
+      />
+
+      <p className="mt-5 text-3xl font-black text-slate-950">
+        {value}
+      </p>
+
+      <p className="mt-1 text-xs font-bold text-slate-500">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function ProfileInput({
+  label,
+  value,
+  placeholder,
+  icon: Icon,
+  maxLength,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  icon: LucideIcon;
+  maxLength: number;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-black text-slate-700">
+        {label}
+      </label>
+
+      <div className="relative">
+        <Icon
+          size={18}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+        />
+
+        <input
+          type="text"
+          value={value}
+          onChange={(event) =>
+            onChange(event.target.value)
+          }
+          maxLength={maxLength}
+          placeholder={placeholder}
+          className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
+        />
+      </div>
+    </div>
   );
 }

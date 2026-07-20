@@ -7,8 +7,8 @@ import {
 } from "lucide-react";
 import NotificationsBell from "@/components/NotificationsBell";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
-import type { UserRole } from "@/components/layout/Sidebar";
 import { useLanguage } from "@/hooks/useLanguage";
+import type { UserRole } from "@/lib/auth/roles";
 
 type NavbarProps = {
   role: UserRole | null;

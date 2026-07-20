@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type VehicleStatus =
@@ -113,7 +114,7 @@ export default function AdminVehiclesPage() {
 
       if (
         profileError ||
-        currentProfile?.role !== "admin"
+        !isAdmin(currentProfile?.role)
       ) {
         router.replace("/dashboard");
         return;
