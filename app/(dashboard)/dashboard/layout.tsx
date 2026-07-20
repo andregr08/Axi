@@ -1,17 +1,21 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import AIFloatingButton from "@/components/ai/AIFloatingButton";
-import AIChatPanel from "@/components/ai/AIChatPanel";
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Navbar } from "@/components/layout/Navbar";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { PushServiceWorker } from "@/components/notifications/PushServiceWorker";
-import { useAI } from "@/hooks/useAI";
+import {
+  Sidebar,
+} from "@/components/layout/Sidebar";
 import type { UserRole } from "@/lib/auth/roles";
+import { PushServiceWorker } from "@/components/notifications/PushServiceWorker";
 import { supabase } from "@/lib/supabaseClient";
-import type { AIUserRole } from "@/types/ai";
+
+const AVAILABLE_TRIPS_PATH =
+  "/dashboard/driver/available-trips";
 
 export default function DashboardLayout({
   children,
@@ -19,21 +23,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [loadingRole, setLoadingRole] = useState(true);
+  const pathname = usePathname();
 
-  const effectiveRole: AIUserRole =
-    role ?? "passenger";
+  const [role, setRole] =
+    useState<UserRole | null>(null);
 
-  const {
-    open,
-    messages,
-    suggestions,
-    isStreaming,
-    openAI,
-    closeAI,
-    sendMessage,
-  } = useAI(effectiveRole);
+  const [loadingRole, setLoadingRole] =
+    useState(true);
 
   useEffect(() => {
     async function loadRole() {
@@ -57,10 +53,12 @@ export default function DashboardLayout({
           "Error cargando rol:",
           error.message
         );
+
         setRole("passenger");
       } else {
         setRole(
-          (data?.role as UserRole) ?? "passenger"
+          (data?.role as UserRole) ??
+            "passenger"
         );
       }
 
@@ -69,6 +67,111 @@ export default function DashboardLayout({
 
     void loadRole();
   }, [router]);
+
+  useEffect(() => {
+    if (role !== "driver") {
+      return;
+    }
+
+    let channel:
+      | ReturnType<typeof supabase.channel>
+      | null = null;
+
+    async function startTripOfferWatcher() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        return;
+      }
+
+      const driverId = session.user.id;
+
+      /*
+       * Al abrir o recargar el dashboard,
+       * revisamos si el conductor ya tiene
+       * una oferta pendiente.
+       */
+      const { data: pendingOffer } =
+        await supabase
+          .from("trip_offers")
+          .select("id")
+          .eq("driver_id", driverId)
+          .eq("status", "pending")
+          .gt(
+            "expires_at",
+            new Date().toISOString()
+          )
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(1)
+          .maybeSingle();
+
+      if (
+        pendingOffer &&
+        pathname !== AVAILABLE_TRIPS_PATH
+      ) {
+        router.push(AVAILABLE_TRIPS_PATH);
+      }
+
+      /*
+       * Escuchamos ofertas nuevas aunque el
+       * conductor esté en cualquier pantalla
+       * del dashboard.
+       */
+      channel = supabase
+        .channel(
+          `global-trip-offers-${driverId}-${crypto.randomUUID()}`
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "trip_offers",
+            filter: `driver_id=eq.${driverId}`,
+          },
+          (payload) => {
+            const newOffer = payload.new as {
+              status?: string;
+              expires_at?: string;
+            };
+
+            const isPending =
+              newOffer.status === "pending";
+
+            const isStillValid =
+              !newOffer.expires_at ||
+              new Date(
+                newOffer.expires_at
+              ).getTime() > Date.now();
+
+            if (
+              isPending &&
+              isStillValid &&
+              pathname !== AVAILABLE_TRIPS_PATH
+            ) {
+              router.push(
+                AVAILABLE_TRIPS_PATH
+              );
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    void startTripOfferWatcher();
+
+    return () => {
+      if (channel) {
+        void supabase.removeChannel(
+          channel
+        );
+      }
+    };
+  }, [pathname, role, router]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -82,7 +185,7 @@ export default function DashboardLayout({
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-yellow-400" />
 
           <p className="mt-4 text-sm font-semibold text-slate-500">
-            Cargando AXI...
+            Cargando AXI.
           </p>
         </div>
       </div>
@@ -110,18 +213,7 @@ export default function DashboardLayout({
         role={role}
         onLogout={handleLogout}
       />
-
-      <AIFloatingButton onClick={openAI} />
-
-      <AIChatPanel
-        open={open}
-        role={effectiveRole}
-        messages={messages}
-        suggestions={suggestions}
-        isStreaming={isStreaming}
-        onClose={closeAI}
-        onSendMessage={sendMessage}
-      />
     </div>
   );
 }
+
