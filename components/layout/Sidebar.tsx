@@ -59,14 +59,9 @@ export function Sidebar({
     },
     {
       href: "/dashboard/trips",
-      labelKey: isDriver(role)
-        ? undefined
-        : "navigation.myTrips",
-      label: isDriver(role)
-        ? "Mis viajes"
-        : undefined,
+      labelKey: "navigation.myTrips",
       icon: Route,
-      visible: true,
+      visible: !isDriver(role),
     },
     {
       href: "/dashboard/driver/status",
