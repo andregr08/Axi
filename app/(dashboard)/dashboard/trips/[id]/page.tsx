@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -169,6 +169,51 @@ function formatDate(value: string) {
     timeStyle: "short",
   }).format(new Date(value));
 }
+<<<<<<< HEAD
+=======
+function calculateDistanceKm(
+  latitude1: number,
+  longitude1: number,
+  latitude2: number,
+  longitude2: number
+) {
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees: number) =>
+    (degrees * Math.PI) / 180;
+
+  const latitudeDifference = toRadians(
+    latitude2 - latitude1
+  );
+
+  const longitudeDifference = toRadians(
+    longitude2 - longitude1
+  );
+
+  const firstLatitude = toRadians(latitude1);
+  const secondLatitude = toRadians(latitude2);
+
+  const value =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(firstLatitude) *
+      Math.cos(secondLatitude) *
+      Math.sin(longitudeDifference / 2) ** 2;
+
+  return (
+    earthRadiusKm *
+    2 *
+    Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))
+  );
+}
+
+function calculateArrivalMinutes(distanceKm: number) {
+  const averageCitySpeedKmH = 28;
+
+  return Math.max(
+    1,
+    Math.ceil((distanceKm / averageCitySpeedKmH) * 60)
+  );
+}
+>>>>>>> 3ea0c36 (Improve trip experience and driver card)
 
 function getStatusVariant(
   status: TripStatus
@@ -1179,6 +1224,7 @@ export default function ActiveTripPage({
   const displayPrice =
     trip.final_price ?? trip.estimated_price;
 
+<<<<<<< HEAD
   const originCoordinates:
     MapCoordinates | null =
     trip.origin_lat !== null &&
@@ -1238,6 +1284,24 @@ export default function ActiveTripPage({
         : isCompleted
           ? "Recorrido final del viaje."
           : "Ruta programada del viaje.";
+=======
+const driverDistanceKm =
+  driverLocation &&
+  trip.origin_lat !== null &&
+  trip.origin_lng !== null
+    ? calculateDistanceKm(
+        Number(driverLocation.latitude),
+        Number(driverLocation.longitude),
+        Number(trip.origin_lat),
+        Number(trip.origin_lng)
+      )
+    : null;
+
+const driverArrivalMinutes =
+  driverDistanceKm !== null
+    ? calculateArrivalMinutes(driverDistanceKm)
+    : null;
+>>>>>>> 3ea0c36 (Improve trip experience and driver card)
 
   return (
     <section className="space-y-8">
@@ -1933,10 +1997,54 @@ export default function ActiveTripPage({
           </Card>
 
           {driverIdentity &&
-            !isCompleted &&
-            !isCancelled && (
-              <DriverIdentityCard driver={driverIdentity} />
-            )}
+  !isCompleted &&
+  !isCancelled && (
+    <Card>
+      <DriverIdentityCard driver={driverIdentity} />
+
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+            Distancia
+          </p>
+
+          <p className="mt-2 text-lg font-black text-slate-950">
+            {driverDistanceKm !== null
+              ? `${driverDistanceKm.toFixed(1)} km`
+              : "Calculando"}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+            Llegada estimada
+          </p>
+
+          <p className="mt-2 text-lg font-black text-slate-950">
+            {driverArrivalMinutes !== null
+              ? `${driverArrivalMinutes} min`
+              : "Calculando"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Link
+          href={`/dashboard/trips/${trip.id}/chat`}
+          className="flex h-12 items-center justify-center rounded-2xl bg-yellow-400 font-black text-black transition hover:bg-yellow-300"
+        >
+          Chat
+        </Link>
+
+        <button
+          type="button"
+          className="flex h-12 items-center justify-center rounded-2xl border border-slate-200 font-black text-slate-950 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
+        >
+          Llamar
+        </button>
+      </div>
+    </Card>
+)}
 
           {trip.driver_id &&
             !isCompleted &&
@@ -2418,3 +2526,7 @@ function SearchStep({
     </div>
   );
 }
+
+
+
+
