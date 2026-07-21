@@ -317,7 +317,7 @@ export function PassengerHome({ name }: PassengerHomeProps) {
             Hola, {name}
           </p>
 
-          <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl lg:whitespace-nowrap lg:text-6xl">
+          <h1 className="mt-2 whitespace-nowrap text-[clamp(1.7rem,8vw,2.25rem)] font-black tracking-tight sm:text-5xl lg:text-6xl">
             ¿A dónde vamos hoy?
           </h1>
 

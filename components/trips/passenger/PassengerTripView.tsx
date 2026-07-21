@@ -71,8 +71,9 @@ export function PassengerTripView({
         )}
 
         {driverIdentity &&
-          !isCompleted &&
-          !isCancelled && (
+          ["accepted", "driver_arriving", "driver_arrived", "in_progress"].includes(
+            trip.status
+          ) && (
             <Card>
               <DriverIdentityCard
                 driver={driverIdentity}
