@@ -22,6 +22,7 @@ type PlaceAutocompleteProps = {
   value: string;
   onTextChange: (value: string) => void;
   onPlaceSelect: (place: SelectedPlace) => void;
+  resolvedExternally?: boolean;
 };
 
 type SearchResult = {
@@ -39,6 +40,7 @@ export function PlaceAutocomplete({
   value,
   onTextChange,
   onPlaceSelect,
+  resolvedExternally = false,
 }: PlaceAutocompleteProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,7 +51,14 @@ export function PlaceAutocomplete({
   useEffect(() => {
     const query = value.trim();
 
-    if (selected || query.length < 3) {
+    if (
+      selected ||
+      resolvedExternally ||
+      query.length < 3
+    ) {
+      setResults([]);
+      setError("");
+      setLoading(false);
       return;
     }
 
@@ -98,7 +107,7 @@ export function PlaceAutocomplete({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [value, selected]);
+  }, [value, selected, resolvedExternally]);
 
   function handleChange(nextValue: string) {
     setSelected(false);
@@ -167,7 +176,7 @@ export function PlaceAutocomplete({
           />
         )}
 
-        {selected && !loading && (
+        {(selected || resolvedExternally) && !loading && (
           <CheckCircle2
             size={19}
             className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600"
@@ -205,7 +214,7 @@ export function PlaceAutocomplete({
         </div>
       )}
 
-      {selected && value && (
+      {(selected || resolvedExternally) && value && (
         <div className="mt-2 flex items-start gap-2 text-xs text-slate-500">
           <MapPin
             size={14}
