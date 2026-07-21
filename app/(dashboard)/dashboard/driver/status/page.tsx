@@ -294,11 +294,27 @@ export default function DriverStatusPage() {
         clearInterval(locationHeartbeatId.current);
         locationHeartbeatId.current = null;
       }
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+      window.removeEventListener(
+        "focus",
+        handleWindowFocus
+      );
+      window.removeEventListener(
+        "pageshow",
+        handlePageShow
+      );
+      window.removeEventListener(
+        "online",
+        handleConnectionRestored
+      );
     };
 
     if (!online || !navigator.geolocation) {
-      clearLocationTracking();
-      return;
+      return clearLocationTracking;
     }
 
     const sendLocationToSupabase = async (
@@ -326,11 +342,15 @@ export default function DriverStatusPage() {
           "Error actualizando GPS continuo:",
           error.message
         );
+        return;
       }
+
+      lastLocationUpdate.current = Date.now();
     };
 
     const handlePosition = (
-      position: GeolocationPosition
+      position: GeolocationPosition,
+      forceUpload = false
     ) => {
       const location = {
         latitude: position.coords.latitude,
@@ -349,10 +369,9 @@ export default function DriverStatusPage() {
       const now = Date.now();
 
       if (
-        now - lastLocationUpdate.current >=
-        5000
+        forceUpload ||
+        now - lastLocationUpdate.current >= 5000
       ) {
-        lastLocationUpdate.current = now;
         void sendLocationToSupabase(location);
       }
     };
@@ -375,19 +394,43 @@ export default function DriverStatusPage() {
       }
     };
 
-    navigator.geolocation.getCurrentPosition(
-      handlePosition,
-      handleLocationError,
-      {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 5000,
+    const refreshLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          handlePosition(position, true),
+        handleLocationError,
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0,
+        }
+      );
+    };
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        refreshLocation();
       }
-    );
+    }
+
+    function handleWindowFocus() {
+      refreshLocation();
+    }
+
+    function handlePageShow() {
+      refreshLocation();
+    }
+
+    function handleConnectionRestored() {
+      refreshLocation();
+    }
+
+    refreshLocation();
 
     locationWatchId.current =
       navigator.geolocation.watchPosition(
-        handlePosition,
+        (position) =>
+          handlePosition(position),
         handleLocationError,
         {
           enableHighAccuracy: true,
@@ -398,12 +441,36 @@ export default function DriverStatusPage() {
 
     locationHeartbeatId.current =
       setInterval(() => {
+        if (document.visibilityState !== "visible") {
+          return;
+        }
+
         if (latestLocation.current) {
           void sendLocationToSupabase(
             latestLocation.current
           );
+          return;
         }
+
+        refreshLocation();
       }, 30000);
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+    window.addEventListener(
+      "focus",
+      handleWindowFocus
+    );
+    window.addEventListener(
+      "pageshow",
+      handlePageShow
+    );
+    window.addEventListener(
+      "online",
+      handleConnectionRestored
+    );
 
     return clearLocationTracking;
   }, [online]);
