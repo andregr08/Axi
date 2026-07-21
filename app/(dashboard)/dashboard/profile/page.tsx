@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   FormEvent,
@@ -10,7 +10,6 @@ import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
   CalendarDays,
-  Camera,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -26,6 +25,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { InternationalPhoneInput } from "@/components/forms/InternationalPhoneInput";
+import AvatarUploader from "@/components/profile/AvatarUploader";
 import { PushNotificationsCard } from "@/components/notifications/PushNotificationsCard";
 import { Card } from "@/components/ui/Card";
 import {
@@ -278,9 +278,6 @@ const savedLanguage =
     );
   }
 
-  const initial =
-    profile.full_name?.trim().charAt(0).toUpperCase() || "A";
-
   return (
     <section className="space-y-8">
       <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.2)] sm:px-9 sm:py-10">
@@ -290,22 +287,21 @@ const savedLanguage =
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="relative">
-              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] border-4 border-white/10 bg-yellow-400 text-4xl font-black text-black shadow-2xl">
-                {profile.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.full_name || t("profile.userFallback")}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  initial
-                )}
-              </div>
-
-              <span className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-2xl border-4 border-[#0B0F19] bg-white text-slate-700">
-                <Camera size={17} />
-              </span>
+              <AvatarUploader
+                userId={profile.id}
+                fullName={profile.full_name}
+                currentAvatarUrl={profile.avatar_url}
+                onUploaded={(url) =>
+                  setProfile((previousProfile) =>
+                    previousProfile
+                      ? {
+                          ...previousProfile,
+                          avatar_url: url,
+                        }
+                      : previousProfile
+                  )
+                }
+              />
             </div>
 
             <div>
@@ -410,6 +406,7 @@ const savedLanguage =
             </div>
           </Card>
 
+          {/*
           <Card className="bg-[#0B0F19] text-white">
             <div className="flex items-start gap-4">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-400 text-black">
@@ -433,6 +430,7 @@ const savedLanguage =
               <SecurityItem label={t("profile.roleBasedAccess")} />
             </div>
           </Card>
+          */}
         </div>
 
         <div className="space-y-6">
@@ -821,9 +819,3 @@ function SecurityItem({
     </div>
   );
 }
-
-
-
-
-
-

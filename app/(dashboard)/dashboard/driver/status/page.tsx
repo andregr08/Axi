@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -60,7 +60,7 @@ const operationalStatusLabels: Record<
   DriverOperationalStatus,
   string
 > = {
-  offline: "Fuera de lÃ­nea",
+  offline: "Fuera de línea",
   available: "Disponible",
   offer_pending: "Oferta pendiente",
   to_pickup: "Recogiendo pasajero",
@@ -73,17 +73,17 @@ const operationalStatusDescriptions: Record<
   string
 > = {
   offline:
-    "ConÃ©ctate para comenzar a recibir solicitudes de viaje.",
+    "Conéctate para comenzar a recibir solicitudes de viaje.",
   available:
-    "EstÃ¡s disponible y puedes recibir nuevas solicitudes.",
+    "Estás disponible y puedes recibir nuevas solicitudes.",
   offer_pending:
     "Tienes una solicitud pendiente por aceptar o rechazar.",
   to_pickup:
     "Tienes un viaje aceptado y debes dirigirte al pasajero.",
   on_trip:
-    "Actualmente estÃ¡s realizando un viaje.",
+    "Actualmente estás realizando un viaje.",
   paused:
-    "Sigues conectado, pero no recibirÃ¡s nuevas solicitudes.",
+    "Sigues conectado, pero no recibirás nuevas solicitudes.",
 };
 
 const EMPTY_STATS: DriverStats = {
@@ -202,7 +202,7 @@ export default function DriverStatusPage() {
 
       if (statsResult.error) {
         setMessage(
-          `Error cargando estadÃ­sticas: ${statsResult.error.message}`
+          `Error cargando estadísticas: ${statsResult.error.message}`
         );
       } else {
         const resolvedStats =
@@ -479,7 +479,7 @@ export default function DriverStatusPage() {
     setMessage("");
 
     if (!navigator.geolocation) {
-      setMessage("Tu navegador no permite utilizar la ubicaciÃ³n.");
+      setMessage("Tu navegador no permite utilizar la ubicación.");
       return;
     }
 
@@ -505,14 +505,14 @@ export default function DriverStatusPage() {
         setLocating(false);
 
         if (error) {
-          setMessage(`Error actualizando ubicaciÃ³n: ${error.message}`);
+          setMessage(`Error actualizando ubicación: ${error.message}`);
           return;
         }
 
         setLatitude(newLatitude);
         setLongitude(newLongitude);
         setAccuracy(newAccuracy);
-        setMessage("UbicaciÃ³n actualizada correctamente.");
+        setMessage("Ubicación actualizada correctamente.");
       },
       (error) => {
         setLocating(false);
@@ -522,7 +522,7 @@ export default function DriverStatusPage() {
           return;
         }
 
-        setMessage("No pudimos obtener tu ubicaciÃ³n.");
+        setMessage("No pudimos obtener tu ubicación.");
       },
       {
         enableHighAccuracy: true,
@@ -533,130 +533,212 @@ export default function DriverStatusPage() {
   }
 
   async function changeOnlineStatus(nextOnline: boolean) {
-    setProcessing(true);
-    setMessage("");
-
-    if (nextOnline) {
-      if (!navigator.geolocation) {
-        setProcessing(false);
-        setMessage(
-          "Tu dispositivo o navegador no permite utilizar el GPS."
-        );
-        return;
-      }
-
-      let position: GeolocationPosition;
-
-      try {
-        position =
-          await new Promise<GeolocationPosition>(
-            (resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                resolve,
-                reject,
-                {
-                  enableHighAccuracy: true,
-                  timeout: 20000,
-                  maximumAge: 0,
-                }
-              );
-            }
-          );
-      } catch (locationError) {
-        setProcessing(false);
-
-        const error =
-          locationError as GeolocationPositionError;
-
-        if (
-          error.code ===
-          error.PERMISSION_DENIED
-        ) {
-          setMessage(
-            "Debes permitir el acceso a tu ubicaciÃ³n para ponerte en lÃ­nea."
-          );
-          return;
-        }
-
-        if (
-          error.code ===
-          error.POSITION_UNAVAILABLE
-        ) {
-          setMessage(
-            "No pudimos detectar tu ubicaciÃ³n. Revisa que el GPS estÃ© activado."
-          );
-          return;
-        }
-
-        setMessage(
-          "La ubicaciÃ³n tardÃ³ demasiado en responder. IntÃ©ntalo nuevamente."
-        );
-        return;
-      }
-
-      const newLatitude =
-        position.coords.latitude;
-      const newLongitude =
-        position.coords.longitude;
-      const newAccuracy =
-        position.coords.accuracy;
-
-      const { error: locationError } =
-        await supabase.rpc(
-          "update_driver_location",
-          {
-            latitude_value: newLatitude,
-            longitude_value: newLongitude,
-            speed_value:
-              position.coords.speed,
-            heading_value:
-              position.coords.heading,
-            accuracy_value:
-              newAccuracy,
-          }
-        );
-
-      if (locationError) {
-        setProcessing(false);
-        setMessage(
-          `Error actualizando ubicaciÃ³n: ${locationError.message}`
-        );
-        return;
-      }
-
-      setLatitude(newLatitude);
-      setLongitude(newLongitude);
-      setAccuracy(newAccuracy);
-      lastLocationUpdate.current =
-        Date.now();
-    }
-
-    const { error } = await supabase.rpc(
-      "set_driver_online",
-      {
-        online_status: nextOnline,
-      }
-    );
-
-    setProcessing(false);
-
-    if (error) {
-      setMessage(`Error: ${error.message}`);
+    if (processing) {
       return;
     }
 
-    setOnline(nextOnline);
-    setOperationalStatus(
-      nextOnline ? "available" : "offline"
-    );
+    setProcessing(true);
+    setMessage("");
 
-    setMessage(
-      nextOnline
-        ? "Ya estÃ¡s disponible. Tu ubicaciÃ³n se actualizarÃ¡ automÃ¡ticamente mientras permanezcas en lÃ­nea."
-        : "Ahora estÃ¡s fuera de lÃ­nea y el seguimiento GPS se detuvo."
-    );
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      if (!session) {
+        setMessage(
+          "Tu sesión terminó. Inicia sesión nuevamente."
+        );
+        router.push("/login");
+        return;
+      }
+
+      if (nextOnline) {
+        const {
+          data: profile,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select(
+            "full_name, phone, avatar_url, account_active"
+          )
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileError) {
+          setMessage(
+            `Error revisando tu perfil: ${profileError.message}`
+          );
+          return;
+        }
+
+        if (profile.account_active === false) {
+          setMessage(
+            "Tu cuenta está suspendida. Comunícate con soporte."
+          );
+          return;
+        }
+
+        const missingRequirements: string[] = [];
+
+        if (!profile.full_name?.trim()) {
+          missingRequirements.push("nombre completo");
+        }
+
+        if (!profile.phone?.trim()) {
+          missingRequirements.push("teléfono");
+        }
+
+        if (!profile.avatar_url?.trim()) {
+          missingRequirements.push("foto de perfil");
+        }
+
+        if (missingRequirements.length > 0) {
+          setMessage(
+            `Completa tu ${missingRequirements.join(
+              ", "
+            )} antes de ponerte en línea.`
+          );
+          return;
+        }
+
+        if (!navigator.geolocation) {
+          setMessage(
+            "Tu navegador no permite utilizar el GPS."
+          );
+          return;
+        }
+
+        let position: GeolocationPosition;
+
+        try {
+          position =
+            await new Promise<GeolocationPosition>(
+              (resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                  resolve,
+                  reject,
+                  {
+                    enableHighAccuracy: true,
+                    timeout: 20000,
+                    maximumAge: 0,
+                  }
+                );
+              }
+            );
+        } catch (locationError) {
+          const error =
+            locationError as GeolocationPositionError;
+
+          if (
+            error.code ===
+            GeolocationPositionError.PERMISSION_DENIED
+          ) {
+            setMessage(
+              "Debes permitir el acceso a tu ubicación para ponerte en línea."
+            );
+            return;
+          }
+
+          if (
+            error.code ===
+            GeolocationPositionError.POSITION_UNAVAILABLE
+          ) {
+            setMessage(
+              "No pudimos detectar tu ubicación. Activa el GPS e inténtalo nuevamente."
+            );
+            return;
+          }
+
+          setMessage(
+            "La ubicación tardó demasiado en responder. Inténtalo nuevamente."
+          );
+          return;
+        }
+
+        const newLatitude =
+          position.coords.latitude;
+        const newLongitude =
+          position.coords.longitude;
+        const newAccuracy =
+          position.coords.accuracy;
+
+        const { error: locationError } =
+          await supabase.rpc(
+            "update_driver_location",
+            {
+              latitude_value: newLatitude,
+              longitude_value: newLongitude,
+              speed_value:
+                position.coords.speed,
+              heading_value:
+                position.coords.heading,
+              accuracy_value:
+                newAccuracy,
+            }
+          );
+
+        if (locationError) {
+          setMessage(
+            `Error actualizando ubicación: ${locationError.message}`
+          );
+          return;
+        }
+
+        setLatitude(newLatitude);
+        setLongitude(newLongitude);
+        setAccuracy(newAccuracy);
+
+        lastLocationUpdate.current =
+          Date.now();
+      }
+
+      const { error: onlineError } =
+        await supabase.rpc(
+          "set_driver_online",
+          {
+            online_status: nextOnline,
+          }
+        );
+
+      if (onlineError) {
+        setMessage(
+          `Error cambiando tu estado: ${onlineError.message}`
+        );
+        return;
+      }
+
+      setOnline(nextOnline);
+
+      setOperationalStatus(
+        nextOnline ? "available" : "offline"
+      );
+
+      setMessage(
+        nextOnline
+          ? "Ya estás en línea y disponible para recibir viajes."
+          : "Terminaste tu jornada y ahora estás fuera de línea."
+      );
+    } catch (unexpectedError) {
+      console.error(
+        "Error cambiando estado del conductor:",
+        unexpectedError
+      );
+
+      setMessage(
+        unexpectedError instanceof Error
+          ? `Error inesperado: ${unexpectedError.message}`
+          : "Ocurrió un error inesperado."
+      );
+    } finally {
+      setProcessing(false);
+    }
   }
-
   async function changeOperationalStatus(
     nextStatus: "available" | "paused"
   ) {
@@ -684,8 +766,8 @@ export default function DriverStatusPage() {
 
     setMessage(
       resolvedStatus === "paused"
-        ? "Pausaste las solicitudes. SeguirÃ¡s conectado y compartiendo tu ubicaciÃ³n."
-        : "Reanudaste las solicitudes y ya estÃ¡s disponible."
+        ? "Pausaste las solicitudes. Seguirás conectado y compartiendo tu ubicación."
+        : "Reanudaste las solicitudes y ya estás disponible."
     );
   }
 
@@ -742,7 +824,7 @@ export default function DriverStatusPage() {
 
   const locationQuality =
     accuracy === null
-      ? "Sin mediciÃ³n"
+      ? "Sin medición"
       : accuracy <= 20
         ? "Excelente"
         : accuracy <= 50
@@ -795,7 +877,7 @@ export default function DriverStatusPage() {
                 : operationalStatus === "offer_pending"
                   ? "Tienes una nueva solicitud"
                   : operationalStatus === "to_pickup"
-                    ? "DirÃ­gete al pasajero"
+                    ? "Dirígete al pasajero"
                     : operationalStatus === "on_trip"
                       ? "Viaje en curso"
                       : operationalStatus === "paused"
@@ -804,8 +886,8 @@ export default function DriverStatusPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              {currentStatusDescription} Mientras permanezcas en lÃ­nea,
-              AXI actualizarÃ¡ automÃ¡ticamente tu posiciÃ³n para solicitudes
+              {currentStatusDescription} Mientras permanezcas en línea,
+              AXI actualizará automáticamente tu posición para solicitudes
               y viajes activos.
             </p>
 
@@ -893,7 +975,7 @@ export default function DriverStatusPage() {
                   ? "Viaje activo"
                   : online
                     ? "Terminar jornada"
-                    : "Ponerme en lÃ­nea"}
+                    : "Ponerme en línea"}
 
               {!processing && <ArrowRight size={19} />}
             </button>
@@ -922,15 +1004,15 @@ export default function DriverStatusPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  PosiciÃ³n del conductor
+                  Posición del conductor
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  UbicaciÃ³n GPS
+                  Ubicación GPS
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Actualiza tu ubicaciÃ³n antes de conectarte.
+                  Actualiza tu ubicación antes de conectarte.
                 </p>
               </div>
 
@@ -977,7 +1059,7 @@ export default function DriverStatusPage() {
                   <Gauge size={21} className="text-blue-600" />
 
                   <p className="mt-4 text-xs font-black uppercase tracking-wider text-slate-400">
-                    PrecisiÃ³n
+                    Precisión
                   </p>
 
                   <p className="mt-2 font-black text-slate-950">
@@ -1000,10 +1082,10 @@ export default function DriverStatusPage() {
                 />
 
                 {locating
-                  ? "Obteniendo ubicaciÃ³n..."
+                  ? "Obteniendo ubicación..."
                   : hasLocation
-                    ? "Actualizar mi ubicaciÃ³n"
-                    : "Compartir mi ubicaciÃ³n"}
+                    ? "Actualizar mi ubicación"
+                    : "Compartir mi ubicación"}
               </button>
             </div>
           </div>
@@ -1028,7 +1110,7 @@ export default function DriverStatusPage() {
                   loadDriverStatus(true)
                 }
                 disabled={refreshingStats}
-                aria-label="Actualizar estadÃ­sticas"
+                aria-label="Actualizar estadísticas"
                 className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700 transition hover:bg-yellow-200 disabled:opacity-50"
               >
                 <RefreshCw
@@ -1086,11 +1168,11 @@ export default function DriverStatusPage() {
                     ? Number(
                         stats.average_rating
                       ).toFixed(2)
-                    : "â€”"}
+                    : "—"}
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  {stats.rating_count} reseÃ±a
+                  {stats.rating_count} reseña
                   {stats.rating_count === 1
                     ? ""
                     : "s"}
@@ -1108,7 +1190,7 @@ export default function DriverStatusPage() {
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  Viajes histÃ³ricos
+                  Viajes históricos
                 </p>
               </div>
             </div>
@@ -1194,8 +1276,8 @@ export default function DriverStatusPage() {
 
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {hasLocation
-                    ? "Tu posiciÃ³n estÃ¡ lista para recibir solicitudes."
-                    : "AXI necesita tu ubicaciÃ³n para mostrarte viajes cercanos."}
+                    ? "Tu posición está lista para recibir solicitudes."
+                    : "AXI necesita tu ubicación para mostrarte viajes cercanos."}
                 </p>
               </div>
             </div>

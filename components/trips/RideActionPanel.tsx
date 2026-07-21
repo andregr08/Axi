@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import {
   ArrowRight,
   CarFront,
   Check,
-  CircleDollarSign,
   Gauge,
-  MapPin,
   Navigation,
   ShieldCheck,
   UsersRound,
@@ -18,34 +15,16 @@ import {
   isAdmin,
   type UserRole,
 } from "@/lib/auth/roles";
-import { cn } from "@/utils/cn";
 
 interface RideActionPanelProps {
   role: UserRole;
 }
 
-const vehicleOptions = [
-  {
-    id: "economy",
-    name: "AXI 4",
-    description: "Hasta 4 pasajeros",
-    price: "$85",
-  },
-  {
-    id: "comfort",
-    name: "AXI 6",
-    description: "Hasta 6 pasajeros y equipaje",
-    price: "$106",
-  },
-];
 
 export function RideActionPanel({
   role,
 }: RideActionPanelProps) {
   const { t } = useLanguage();
-
-  const [selectedVehicle, setSelectedVehicle] =
-    useState("economy");
 
   if (role === "driver") {
     return (
@@ -249,138 +228,61 @@ export function RideActionPanel({
   }
 
   return (
-    <aside className="flex h-full min-h-[520px] flex-col rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+    <aside className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-[2rem] bg-[#0B0F19] p-6 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
       <div className="flex items-center justify-between">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
           <Navigation size={23} />
         </span>
 
-        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
-          {t("ridePanel.passenger.newTrip")}
+        <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-slate-200">
+          Nuevo viaje
         </span>
       </div>
 
-      <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-        {t("ridePanel.passenger.section")}
-      </p>
+      <div className="my-auto py-10">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+          Viaja con AXI
+        </p>
 
-      <h2 className="mt-2 text-3xl font-black text-slate-950">
-        {t("ridePanel.passenger.title")}
-      </h2>
+        <h2 className="mt-3 max-w-sm text-3xl font-black leading-tight sm:text-4xl">
+          Solicita tu viaje en pocos pasos
+        </h2>
 
-      <div className="mt-6 space-y-3">
-        <div className="relative">
-          <MapPin
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500"
-          />
+        <p className="mt-4 max-w-sm text-sm leading-7 text-slate-400">
+          Elige tu origen y destino. Después podrás comparar AXI 4 y AXI 6 con el precio real de tu recorrido.
+        </p>
 
-          <input
-            type="text"
-            placeholder={t(
-              "ridePanel.passenger.currentLocation"
-            )}
-            className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-semibold outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
-          />
-        </div>
+        <div className="mt-7 grid gap-3 text-sm text-slate-300">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-black text-yellow-400">
+              1
+            </span>
+            Selecciona tu destino
+          </div>
 
-        <div className="relative">
-          <Navigation
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500"
-          />
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-black text-yellow-400">
+              2
+            </span>
+            Compara el tipo de vehículo
+          </div>
 
-          <input
-            type="text"
-            placeholder={t(
-              "ridePanel.passenger.destination"
-            )}
-            className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-semibold outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
-          />
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-black text-yellow-400">
+              3
+            </span>
+            Confirma y encuentra conductor
+          </div>
         </div>
       </div>
 
-      <p className="mt-7 text-sm font-black text-slate-950">
-        {t("ridePanel.passenger.chooseTrip")}
-      </p>
-
-      <div className="mt-3 space-y-2">
-        {vehicleOptions.map((vehicle) => {
-          const selected =
-            selectedVehicle === vehicle.id;
-
-          return (
-            <button
-              key={vehicle.id}
-              type="button"
-              onClick={() =>
-                setSelectedVehicle(vehicle.id)
-              }
-              className={cn(
-                "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition",
-                selected
-                  ? "border-yellow-400 bg-yellow-50 ring-2 ring-yellow-400/20"
-                  : "border-slate-100 hover:border-slate-300 hover:bg-slate-50"
-              )}
-            >
-              <span
-                className={cn(
-                  "flex h-11 w-11 items-center justify-center rounded-xl",
-                  selected
-                    ? "bg-yellow-400 text-black"
-                    : "bg-slate-100 text-slate-700"
-                )}
-              >
-                <CarFront size={20} />
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block font-black text-slate-950">
-                  {vehicle.name}
-                </span>
-
-                <span className="block truncate text-xs text-slate-500">
-                  {vehicle.description}
-                </span>
-              </span>
-
-              <span className="font-black text-slate-950">
-                {vehicle.price}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-auto pt-6">
-        <div className="mb-4 flex items-center justify-between text-sm">
-          <span className="flex items-center gap-2 text-slate-500">
-            <CircleDollarSign size={17} />
-
-            {t("ridePanel.passenger.estimatedPrice")}
-          </span>
-
-          <span className="font-black text-slate-950">
-            {
-              vehicleOptions.find(
-                (item) =>
-                  item.id === selectedVehicle
-              )?.price
-            }
-          </span>
-        </div>
-
-        <Link
-          href="/dashboard/trips/new"
-          className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800"
-        >
-          {t(
-            "ridePanel.passenger.confirmDestination"
-          )}
-
-          <ArrowRight size={19} />
-        </Link>
-      </div>
+      <Link
+        href="/dashboard/trips/new"
+        className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300"
+      >
+        Solicitar viaje
+        <ArrowRight size={19} />
+      </Link>
     </aside>
   );
 }

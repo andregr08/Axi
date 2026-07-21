@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -440,8 +440,10 @@ export default function ActiveTripPage({
 
   useEffect(() => {
     if (!trip?.driver_id) {
-      setDriverLocation(null);
-      setLocationConnected(false);
+      queueMicrotask(() => {
+        setDriverLocation(null);
+        setLocationConnected(false);
+      });
       return;
     }
 
@@ -591,7 +593,7 @@ export default function ActiveTripPage({
 
           <p className="mt-3 text-sm leading-7 text-slate-500">
             {message ||
-              "No fue posible cargar la información de este viaje."}
+              "No fue posible cargar la informaci├│n de este viaje."}
           </p>
 
           <Link
@@ -799,3 +801,4 @@ export default function ActiveTripPage({
     </section>
   );
 }
+

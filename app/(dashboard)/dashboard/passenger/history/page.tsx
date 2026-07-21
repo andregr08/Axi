@@ -52,6 +52,13 @@ type PassengerActivity = {
   review_comment: string | null;
 };
 
+type PassengerToolTab =
+  | "summary"
+  | "trips"
+  | "payments"
+  | "pending"
+  | "ratings";
+
 type HistoryFilter =
   | "all"
   | "completed"
@@ -92,6 +99,38 @@ const activeTripStatuses = [
   "driver_arriving",
   "driver_arrived",
   "in_progress",
+];
+
+const passengerToolTabs: Array<{
+  value: PassengerToolTab;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "summary",
+    label: "Resumen",
+    description: "Vista general de tu actividad",
+  },
+  {
+    value: "trips",
+    label: "Viajes",
+    description: "Todos tus recorridos",
+  },
+  {
+    value: "payments",
+    label: "Pagos",
+    description: "Pagos realizados y recibos",
+  },
+  {
+    value: "pending",
+    label: "Pendientes",
+    description: "Pagos que requieren atención",
+  },
+  {
+    value: "ratings",
+    label: "Calificaciones",
+    description: "Opiniones y viajes por calificar",
+  },
 ];
 
 const filters: Array<{
@@ -190,7 +229,10 @@ export default function PassengerHistoryPage() {
     useState(false);
 
   const [search, setSearch] =
-    useState("");
+    useState("");  const [activeTab, setActiveTab] =
+    useState<PassengerToolTab>("summary");
+
+
 
   const [filter, setFilter] =
     useState<HistoryFilter>("all");
@@ -383,6 +425,35 @@ export default function PassengerHistoryPage() {
     });
   }, [activity, filter, search]);
 
+  const visibleActivity = useMemo(() => {
+    if (activeTab === "summary") {
+      return activity.slice(0, 3);
+    }
+
+    if (activeTab === "trips") {
+      return filteredActivity;
+    }
+
+    if (activeTab === "payments") {
+      return completedTrips;
+    }
+
+    if (activeTab === "pending") {
+      return pendingPayments;
+    }
+
+    return activity.filter(
+      (item) =>
+        item.status === "completed" &&
+        item.driver_id !== null
+    );
+  }, [
+    activeTab,
+    activity,
+    completedTrips,
+    filteredActivity,
+    pendingPayments,
+  ]);
   if (loading) {
     return (
       <section className="space-y-6">
@@ -414,17 +485,16 @@ export default function PassengerHistoryPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
               <Sparkles size={15} />
-              Actividad de pasajero
+              Centro del pasajero
             </span>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
-              Historial de viajes
+              Herramientas del pasajero
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta tus recorridos, pagos,
-              recibos y calificaciones desde
-              un solo lugar.
+              Consulta tus viajes, pagos, pendientes y
+              calificaciones desde una sola pantalla.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -490,6 +560,46 @@ export default function PassengerHistoryPage() {
         </div>
       )}
 
+      <Card className="overflow-hidden p-2">
+        <div className="flex gap-2 overflow-x-auto">
+          {passengerToolTabs.map((tab) => {
+            const selected =
+              activeTab === tab.value;
+
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() =>
+                  setActiveTab(tab.value)
+                }
+                className={cn(
+                  "min-w-[150px] shrink-0 rounded-2xl px-5 py-4 text-left transition",
+                  selected
+                    ? "bg-slate-950 text-white shadow-lg"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+                )}
+              >
+                <span className="block text-sm font-black">
+                  {tab.label}
+                </span>
+
+                <span
+                  className={cn(
+                    "mt-1 block text-xs font-semibold",
+                    selected
+                      ? "text-slate-300"
+                      : "text-slate-400"
+                  )}
+                >
+                  {tab.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+      {activeTab === "summary" && (
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total gastado"
@@ -529,7 +639,9 @@ export default function PassengerHistoryPage() {
           iconClass="bg-violet-100 text-violet-700"
         />
       </div>
+      )}
 
+      {activeTab === "trips" && (
       <Card>
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
@@ -592,8 +704,9 @@ export default function PassengerHistoryPage() {
           })}
         </div>
       </Card>
+      )}
 
-      {filteredActivity.length === 0 ? (
+      {visibleActivity.length === 0 ? (
         <Card className="relative flex min-h-[460px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.14),_transparent_32%),linear-gradient(to_bottom,_#ffffff,_#f8fafc)] px-6 py-12">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.45)_1px,transparent_1px)] bg-[size:42px_42px]" />
 
@@ -638,7 +751,7 @@ export default function PassengerHistoryPage() {
         </Card>
       ) : (
         <div className="space-y-5">
-          {filteredActivity.map(
+          {visibleActivity.map(
             (item) => (
               <TripHistoryCard
                 key={item.trip_id}
@@ -1105,3 +1218,6 @@ function DetailRow({
     </div>
   );
 }
+
+
+

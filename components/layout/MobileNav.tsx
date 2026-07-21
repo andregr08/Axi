@@ -12,7 +12,9 @@ import {
   LogOut,
   Menu,
   Route,
+  Settings,
   ShieldCheck,
+  SlidersHorizontal,
   UserRound,
   UsersRound,
   X,
@@ -86,6 +88,14 @@ export function MobileNav({
   ];
 
   const secondaryItems: NavigationItem[] = [
+
+    {
+      href: "/dashboard/passenger/profile",
+      label: "Configuración",
+      description: "Perfil, seguridad y lugares guardados",
+      icon: Settings,
+      visible: role === "passenger",
+    },
     {
       href: "/dashboard/driver-application",
       labelKey: "navigation.becomeDriver",
