@@ -864,7 +864,8 @@ export function DriverHome({
         </Card>
         */}
 
-        <Card>
+        {/*
+<Card>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
@@ -908,6 +909,7 @@ export function DriverHome({
             />
           </div>
         </Card>
+*/}
       </div>
     </section>
   );

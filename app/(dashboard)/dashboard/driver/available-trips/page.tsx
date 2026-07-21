@@ -219,7 +219,7 @@ export default function AvailableTripsPage() {
 
   async function acceptOffer(offerId: string) {
     const confirmed = window.confirm(
-      "Â¿Seguro que quieres aceptar este viaje?"
+      "¿Seguro que quieres aceptar este viaje?"
     );
 
     if (!confirmed) return;
@@ -307,13 +307,13 @@ export default function AvailableTripsPage() {
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
               Revisa nuevas solicitudes cercanas, compara los recorridos y
-              acepta el viaje que mejor se adapte a tu ubicaciÃ³n.
+              acepta el viaje que mejor se adapte a tu ubicación.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
                 <Radio size={18} className="text-emerald-400" />
-                ActualizaciÃ³n automÃ¡tica
+                Actualización automática
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
@@ -387,8 +387,8 @@ export default function AvailableTripsPage() {
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-500">
-              Mantente en lÃ­nea y con el GPS actualizado. Las nuevas ofertas
-              aparecerÃ¡n aquÃ­ automÃ¡ticamente cuando un pasajero cercano
+              Mantente en línea y con el GPS actualizado. Las nuevas ofertas
+              aparecerán aquí automáticamente cuando un pasajero cercano
               solicite un viaje.
             </p>
 
@@ -562,7 +562,7 @@ export default function AvailableTripsPage() {
                       />
 
                       <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                        DuraciÃ³n
+                        Duración
                       </p>
 
                       <p className="mt-1 font-black text-slate-950">
@@ -648,15 +648,15 @@ export default function AvailableTripsPage() {
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-              RecomendaciÃ³n AXI
+              Recomendación AXI
             </p>
 
             <h2 className="mt-2 text-2xl font-black">
-              MantÃ©n tu ubicaciÃ³n actualizada
+              Mantén tu ubicación actualizada
             </h2>
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-              Una ubicaciÃ³n precisa permite que AXI te muestre viajes mÃ¡s
+              Una ubicación precisa permite que AXI te muestre viajes más
               cercanos y calcule mejor la distancia de recogida.
             </p>
           </div>
@@ -666,7 +666,7 @@ export default function AvailableTripsPage() {
             className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
           >
             <Route size={19} />
-            Revisar mi ubicaciÃ³n
+            Revisar mi ubicación
           </Link>
         </div>
       </Card>
