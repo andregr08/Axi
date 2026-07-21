@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -32,6 +32,7 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
+import AvatarUploader from "@/components/profile/AvatarUploader";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { isPassenger } from "@/lib/auth/roles";
@@ -151,7 +152,7 @@ export default function PassengerProfilePage() {
       ] = await Promise.all([
         supabase
           .from("profiles")
-          .select("full_name, phone, role")
+          .select("full_name, phone, role, avatar_url")
           .eq("id", session.user.id)
           .single(),
 
@@ -193,7 +194,7 @@ export default function PassengerProfilePage() {
 
       if (statsResult.error) {
         setMessage(
-          `Error cargando estadísticas: ${statsResult.error.message}`
+          `Error cargando estadÃ­sticas: ${statsResult.error.message}`
         );
       } else {
         const resolvedStats =
@@ -251,7 +252,7 @@ export default function PassengerProfilePage() {
 
     if (cleanAddress.length < 5) {
       setMessage(
-        "La dirección debe tener al menos 5 caracteres."
+        "La direcciÃ³n debe tener al menos 5 caracteres."
       );
       return;
     }
@@ -301,7 +302,7 @@ export default function PassengerProfilePage() {
   ) {
     const confirmed =
       window.confirm(
-        "¿Seguro que quieres eliminar este lugar?"
+        "Â¿Seguro que quieres eliminar este lugar?"
       );
 
     if (!confirmed) {
@@ -467,7 +468,7 @@ export default function PassengerProfilePage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta tus gastos, viajes, reputación y lugares
+              Consulta tus gastos, viajes, reputaciÃ³n y lugares
               frecuentes desde un solo lugar.
             </p>
 
@@ -528,7 +529,7 @@ export default function PassengerProfilePage() {
 
               {refreshing
                 ? "Actualizando..."
-                : "Actualizar información"}
+                : "Actualizar informaciÃ³n"}
             </button>
           </div>
         </div>
@@ -574,15 +575,15 @@ export default function PassengerProfilePage() {
         />
 
         <StatCard
-          label="Calificación"
+          label="CalificaciÃ³n"
           value={
             stats.rating_count > 0
               ? `${Number(
                   stats.average_rating
-                ).toFixed(2)} ★`
-              : "Sin reseñas"
+                ).toFixed(2)} â˜…`
+              : "Sin reseÃ±as"
           }
-          description={`${stats.rating_count} reseña${
+          description={`${stats.rating_count} reseÃ±a${
             stats.rating_count === 1
               ? ""
               : "s"
@@ -703,7 +704,7 @@ export default function PassengerProfilePage() {
             </div>
 
             <p className="mt-8 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-              Información personal
+              InformaciÃ³n personal
             </p>
 
             <h2 className="mt-2 text-2xl font-black">
@@ -720,12 +721,12 @@ export default function PassengerProfilePage() {
 
                 <div>
                   <p className="text-xs font-bold text-slate-500">
-                    Teléfono
+                    TelÃ©fono
                   </p>
 
                   <p className="mt-1 text-sm font-black">
                     {profile.phone ||
-                      "Sin teléfono registrado"}
+                      "Sin telÃ©fono registrado"}
                   </p>
                 </div>
               </div>
@@ -765,7 +766,7 @@ export default function PassengerProfilePage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Nueva dirección
+                Nueva direcciÃ³n
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
@@ -773,8 +774,8 @@ export default function PassengerProfilePage() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Agrega una dirección frecuente para solicitar
-                viajes más rápido.
+                Agrega una direcciÃ³n frecuente para solicitar
+                viajes mÃ¡s rÃ¡pido.
               </p>
             </div>
 
@@ -847,7 +848,7 @@ export default function PassengerProfilePage() {
             <ProfileInput
               label="Nombre del lugar"
               value={label}
-              placeholder="Ejemplo: Casa de mis papás"
+              placeholder="Ejemplo: Casa de mis papÃ¡s"
               icon={Bookmark}
               maxLength={80}
               onChange={setLabel}
@@ -858,7 +859,7 @@ export default function PassengerProfilePage() {
                 htmlFor="savedAddress"
                 className="mb-2 block text-sm font-black text-slate-700"
               >
-                Dirección completa
+                DirecciÃ³n completa
               </label>
 
               <div className="relative">
@@ -877,7 +878,7 @@ export default function PassengerProfilePage() {
                   }
                   rows={5}
                   maxLength={300}
-                  placeholder="Calle, número, colonia, ciudad..."
+                  placeholder="Calle, nÃºmero, colonia, ciudad..."
                   className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                 />
               </div>
@@ -895,7 +896,7 @@ export default function PassengerProfilePage() {
                 />
 
                 <p className="text-xs leading-6 text-blue-800">
-                  Podrás utilizar este lugar como origen o destino
+                  PodrÃ¡s utilizar este lugar como origen o destino
                   al solicitar futuros viajes.
                 </p>
               </div>
@@ -950,12 +951,12 @@ export default function PassengerProfilePage() {
                 </span>
 
                 <h3 className="mt-7 text-3xl font-black">
-                  Todavía no tienes lugares
+                  TodavÃ­a no tienes lugares
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-slate-500">
-                  Guarda casa, trabajo u otra dirección frecuente
-                  para preparar tus viajes más rápido.
+                  Guarda casa, trabajo u otra direcciÃ³n frecuente
+                  para preparar tus viajes mÃ¡s rÃ¡pido.
                 </p>
               </div>
             </div>
@@ -1040,7 +1041,7 @@ function SavedPlaceCard({
           {place.latitude !== null &&
             place.longitude !== null && (
               <p className="mt-2 text-xs font-semibold text-emerald-600">
-                Ubicación exacta registrada
+                UbicaciÃ³n exacta registrada
               </p>
             )}
         </div>
@@ -1194,3 +1195,4 @@ function ProfileInput({
     </div>
   );
 }
+

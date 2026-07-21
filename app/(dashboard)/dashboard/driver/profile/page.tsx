@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -31,6 +31,7 @@ import {
   UserRound,
   WalletCards,
 } from "lucide-react";
+import AvatarUploader from "@/components/profile/AvatarUploader";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { isDriver } from "@/lib/auth/roles";
@@ -51,6 +52,7 @@ type DriverStats = {
 type DriverProfile = {
   full_name: string | null;
   phone: string | null;
+  avatar_url: string | null;
 };
 
 type DriverActivity = {
@@ -87,6 +89,9 @@ export default function DriverProfilePage() {
   const [profile, setProfile] =
     useState<DriverProfile | null>(null);
 
+  const [userId, setUserId] =
+    useState<string | null>(null);
+
   const [activity, setActivity] =
     useState<DriverActivity[]>([]);
 
@@ -115,18 +120,19 @@ export default function DriverProfilePage() {
 
       console.log("[AXI DRIVER] SESSION USER ID:", session?.user.id);
       console.log("[AXI DRIVER] SESSION EMAIL:", session?.user.email);
-
       if (!session) {
         router.replace("/login");
         return;
       }
+
+      setUserId(session.user.id);
 
       const {
         data: profileData,
         error: profileError,
       } = await supabase
         .from("profiles")
-        .select("full_name, phone, role")
+        .select("full_name, phone, role, avatar_url")
         .eq("id", session.user.id)
         .single();
 
@@ -142,6 +148,7 @@ export default function DriverProfilePage() {
       setProfile({
         full_name: profileData.full_name,
         phone: profileData.phone,
+        avatar_url: profileData.avatar_url,
       });
 
       const [
@@ -161,7 +168,7 @@ export default function DriverProfilePage() {
 
       if (statsResult.error) {
         setMessage(
-          `Error cargando estadísticas: ${statsResult.error.message}`
+          `Error cargando estadÃ­sticas: ${statsResult.error.message}`
         );
       } else {
         const resolvedStats =
@@ -268,7 +275,7 @@ export default function DriverProfilePage() {
 
   const ratingLabel =
     stats.rating_count === 0
-      ? "Sin reseñas todavía"
+      ? "Sin reseÃ±as todavÃ­a"
       : rating >= 4.8
         ? "Servicio excelente"
         : rating >= 4.5
@@ -349,14 +356,26 @@ export default function DriverProfilePage() {
         <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="relative">
-              <span className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-yellow-400 text-3xl font-black text-black shadow-2xl shadow-yellow-400/20">
-                {initials || "AX"}
-              </span>
+  <AvatarUploader
+    userId={userId!}
+    fullName={profile.full_name}
+    currentAvatarUrl={profile.avatar_url}
+    onUploaded={(url) =>
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              avatar_url: url,
+            }
+          : prev
+      )
+    }
+  />
 
-              <span className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full border-4 border-slate-950 bg-emerald-500 text-white">
-                <BadgeCheck size={18} />
-              </span>
-            </div>
+  <span className="absolute -bottom-2 -right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full border-4 border-slate-950 bg-emerald-500 text-white">
+    <BadgeCheck size={18} />
+  </span>
+</div>
 
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
@@ -500,13 +519,13 @@ export default function DriverProfilePage() {
         />
 
         <StatCard
-          label="Calificación"
+          label="CalificaciÃ³n"
           value={
             stats.rating_count > 0
               ? rating.toFixed(2)
               : "Nueva"
           }
-          description={`${stats.rating_count} reseña${
+          description={`${stats.rating_count} reseÃ±a${
             stats.rating_count === 1
               ? ""
               : "s"
@@ -532,7 +551,7 @@ export default function DriverProfilePage() {
                 </div>
 
                 <p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-black/60">
-                  Reputación AXI
+                  ReputaciÃ³n AXI
                 </p>
 
                 <div className="mt-2 flex items-end gap-3">
@@ -574,14 +593,14 @@ export default function DriverProfilePage() {
 
             <div className="p-6">
               <p className="text-sm leading-7 text-slate-500">
-                Tu calificación se calcula con las
-                reseñas recibidas después de cada
+                Tu calificaciÃ³n se calcula con las
+                reseÃ±as recibidas despuÃ©s de cada
                 viaje completado.
               </p>
 
               <div className="mt-5 rounded-2xl bg-slate-50 p-4">
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Total de reseñas
+                  Total de reseÃ±as
                 </p>
 
                 <p className="mt-1 text-2xl font-black text-slate-950">
@@ -595,7 +614,7 @@ export default function DriverProfilePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Información personal
+                  InformaciÃ³n personal
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
@@ -617,10 +636,10 @@ export default function DriverProfilePage() {
               />
 
               <ProfileDataRow
-                label="Teléfono"
+                label="TelÃ©fono"
                 value={
                   profile.phone ||
-                  "Sin teléfono registrado"
+                  "Sin telÃ©fono registrado"
                 }
                 icon={Phone}
               />
@@ -681,7 +700,7 @@ export default function DriverProfilePage() {
 
                 <p className="mt-2 text-sm text-slate-500">
                   Viajes completados, ganancias y
-                  reseñas recibidas.
+                  reseÃ±as recibidas.
                 </p>
               </div>
 
@@ -709,13 +728,13 @@ export default function DriverProfilePage() {
                 </span>
 
                 <h3 className="mt-7 text-3xl font-black text-slate-950">
-                  Todavía no hay viajes completados
+                  TodavÃ­a no hay viajes completados
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-slate-500">
                   Cuando completes tu primer viaje,
-                  aquí aparecerán la ruta, ganancia,
-                  distancia, duración y calificación.
+                  aquÃ­ aparecerÃ¡n la ruta, ganancia,
+                  distancia, duraciÃ³n y calificaciÃ³n.
                 </p>
 
                 <Link
@@ -955,7 +974,7 @@ function ActivityCard({
               <Clock3 size={14} />
               {item.duration_minutes !== null
                 ? `${item.duration_minutes} min`
-                : "Sin duración"}
+                : "Sin duraciÃ³n"}
             </span>
           </div>
         </div>
@@ -991,14 +1010,14 @@ function ActivityCard({
 
               <p className="mt-2 text-sm leading-6 text-yellow-800">
                 {item.passenger_comment ||
-                  "El pasajero no dejó comentario."}
+                  "El pasajero no dejÃ³ comentario."}
               </p>
             </div>
           ) : (
             <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-left">
               <p className="text-xs font-semibold text-slate-400">
-                Este viaje todavía no tiene
-                calificación.
+                Este viaje todavÃ­a no tiene
+                calificaciÃ³n.
               </p>
             </div>
           )}
@@ -1015,3 +1034,10 @@ function ActivityCard({
     </article>
   );
 }
+
+
+
+
+
+
+
