@@ -186,7 +186,7 @@ export default function PassengerProfilePage() {
 
       if (statsResult.error) {
         setMessage(
-          `Error cargando estadÃ­sticas: ${statsResult.error.message}`
+          `Error cargando estadísticas: ${statsResult.error.message}`
         );
       } else {
         const resolvedStats =
@@ -243,7 +243,7 @@ export default function PassengerProfilePage() {
 
     if (cleanAddress.length < 5) {
       setMessage(
-        "La direcciÃ³n debe tener al menos 5 caracteres."
+        "La dirección debe tener al menos 5 caracteres."
       );
       return;
     }
@@ -293,7 +293,7 @@ export default function PassengerProfilePage() {
   ) {
     const confirmed =
       window.confirm(
-        "Â¿Seguro que quieres eliminar este lugar?"
+        "¿Seguro que quieres eliminar este lugar?"
       );
 
     if (!confirmed) {
@@ -534,7 +534,7 @@ export default function PassengerProfilePage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Nueva direcciÃ³n
+                Nueva dirección
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
@@ -542,8 +542,8 @@ export default function PassengerProfilePage() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Agrega una direcciÃ³n frecuente para solicitar
-                viajes mÃ¡s rÃ¡pido.
+                Agrega una dirección frecuente para solicitar
+                viajes más rápido.
               </p>
             </div>
 
@@ -616,7 +616,7 @@ export default function PassengerProfilePage() {
             <ProfileInput
               label="Nombre del lugar"
               value={label}
-              placeholder="Ejemplo: Casa de mis papÃ¡s"
+              placeholder="Ejemplo: Casa de mis papás"
               icon={Bookmark}
               maxLength={80}
               onChange={setLabel}
@@ -627,7 +627,7 @@ export default function PassengerProfilePage() {
                 htmlFor="savedAddress"
                 className="mb-2 block text-sm font-black text-slate-700"
               >
-                DirecciÃ³n completa
+                Dirección completa
               </label>
 
               <div className="relative">
@@ -646,7 +646,7 @@ export default function PassengerProfilePage() {
                   }
                   rows={5}
                   maxLength={300}
-                  placeholder="Calle, nÃºmero, colonia, ciudad..."
+                  placeholder="Calle, número, colonia, ciudad..."
                   className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                 />
               </div>
@@ -664,7 +664,7 @@ export default function PassengerProfilePage() {
                 />
 
                 <p className="text-xs leading-6 text-blue-800">
-                  PodrÃ¡s utilizar este lugar como origen o destino
+                  Podrás utilizar este lugar como origen o destino
                   al solicitar futuros viajes.
                 </p>
               </div>
@@ -719,12 +719,12 @@ export default function PassengerProfilePage() {
                 </span>
 
                 <h3 className="mt-7 text-3xl font-black">
-                  TodavÃ­a no tienes lugares
+                  Todavía no tienes lugares
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-slate-500">
-                  Guarda casa, trabajo u otra direcciÃ³n frecuente
-                  para preparar tus viajes mÃ¡s rÃ¡pido.
+                  Guarda casa, trabajo u otra dirección frecuente
+                  para preparar tus viajes más rápido.
                 </p>
               </div>
             </div>
@@ -809,7 +809,7 @@ function SavedPlaceCard({
           {place.latitude !== null &&
             place.longitude !== null && (
               <p className="mt-2 text-xs font-semibold text-emerald-600">
-                UbicaciÃ³n exacta registrada
+                Ubicación exacta registrada
               </p>
             )}
         </div>

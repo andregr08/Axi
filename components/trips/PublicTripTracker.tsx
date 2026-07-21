@@ -108,11 +108,11 @@ export function PublicTripTracker({
             .includes("could not find the function")
         ) {
           setMessage(
-            "El seguimiento seguro estÃ¡ preparado, pero todavÃ­a falta conectar el servicio en Supabase."
+            "El seguimiento seguro está preparado, pero todavía falta conectar el servicio en Supabase."
           );
         } else {
           setMessage(
-            "Este enlace no existe, expirÃ³ o ya no estÃ¡ disponible."
+            "Este enlace no existe, expiró o ya no está disponible."
           );
         }
 
@@ -128,7 +128,7 @@ export function PublicTripTracker({
       if (!result) {
         setTrip(null);
         setMessage(
-          "Este enlace no existe, expirÃ³ o ya no estÃ¡ disponible."
+          "Este enlace no existe, expiró o ya no está disponible."
         );
       } else {
         setTrip(result as SharedTrip);
@@ -193,7 +193,7 @@ export function PublicTripTracker({
           </button>
 
           <p className="mt-6 text-xs leading-5 text-slate-400">
-            AXI protege la informaciÃ³n de pasajeros y conductores mediante
+            AXI protege la información de pasajeros y conductores mediante
             enlaces temporales.
           </p>
         </div>
@@ -221,8 +221,8 @@ export function PublicTripTracker({
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
-                Esta pÃ¡gina permite consultar el avance del viaje sin mostrar
-                informaciÃ³n privada innecesaria.
+                Esta página permite consultar el avance del viaje sin mostrar
+                información privada innecesaria.
               </p>
             </div>
 
@@ -282,7 +282,7 @@ export function PublicTripTracker({
               </h2>
 
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                El mapa mostrarÃ¡ la posiciÃ³n del taxi y la ruta cuando Gali
+                El mapa mostrará la posición del taxi y la ruta cuando Gali
                 conecte Google Maps y el historial de ubicaciones.
               </p>
 

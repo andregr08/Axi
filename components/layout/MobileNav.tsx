@@ -88,20 +88,7 @@ export function MobileNav({
   ];
 
   const secondaryItems: NavigationItem[] = [
-    {
-      href: "/dashboard/passenger/history",
-      label: "Herramientas del pasajero",
-      description: "Consulta tu actividad, viajes y métricas",
-      icon: SlidersHorizontal,
-      visible: role === "passenger",
-    },
-    {
-      href: "/dashboard/payments",
-      label: "Métodos de pago",
-      description: "Administra tarjetas y pagos",
-      icon: CreditCard,
-      visible: role === "passenger",
-    },
+
     {
       href: "/dashboard/passenger/profile",
       label: "Configuración",

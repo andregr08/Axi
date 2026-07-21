@@ -42,6 +42,7 @@ import { cn } from "@/utils/cn";
 type Coordinates = MobilityCoordinates;
 
 type PaymentMethod = "cash" | "card";
+type RideType = "economy" | "comfort";
 
 type ResolvedTripData = {
   originCoordinates: Coordinates;
@@ -103,7 +104,10 @@ export default function NewTripPage() {
     useState<SelectedPlace | null>(null);
 
   const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("cash");
+  useState<PaymentMethod>("cash");
+
+  const [rideType, setRideType] =
+  useState<RideType>("economy");
 
   const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -112,12 +116,16 @@ export default function NewTripPage() {
     useState<ResolvedTripData | null>(null);
   const [message, setMessage] = useState("");
 
-  const [
-    dynamicFare,
-    setDynamicFare,
-  ] = useState<DynamicFareEstimate | null>(
-    null
-  );
+  const [economyFare, setEconomyFare] =
+    useState<DynamicFareEstimate | null>(null);
+
+  const [comfortFare, setComfortFare] =
+    useState<DynamicFareEstimate | null>(null);
+
+  const dynamicFare =
+    rideType === "economy"
+      ? economyFare
+      : comfortFare;
 
   const [
     pricingLoading,
@@ -317,7 +325,7 @@ export default function NewTripPage() {
         distanceKm,
         durationMinutes,
         paymentMethod,
-        rideType: "economy",
+        rideType,
       });
     } catch (error) {
       setLoading(false);
@@ -433,9 +441,10 @@ export default function NewTripPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadDynamicFare() {
+    async function loadDynamicFares() {
       if (!estimate) {
-        setDynamicFare(null);
+        setEconomyFare(null);
+        setComfortFare(null);
         setPricingError("");
         return;
       }
@@ -444,23 +453,31 @@ export default function NewTripPage() {
       setPricingError("");
 
       try {
-        const fare =
-          await getDynamicFareEstimate(
+        const [economy, comfort] = await Promise.all([
+          getDynamicFareEstimate(
             estimate.distanceKm,
             estimate.durationMinutes,
             "economy"
-          );
+          ),
+          getDynamicFareEstimate(
+            estimate.distanceKm,
+            estimate.durationMinutes,
+            "comfort"
+          ),
+        ]);
 
         if (!cancelled) {
-          setDynamicFare(fare);
+          setEconomyFare(economy);
+          setComfortFare(comfort);
         }
       } catch (error) {
         if (!cancelled) {
-          setDynamicFare(null);
+          setEconomyFare(null);
+          setComfortFare(null);
           setPricingError(
             error instanceof Error
               ? error.message
-              : "No se pudo calcular la tarifa."
+              : "No se pudieron calcular las tarifas."
           );
         }
       } finally {
@@ -470,7 +487,7 @@ export default function NewTripPage() {
       }
     }
 
-    void loadDynamicFare();
+    void loadDynamicFares();
 
     return () => {
       cancelled = true;
@@ -703,32 +720,132 @@ export default function NewTripPage() {
               />
             </div>
 
-            <div className="mt-6 rounded-[1.7rem] bg-slate-950 p-5 text-white">
-              <div className="flex items-center justify-between">
+            <div className="mt-6">
+              <div className="mb-3 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">
-                    Precio estimado
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                    Elige tu vehículo
                   </p>
 
-                  <p className="mt-2 text-4xl font-black text-yellow-400">
-                    {dynamicFare
-                      ? formatCurrency(
-                          getPassengerFareTotal(
-                            dynamicFare
-                          ) ?? 0
-                        )
-                      : estimate
-                        ? formatCurrency(
-                            estimate.estimatedPrice
-                          )
-                        : "--"}
+                  <p className="mt-1 text-sm font-bold text-slate-700">
+                    Selecciona la opción para tu viaje
                   </p>
                 </div>
 
                 <CircleDollarSign
-                  size={31}
-                  className="text-yellow-400"
+                  size={25}
+                  className="text-yellow-500"
                 />
+              </div>
+
+              <div className="grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRideType("economy")}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-[1.4rem] border-2 p-4 text-left transition",
+                    rideType === "economy"
+                      ? "border-yellow-400 bg-slate-950 text-white shadow-lg"
+                      : "border-slate-200 bg-white text-slate-950 hover:border-slate-400"
+                  )}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-black">
+                        AXI 4
+                      </span>
+
+                      {rideType === "economy" && (
+                        <span className="rounded-full bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase text-black">
+                          Seleccionado
+                        </span>
+                      )}
+                    </div>
+
+                    <p
+                      className={cn(
+                        "mt-1 text-xs font-bold",
+                        rideType === "economy"
+                          ? "text-slate-400"
+                          : "text-slate-500"
+                      )}
+                    >
+                      Hasta 4 pasajeros
+                    </p>
+                  </div>
+
+                  <p
+                    className={cn(
+                      "text-2xl font-black",
+                      rideType === "economy"
+                        ? "text-yellow-400"
+                        : "text-slate-950"
+                    )}
+                  >
+                    {economyFare
+                      ? formatCurrency(
+                          getPassengerFareTotal(economyFare) ?? 0
+                        )
+                      : estimate
+                        ? formatCurrency(estimate.estimatedPrice)
+                        : "--"}
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRideType("comfort")}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-[1.4rem] border-2 p-4 text-left transition",
+                    rideType === "comfort"
+                      ? "border-yellow-400 bg-slate-950 text-white shadow-lg"
+                      : "border-slate-200 bg-white text-slate-950 hover:border-slate-400"
+                  )}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-black">
+                        AXI 6
+                      </span>
+
+                      {rideType === "comfort" && (
+                        <span className="rounded-full bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase text-black">
+                          Seleccionado
+                        </span>
+                      )}
+                    </div>
+
+                    <p
+                      className={cn(
+                        "mt-1 text-xs font-bold",
+                        rideType === "comfort"
+                          ? "text-slate-400"
+                          : "text-slate-500"
+                      )}
+                    >
+                      Hasta 6 pasajeros
+                    </p>
+                  </div>
+
+                  <p
+                    className={cn(
+                      "text-2xl font-black",
+                      rideType === "comfort"
+                        ? "text-yellow-400"
+                        : "text-slate-950"
+                    )}
+                  >
+                    {comfortFare
+                      ? formatCurrency(
+                          getPassengerFareTotal(comfortFare) ?? 0
+                        )
+                      : estimate
+                        ? formatCurrency(
+                            estimate.estimatedPrice * 1.25
+                          )
+                        : "--"}
+                  </p>
+                </button>
               </div>
             </div>
 

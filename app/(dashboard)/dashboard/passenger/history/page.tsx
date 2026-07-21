@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -71,7 +71,7 @@ const tripStatusLabels: Record<string, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegÃ³",
+  driver_arrived: "Conductor llegó",
   in_progress: "En curso",
   completed: "Completado",
   cancelled: "Cancelado",
@@ -655,7 +655,7 @@ export default function PassengerHistoryPage() {
 
             <p className="mt-2 text-sm text-slate-500">
               Filtra por estado o busca una
-              direcciÃ³n o conductor.
+              dirección o conductor.
             </p>
           </div>
 
@@ -673,7 +673,7 @@ export default function PassengerHistoryPage() {
                   event.target.value
                 )
               }
-              placeholder="Buscar por direcciÃ³n o conductor..."
+              placeholder="Buscar por dirección o conductor..."
               className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-semibold outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
             />
           </div>
@@ -717,14 +717,14 @@ export default function PassengerHistoryPage() {
 
             <h2 className="mt-7 text-3xl font-black text-slate-950">
               {activity.length === 0
-                ? "TodavÃ­a no tienes viajes"
+                ? "Todavía no tienes viajes"
                 : "No encontramos resultados"}
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-500">
               {activity.length === 0
-                ? "Cuando solicites tu primer viaje, aparecerÃ¡ aquÃ­ con todos sus detalles."
-                : "Prueba con otro tÃ©rmino de bÃºsqueda o cambia el filtro seleccionado."}
+                ? "Cuando solicites tu primer viaje, aparecerá aquí con todos sus detalles."
+                : "Prueba con otro término de búsqueda o cambia el filtro seleccionado."}
             </p>
 
             {activity.length === 0 ? (
@@ -767,11 +767,11 @@ export default function PassengerHistoryPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                Â¿Listo para volver a salir?
+                ¿Listo para volver a salir?
               </p>
 
               <h2 className="mt-2 text-2xl font-black">
-                Solicita tu prÃ³ximo AXI
+                Solicita tu próximo AXI
               </h2>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
@@ -941,7 +941,7 @@ function TripHistoryCard({
 
             <InfoBox
               icon={CreditCard}
-              label="MÃ©todo"
+              label="Método"
               value={
                 item.payment_method
                   ? paymentMethodLabels[
@@ -977,7 +977,7 @@ function TripHistoryCard({
 
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-yellow-700">
-                  ReputaciÃ³n del conductor
+                  Reputación del conductor
                 </p>
 
                 <p className="mt-1 font-black text-yellow-900">
@@ -1001,7 +1001,7 @@ function TripHistoryCard({
                 />
 
                 <p className="font-black text-blue-900">
-                  Tu calificaciÃ³n:{" "}
+                  Tu calificación:{" "}
                   {item.review_rating} de 5
                 </p>
               </div>
