@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -21,7 +21,6 @@ import {
   Sparkles,
   Star,
   Trash2,
-  UserRound,
   WalletCards,
   XCircle,
   type LucideIcon,
@@ -458,33 +457,8 @@ export default function PassengerProfilePage() {
             las herramientas disponibles para tus viajes.
           </p>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            <Link
-              href="/dashboard/security"
-              className="group rounded-[1.7rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-yellow-400/40 hover:bg-white/10"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-                <UserRound size={23} />
-              </span>
-
-              <h2 className="mt-5 text-xl font-black">
-                Seguridad
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Contraseña, acceso y protección de tu cuenta.
-              </p>
-
-              <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-yellow-300">
-                Administrar
-                <ArrowRight
-                  size={17}
-                  className="transition group-hover:translate-x-1"
-                />
-              </span>
-            </Link>
-
-            <Link
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+<Link
               href="/dashboard/payments"
               className="group rounded-[1.7rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-yellow-400/40 hover:bg-white/10"
             >

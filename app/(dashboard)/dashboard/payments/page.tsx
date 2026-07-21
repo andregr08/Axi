@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -39,8 +39,7 @@ export default function PaymentsPage() {
               {t("payments.title")}
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              {t("payments.description")}
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{t("payments.description").replace(" La conexión con Mercado Pago se agregará en la etapa final.","")}
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -62,43 +61,7 @@ export default function PaymentsPage() {
             </div>
           </div>
 
-          <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-                  {t("payments.systemStatus")}
-                </p>
-
-                <p className="mt-2 text-2xl font-black">
-                  {t("payments.ready")}
-                </p>
-              </div>
-
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-                <WalletCards size={27} />
-              </span>
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-start gap-3">
-                <Clock3
-                  size={19}
-                  className="mt-0.5 shrink-0 text-yellow-400"
-                />
-
-                <div>
-                  <p className="text-sm font-black">
-                    {t("payments.integrationPending")}
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-400">
-                    {t("payments.integrationDescription")}
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
-        </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -136,59 +99,6 @@ export default function PaymentsPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
-        <Card className="overflow-hidden p-0">
-          <div className="flex flex-col gap-5 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                {t("payments.movements")}
-              </p>
-
-              <h2 className="mt-1 text-2xl font-black">
-                {t("payments.paymentHistory")}
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-500">
-                {t("payments.historyDescription")}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              disabled
-              className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white opacity-50"
-            >
-              <Plus size={18} />
-              {t("payments.addMethod")}
-            </button>
-          </div>
-
-          <div className="relative flex min-h-[430px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.14),_transparent_32%),linear-gradient(to_bottom,_#ffffff,_#f8fafc)] px-6 py-12">
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.45)_1px,transparent_1px)] bg-[size:42px_42px]" />
-
-            <div className="relative max-w-md text-center">
-              <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-slate-950 text-yellow-400 shadow-2xl shadow-slate-950/20">
-                <ReceiptText size={35} />
-              </span>
-
-              <h3 className="mt-7 text-3xl font-black text-slate-950">
-                {t("payments.noMovements")}
-              </h3>
-
-              <p className="mt-4 text-sm leading-7 text-slate-500">
-                {t("payments.noMovementsDescription")}
-              </p>
-
-              <Link
-                href="/dashboard/trips"
-                className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
-              >
-                {t("payments.viewTrips")}
-                <ArrowRight size={18} />
-              </Link>
-            </div>
-          </div>
-        </Card>
-
         <div className="space-y-6">
           <Card>
             <div className="flex items-center justify-between">

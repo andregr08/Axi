@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -128,7 +128,7 @@ export default function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="pointer-events-auto absolute right-0 top-14 z-[10001] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <div className="pointer-events-auto fixed left-4 right-4 top-24 z-[10001] max-h-[calc(100dvh-7rem)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-14 sm:w-[360px] sm:max-h-none">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">

@@ -31,22 +31,36 @@ export default function LoginPage() {
     useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+    async function initialize() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const error = params.get("error");
+      if (session) {
+        router.replace("/dashboard");
+        router.refresh();
+        return;
+      }
 
-    if (error === "suspended") {
-      setSuspensionMessage(
-        "Tu cuenta está suspendida. Contacta a soporte de AXI."
+      const params = new URLSearchParams(
+        window.location.search
       );
-    } else if (error === "account-verification") {
-      setSuspensionMessage(
-        "No fue posible verificar el estado de tu cuenta."
-      );
+
+      const error = params.get("error");
+
+      if (error === "suspended") {
+        setSuspensionMessage(
+          "Tu cuenta está suspendida. Contacta a soporte de AXI."
+        );
+      } else if (error === "account-verification") {
+        setSuspensionMessage(
+          "No fue posible verificar el estado de tu cuenta."
+        );
+      }
     }
-  }, []);
+
+    void initialize();
+  }, [router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

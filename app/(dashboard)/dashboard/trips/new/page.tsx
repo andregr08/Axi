@@ -730,17 +730,6 @@ export default function NewTripPage() {
                   className="text-yellow-400"
                 />
               </div>
-
-              <div className="mt-4 flex justify-between text-xs text-slate-400">
-                <span>Incluye tarifa de servicio</span>
-                <span>
-                  {formatCurrency(
-                    dynamicFare?.booking_fee ??
-                      estimate?.bookingFee ??
-                      MOBILITY_CONFIG.bookingFee
-                  )}
-                </span>
-              </div>
             </div>
 
             <div className="mt-4">
