@@ -12,7 +12,9 @@ import {
   LogOut,
   Menu,
   Route,
+  Settings,
   ShieldCheck,
+  SlidersHorizontal,
   UserRound,
   UsersRound,
   X,
@@ -86,6 +88,27 @@ export function MobileNav({
   ];
 
   const secondaryItems: NavigationItem[] = [
+    {
+      href: "/dashboard/passenger/history",
+      label: "Herramientas del pasajero",
+      description: "Consulta tu actividad, viajes y métricas",
+      icon: SlidersHorizontal,
+      visible: role === "passenger",
+    },
+    {
+      href: "/dashboard/payments",
+      label: "Métodos de pago",
+      description: "Administra tarjetas y pagos",
+      icon: CreditCard,
+      visible: role === "passenger",
+    },
+    {
+      href: "/dashboard/passenger/profile",
+      label: "Configuración",
+      description: "Perfil, seguridad y lugares guardados",
+      icon: Settings,
+      visible: role === "passenger",
+    },
     {
       href: "/dashboard/driver-application",
       labelKey: "navigation.becomeDriver",

@@ -7,15 +7,10 @@ import {
   CarFront,
   CircleDollarSign,
   Clock3,
-  CreditCard,
-  History,
   MapPin,
   Navigation,
   RefreshCw,
   Route,
-  ShieldCheck,
-  Star,
-  UserRound,
 } from "lucide-react";
 import {
   useCallback,
@@ -118,10 +113,7 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-export function PassengerHome({
-  name,
-  email,
-}: PassengerHomeProps) {
+export function PassengerHome({ name }: PassengerHomeProps) {
   const [stats, setStats] =
     useState<PassengerStats>(EMPTY_STATS);
 
@@ -284,15 +276,6 @@ export function PassengerHome({
     [activity]
   );
 
-  const pendingPayments = useMemo(
-    () =>
-      activity.filter(
-        (item) =>
-          item.status === "completed" &&
-          item.payment_status !== "paid"
-      ),
-    [activity]
-  );
 
   const latestTrip =
     activeTrips[0] ??
@@ -320,88 +303,37 @@ export function PassengerHome({
 
   return (
     <section className="space-y-8">
-      <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-9 text-white shadow-[0_25px_80px_rgba(15,23,42,0.22)] sm:px-9 lg:px-12 lg:py-12">
+      <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-10 text-white shadow-[0_25px_80px_rgba(15,23,42,0.22)] sm:px-10 sm:py-12 lg:px-14 lg:py-14">
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
         <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 
-        <div className="relative grid gap-10 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
-              <Navigation size={15} />
-              Movilidad inteligente
-            </span>
+        <div className="relative max-w-5xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+            <Navigation size={15} />
+            Movilidad inteligente
+          </span>
 
-            <p className="mt-6 text-sm font-semibold text-slate-400">
-              Hola, {name}
-            </p>
+          <p className="mt-6 text-sm font-semibold text-slate-400">
+            Hola, {name}
+          </p>
 
-            <h1 className="mt-2 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-              ¿A dónde vamos hoy?
-            </h1>
+          <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl lg:whitespace-nowrap lg:text-6xl">
+            ¿A dónde vamos hoy?
+          </h1>
 
-            <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Solicita un viaje, revisa tu actividad y administra tus lugares frecuentes desde un solo panel.
-            </p>
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+            Solicita un viaje rápido, seguro y confiable desde AXI.
+          </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/dashboard/trips/new"
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
-              >
-                <CarFront size={19} />
-                Solicitar viaje
-              </Link>
-
-              <Link
-                href="/dashboard/passenger/history"
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 font-black text-white transition hover:bg-white/10"
-              >
-                Ver historial
-                <ArrowRight size={19} />
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-                  Gasto del mes
-                </p>
-
-                <p className="mt-3 text-4xl font-black">
-                  {formatMoney(
-                    stats.spent_this_month
-                  )}
-                </p>
-              </div>
-
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-                <CircleDollarSign size={27} />
-              </span>
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-2xl font-black">
-                  {stats.trips_this_month}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Viajes este mes
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-2xl font-black">
-                  {activeTrips.length}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Viajes activos
-                </p>
-              </div>
-            </div>
+          <div className="mt-8">
+            <Link
+              href="/dashboard/trips/new"
+              className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-7 font-black text-black transition hover:bg-yellow-300 sm:w-auto"
+            >
+              <CarFront size={19} />
+              Solicitar viaje
+              <ArrowRight size={19} />
+            </Link>
           </div>
         </div>
       </div>
@@ -436,59 +368,6 @@ export function PassengerHome({
         </button>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Viajes completados"
-          value={String(
-            stats.completed_trips
-          )}
-          description="Historial total"
-          icon={Route}
-          iconClass="bg-blue-100 text-blue-700"
-        />
-
-        <MetricCard
-          label="Gasto total"
-          value={formatMoney(
-            stats.total_spent
-          )}
-          description="En viajes completados"
-          icon={CircleDollarSign}
-          iconClass="bg-emerald-100 text-emerald-700"
-        />
-
-        <MetricCard
-          label="Calificación"
-          value={
-            stats.rating_count > 0
-              ? Number(
-                  stats.average_rating
-                ).toFixed(2)
-              : "Nueva"
-          }
-          description={
-            stats.rating_count > 0
-              ? `${stats.rating_count} reseñas`
-              : "Sin reseñas todavía"
-          }
-          icon={Star}
-          iconClass="bg-amber-100 text-amber-700"
-        />
-
-        <MetricCard
-          label="Pagos pendientes"
-          value={String(
-            pendingPayments.length
-          )}
-          description={
-            pendingPayments.length > 0
-              ? "Requieren atención"
-              : "Todo está al corriente"
-          }
-          icon={CreditCard}
-          iconClass="bg-violet-100 text-violet-700"
-        />
-      </div>
 
       <section>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -742,139 +621,7 @@ export function PassengerHome({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="bg-[#0B0F19] text-white">
-          <div className="flex items-center justify-between">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-              <UserRound size={23} />
-            </span>
-
-            <Badge className="bg-white/10 text-white">
-              Pasajero
-            </Badge>
-          </div>
-
-          <h2 className="mt-6 text-2xl font-black">
-            {name}
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-400">
-            {email}
-          </p>
-
-          <Link
-            href="/dashboard/profile"
-            className="mt-6 flex h-13 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-5 font-black transition hover:bg-white/10"
-          >
-            Administrar perfil
-            <ArrowRight size={18} />
-          </Link>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Accesos rápidos
-              </p>
-
-              <h2 className="mt-1 text-xl font-black">
-                Herramientas del pasajero
-              </h2>
-            </div>
-
-            <ShieldCheck
-              size={26}
-              className="text-emerald-600"
-            />
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <QuickLink
-              href="/dashboard/trips/new"
-              label="Solicitar viaje"
-              icon={Navigation}
-            />
-
-            <QuickLink
-              href="/dashboard/passenger/history"
-              label="Historial"
-              icon={History}
-            />
-
-            <QuickLink
-              href="/dashboard/payments"
-              label="Pagos"
-              icon={CreditCard}
-            />
-
-            <QuickLink
-              href="/dashboard/security"
-              label="Seguridad"
-              icon={ShieldCheck}
-            />
-          </div>
-        </Card>
-      </div>
     </section>
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  description,
-  icon: Icon,
-  iconClass,
-}: {
-  label: string;
-  value: string;
-  description: string;
-  icon: typeof Route;
-  iconClass: string;
-}) {
-  return (
-    <Card className="group relative overflow-hidden transition hover:-translate-y-1 hover:shadow-xl">
-      <span
-        className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-2xl",
-          iconClass
-        )}
-      >
-        <Icon size={22} />
-      </span>
-
-      <p className="mt-6 text-sm font-semibold text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-1 break-words text-3xl font-black tracking-tight text-slate-950">
-        {value}
-      </p>
-
-      <p className="mt-3 text-sm text-slate-400">
-        {description}
-      </p>
-    </Card>
-  );
-}
-
-function QuickLink({
-  href,
-  label,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  icon: typeof Route;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-2xl border border-slate-100 p-4 font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
-    >
-      <Icon size={19} />
-      {label}
-    </Link>
-  );
-}

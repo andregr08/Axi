@@ -787,6 +787,146 @@ export default function ActiveTripPage({
             {t(
               "tripDetail.cancelled.description"
             )}
+<<<<<<< HEAD
+=======
+          </Card>
+
+          <GoogleMapView />
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black">
+                {t("tripDetail.route.title")}
+              </h2>
+
+              <Route className="text-yellow-600" size={25} />
+            </div>
+
+            <div className="mt-7 flex gap-4">
+              <div className="flex w-11 shrink-0 flex-col items-center">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <MapPin size={20} />
+                </span>
+
+                <span className="my-2 h-12 border-l-2 border-dashed border-slate-300" />
+
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
+                  <Navigation size={20} />
+                </span>
+              </div>
+
+              <div className="min-w-0 flex-1 space-y-8">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    {t("tripDetail.route.pickup")}
+                  </p>
+
+                  <p className="mt-2 font-black text-slate-950">
+                    {trip.origin_address}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    {t("tripDetail.route.destination")}
+                  </p>
+
+                  <p className="mt-2 font-black text-slate-950">
+                    {trip.destination_address}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <CircleDollarSign
+                  size={20}
+                  className="text-emerald-600"
+                />
+
+                <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {t("tripDetail.route.estimated")}
+                </p>
+
+                <p className="mt-1 font-black">
+                  {formatCurrency(trip.estimated_price, locale)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <Clock3 size={20} className="text-blue-600" />
+
+                <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {t("tripDetail.route.status")}
+                </p>
+
+                <p className="mt-1 font-black">
+                  {t(statusLabelKeys[trip.status])}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black">
+                {t("tripDetail.participants.title")}
+              </h2>
+
+              <UserRound size={24} className="text-slate-400" />
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                  <UserRound size={20} />
+                </span>
+
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    {t("tripDetail.participants.passenger")}
+                  </p>
+
+                  <p className="mt-1 font-black">
+                    {passengerName}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+                  <CarFront size={20} />
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    {t("tripDetail.participants.driver")}
+                  </p>
+
+                  <p className="mt-1 truncate font-black">
+                    {driverName}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {role === "passenger" &&
+            driverIdentity &&
+            ["accepted", "driver_arriving", "driver_arrived", "in_progress"].includes(
+              trip.status
+            ) && (
+    <Card>
+      <DriverIdentityCard driver={driverIdentity} />
+
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+            Distancia
+>>>>>>> b6396bc (Rediseña experiencia del pasajero y mejora navegación)
           </p>
         </Card>
       )}
@@ -799,3 +939,32 @@ export default function ActiveTripPage({
     </section>
   );
 }
+<<<<<<< HEAD
+=======
+
+function LocationValue({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+
+      <p className="mt-2 break-words font-black text-slate-950">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+
+
+
+
+
+>>>>>>> b6396bc (Rediseña experiencia del pasajero y mejora navegación)

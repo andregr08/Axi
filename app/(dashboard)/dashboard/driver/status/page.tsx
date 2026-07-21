@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -466,130 +466,212 @@ export default function DriverStatusPage() {
   }
 
   async function changeOnlineStatus(nextOnline: boolean) {
-    setProcessing(true);
-    setMessage("");
-
-    if (nextOnline) {
-      if (!navigator.geolocation) {
-        setProcessing(false);
-        setMessage(
-          "Tu dispositivo o navegador no permite utilizar el GPS."
-        );
-        return;
-      }
-
-      let position: GeolocationPosition;
-
-      try {
-        position =
-          await new Promise<GeolocationPosition>(
-            (resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                resolve,
-                reject,
-                {
-                  enableHighAccuracy: true,
-                  timeout: 20000,
-                  maximumAge: 0,
-                }
-              );
-            }
-          );
-      } catch (locationError) {
-        setProcessing(false);
-
-        const error =
-          locationError as GeolocationPositionError;
-
-        if (
-          error.code ===
-          error.PERMISSION_DENIED
-        ) {
-          setMessage(
-            "Debes permitir el acceso a tu ubicaciÃ³n para ponerte en lÃ­nea."
-          );
-          return;
-        }
-
-        if (
-          error.code ===
-          error.POSITION_UNAVAILABLE
-        ) {
-          setMessage(
-            "No pudimos detectar tu ubicaciÃ³n. Revisa que el GPS estÃ© activado."
-          );
-          return;
-        }
-
-        setMessage(
-          "La ubicaciÃ³n tardÃ³ demasiado en responder. IntÃ©ntalo nuevamente."
-        );
-        return;
-      }
-
-      const newLatitude =
-        position.coords.latitude;
-      const newLongitude =
-        position.coords.longitude;
-      const newAccuracy =
-        position.coords.accuracy;
-
-      const { error: locationError } =
-        await supabase.rpc(
-          "update_driver_location",
-          {
-            latitude_value: newLatitude,
-            longitude_value: newLongitude,
-            speed_value:
-              position.coords.speed,
-            heading_value:
-              position.coords.heading,
-            accuracy_value:
-              newAccuracy,
-          }
-        );
-
-      if (locationError) {
-        setProcessing(false);
-        setMessage(
-          `Error actualizando ubicaciÃ³n: ${locationError.message}`
-        );
-        return;
-      }
-
-      setLatitude(newLatitude);
-      setLongitude(newLongitude);
-      setAccuracy(newAccuracy);
-      lastLocationUpdate.current =
-        Date.now();
-    }
-
-    const { error } = await supabase.rpc(
-      "set_driver_online",
-      {
-        online_status: nextOnline,
-      }
-    );
-
-    setProcessing(false);
-
-    if (error) {
-      setMessage(`Error: ${error.message}`);
+    if (processing) {
       return;
     }
 
-    setOnline(nextOnline);
-    setOperationalStatus(
-      nextOnline ? "available" : "offline"
-    );
+    setProcessing(true);
+    setMessage("");
 
-    setMessage(
-      nextOnline
-        ? "Ya estÃ¡s disponible. Tu ubicaciÃ³n se actualizarÃ¡ automÃ¡ticamente mientras permanezcas en lÃ­nea."
-        : "Ahora estÃ¡s fuera de lÃ­nea y el seguimiento GPS se detuvo."
-    );
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      if (!session) {
+        setMessage(
+          "Tu sesión terminó. Inicia sesión nuevamente."
+        );
+        router.push("/login");
+        return;
+      }
+
+      if (nextOnline) {
+        const {
+          data: profile,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select(
+            "full_name, phone, avatar_url, account_active"
+          )
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileError) {
+          setMessage(
+            `Error revisando tu perfil: ${profileError.message}`
+          );
+          return;
+        }
+
+        if (profile.account_active === false) {
+          setMessage(
+            "Tu cuenta está suspendida. Comunícate con soporte."
+          );
+          return;
+        }
+
+        const missingRequirements: string[] = [];
+
+        if (!profile.full_name?.trim()) {
+          missingRequirements.push("nombre completo");
+        }
+
+        if (!profile.phone?.trim()) {
+          missingRequirements.push("teléfono");
+        }
+
+        if (!profile.avatar_url?.trim()) {
+          missingRequirements.push("foto de perfil");
+        }
+
+        if (missingRequirements.length > 0) {
+          setMessage(
+            `Completa tu ${missingRequirements.join(
+              ", "
+            )} antes de ponerte en línea.`
+          );
+          return;
+        }
+
+        if (!navigator.geolocation) {
+          setMessage(
+            "Tu navegador no permite utilizar el GPS."
+          );
+          return;
+        }
+
+        let position: GeolocationPosition;
+
+        try {
+          position =
+            await new Promise<GeolocationPosition>(
+              (resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                  resolve,
+                  reject,
+                  {
+                    enableHighAccuracy: true,
+                    timeout: 20000,
+                    maximumAge: 0,
+                  }
+                );
+              }
+            );
+        } catch (locationError) {
+          const error =
+            locationError as GeolocationPositionError;
+
+          if (
+            error.code ===
+            GeolocationPositionError.PERMISSION_DENIED
+          ) {
+            setMessage(
+              "Debes permitir el acceso a tu ubicación para ponerte en línea."
+            );
+            return;
+          }
+
+          if (
+            error.code ===
+            GeolocationPositionError.POSITION_UNAVAILABLE
+          ) {
+            setMessage(
+              "No pudimos detectar tu ubicación. Activa el GPS e inténtalo nuevamente."
+            );
+            return;
+          }
+
+          setMessage(
+            "La ubicación tardó demasiado en responder. Inténtalo nuevamente."
+          );
+          return;
+        }
+
+        const newLatitude =
+          position.coords.latitude;
+        const newLongitude =
+          position.coords.longitude;
+        const newAccuracy =
+          position.coords.accuracy;
+
+        const { error: locationError } =
+          await supabase.rpc(
+            "update_driver_location",
+            {
+              latitude_value: newLatitude,
+              longitude_value: newLongitude,
+              speed_value:
+                position.coords.speed,
+              heading_value:
+                position.coords.heading,
+              accuracy_value:
+                newAccuracy,
+            }
+          );
+
+        if (locationError) {
+          setMessage(
+            `Error actualizando ubicación: ${locationError.message}`
+          );
+          return;
+        }
+
+        setLatitude(newLatitude);
+        setLongitude(newLongitude);
+        setAccuracy(newAccuracy);
+
+        lastLocationUpdate.current =
+          Date.now();
+      }
+
+      const { error: onlineError } =
+        await supabase.rpc(
+          "set_driver_online",
+          {
+            online_status: nextOnline,
+          }
+        );
+
+      if (onlineError) {
+        setMessage(
+          `Error cambiando tu estado: ${onlineError.message}`
+        );
+        return;
+      }
+
+      setOnline(nextOnline);
+
+      setOperationalStatus(
+        nextOnline ? "available" : "offline"
+      );
+
+      setMessage(
+        nextOnline
+          ? "Ya estás en línea y disponible para recibir viajes."
+          : "Terminaste tu jornada y ahora estás fuera de línea."
+      );
+    } catch (unexpectedError) {
+      console.error(
+        "Error cambiando estado del conductor:",
+        unexpectedError
+      );
+
+      setMessage(
+        unexpectedError instanceof Error
+          ? `Error inesperado: ${unexpectedError.message}`
+          : "Ocurrió un error inesperado."
+      );
+    } finally {
+      setProcessing(false);
+    }
   }
-
   async function changeOperationalStatus(
     nextStatus: "available" | "paused"
   ) {

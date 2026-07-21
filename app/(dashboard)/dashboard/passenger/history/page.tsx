@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -52,6 +52,13 @@ type PassengerActivity = {
   review_comment: string | null;
 };
 
+type PassengerToolTab =
+  | "summary"
+  | "trips"
+  | "payments"
+  | "pending"
+  | "ratings";
+
 type HistoryFilter =
   | "all"
   | "completed"
@@ -64,7 +71,7 @@ const tripStatusLabels: Record<string, string> = {
   searching: "Buscando conductor",
   accepted: "Aceptado",
   driver_arriving: "Conductor en camino",
-  driver_arrived: "Conductor llegó",
+  driver_arrived: "Conductor llegÃ³",
   in_progress: "En curso",
   completed: "Completado",
   cancelled: "Cancelado",
@@ -92,6 +99,38 @@ const activeTripStatuses = [
   "driver_arriving",
   "driver_arrived",
   "in_progress",
+];
+
+const passengerToolTabs: Array<{
+  value: PassengerToolTab;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "summary",
+    label: "Resumen",
+    description: "Vista general de tu actividad",
+  },
+  {
+    value: "trips",
+    label: "Viajes",
+    description: "Todos tus recorridos",
+  },
+  {
+    value: "payments",
+    label: "Pagos",
+    description: "Pagos realizados y recibos",
+  },
+  {
+    value: "pending",
+    label: "Pendientes",
+    description: "Pagos que requieren atención",
+  },
+  {
+    value: "ratings",
+    label: "Calificaciones",
+    description: "Opiniones y viajes por calificar",
+  },
 ];
 
 const filters: Array<{
@@ -190,7 +229,10 @@ export default function PassengerHistoryPage() {
     useState(false);
 
   const [search, setSearch] =
-    useState("");
+    useState("");  const [activeTab, setActiveTab] =
+    useState<PassengerToolTab>("summary");
+
+
 
   const [filter, setFilter] =
     useState<HistoryFilter>("all");
@@ -383,6 +425,35 @@ export default function PassengerHistoryPage() {
     });
   }, [activity, filter, search]);
 
+  const visibleActivity = useMemo(() => {
+    if (activeTab === "summary") {
+      return activity.slice(0, 3);
+    }
+
+    if (activeTab === "trips") {
+      return filteredActivity;
+    }
+
+    if (activeTab === "payments") {
+      return completedTrips;
+    }
+
+    if (activeTab === "pending") {
+      return pendingPayments;
+    }
+
+    return activity.filter(
+      (item) =>
+        item.status === "completed" &&
+        item.driver_id !== null
+    );
+  }, [
+    activeTab,
+    activity,
+    completedTrips,
+    filteredActivity,
+    pendingPayments,
+  ]);
   if (loading) {
     return (
       <section className="space-y-6">
@@ -414,17 +485,16 @@ export default function PassengerHistoryPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
               <Sparkles size={15} />
-              Actividad de pasajero
+              Centro del pasajero
             </span>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
-              Historial de viajes
+              Herramientas del pasajero
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta tus recorridos, pagos,
-              recibos y calificaciones desde
-              un solo lugar.
+              Consulta tus viajes, pagos, pendientes y
+              calificaciones desde una sola pantalla.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -490,6 +560,46 @@ export default function PassengerHistoryPage() {
         </div>
       )}
 
+      <Card className="overflow-hidden p-2">
+        <div className="flex gap-2 overflow-x-auto">
+          {passengerToolTabs.map((tab) => {
+            const selected =
+              activeTab === tab.value;
+
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() =>
+                  setActiveTab(tab.value)
+                }
+                className={cn(
+                  "min-w-[150px] shrink-0 rounded-2xl px-5 py-4 text-left transition",
+                  selected
+                    ? "bg-slate-950 text-white shadow-lg"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+                )}
+              >
+                <span className="block text-sm font-black">
+                  {tab.label}
+                </span>
+
+                <span
+                  className={cn(
+                    "mt-1 block text-xs font-semibold",
+                    selected
+                      ? "text-slate-300"
+                      : "text-slate-400"
+                  )}
+                >
+                  {tab.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+      {activeTab === "summary" && (
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total gastado"
@@ -529,7 +639,9 @@ export default function PassengerHistoryPage() {
           iconClass="bg-violet-100 text-violet-700"
         />
       </div>
+      )}
 
+      {activeTab === "trips" && (
       <Card>
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
@@ -543,7 +655,7 @@ export default function PassengerHistoryPage() {
 
             <p className="mt-2 text-sm text-slate-500">
               Filtra por estado o busca una
-              dirección o conductor.
+              direcciÃ³n o conductor.
             </p>
           </div>
 
@@ -561,7 +673,7 @@ export default function PassengerHistoryPage() {
                   event.target.value
                 )
               }
-              placeholder="Buscar por dirección o conductor..."
+              placeholder="Buscar por direcciÃ³n o conductor..."
               className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-semibold outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
             />
           </div>
@@ -592,8 +704,9 @@ export default function PassengerHistoryPage() {
           })}
         </div>
       </Card>
+      )}
 
-      {filteredActivity.length === 0 ? (
+      {visibleActivity.length === 0 ? (
         <Card className="relative flex min-h-[460px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.14),_transparent_32%),linear-gradient(to_bottom,_#ffffff,_#f8fafc)] px-6 py-12">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.45)_1px,transparent_1px)] bg-[size:42px_42px]" />
 
@@ -604,14 +717,14 @@ export default function PassengerHistoryPage() {
 
             <h2 className="mt-7 text-3xl font-black text-slate-950">
               {activity.length === 0
-                ? "Todavía no tienes viajes"
+                ? "TodavÃ­a no tienes viajes"
                 : "No encontramos resultados"}
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-500">
               {activity.length === 0
-                ? "Cuando solicites tu primer viaje, aparecerá aquí con todos sus detalles."
-                : "Prueba con otro término de búsqueda o cambia el filtro seleccionado."}
+                ? "Cuando solicites tu primer viaje, aparecerÃ¡ aquÃ­ con todos sus detalles."
+                : "Prueba con otro tÃ©rmino de bÃºsqueda o cambia el filtro seleccionado."}
             </p>
 
             {activity.length === 0 ? (
@@ -638,7 +751,7 @@ export default function PassengerHistoryPage() {
         </Card>
       ) : (
         <div className="space-y-5">
-          {filteredActivity.map(
+          {visibleActivity.map(
             (item) => (
               <TripHistoryCard
                 key={item.trip_id}
@@ -654,11 +767,11 @@ export default function PassengerHistoryPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                ¿Listo para volver a salir?
+                Â¿Listo para volver a salir?
               </p>
 
               <h2 className="mt-2 text-2xl font-black">
-                Solicita tu próximo AXI
+                Solicita tu prÃ³ximo AXI
               </h2>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
@@ -828,7 +941,7 @@ function TripHistoryCard({
 
             <InfoBox
               icon={CreditCard}
-              label="Método"
+              label="MÃ©todo"
               value={
                 item.payment_method
                   ? paymentMethodLabels[
@@ -864,7 +977,7 @@ function TripHistoryCard({
 
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-yellow-700">
-                  Reputación del conductor
+                  ReputaciÃ³n del conductor
                 </p>
 
                 <p className="mt-1 font-black text-yellow-900">
@@ -888,7 +1001,7 @@ function TripHistoryCard({
                 />
 
                 <p className="font-black text-blue-900">
-                  Tu calificación:{" "}
+                  Tu calificaciÃ³n:{" "}
                   {item.review_rating} de 5
                 </p>
               </div>
@@ -1105,3 +1218,6 @@ function DetailRow({
     </div>
   );
 }
+
+
+

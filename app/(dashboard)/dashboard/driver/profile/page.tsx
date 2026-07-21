@@ -31,7 +31,6 @@ import {
   UserRound,
   WalletCards,
 } from "lucide-react";
-import AvatarUploader from "@/components/profile/AvatarUploader";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { isDriver } from "@/lib/auth/roles";
@@ -168,7 +167,7 @@ export default function DriverProfilePage() {
 
       if (statsResult.error) {
         setMessage(
-          `Error cargando estadÃ­sticas: ${statsResult.error.message}`
+          `Error cargando estadÃƒÂ­sticas: ${statsResult.error.message}`
         );
       } else {
         const resolvedStats =
@@ -275,7 +274,7 @@ export default function DriverProfilePage() {
 
   const ratingLabel =
     stats.rating_count === 0
-      ? "Sin reseÃ±as todavÃ­a"
+      ? "Sin reseÃƒÂ±as todavÃƒÂ­a"
       : rating >= 4.8
         ? "Servicio excelente"
         : rating >= 4.5
@@ -350,27 +349,24 @@ export default function DriverProfilePage() {
   return (
     <section className="space-y-8">
       <div className="relative overflow-hidden rounded-[2rem] bg-[#0B0F19] px-6 py-8 text-white shadow-[0_25px_80px_rgba(15,23,42,0.22)] sm:px-9 sm:py-10">
-        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="relative">
-  <AvatarUploader
-    userId={userId!}
-    fullName={profile.full_name}
-    currentAvatarUrl={profile.avatar_url}
-    onUploaded={(url) =>
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              avatar_url: url,
-            }
-          : prev
-      )
-    }
-  />
+              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] border-4 border-white/10 bg-yellow-400 text-4xl font-black text-black shadow-2xl">
+                {profile.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatar_url}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
+              </div>
 
   <span className="absolute -bottom-2 -right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full border-4 border-slate-950 bg-emerald-500 text-white">
     <BadgeCheck size={18} />
@@ -433,7 +429,7 @@ export default function DriverProfilePage() {
             </button>
 
             <Link
-              href="/dashboard/profile"
+              href="/dashboard/driver/profile"
               className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 font-black text-white transition hover:bg-white/10"
             >
               Editar mi perfil
@@ -519,13 +515,13 @@ export default function DriverProfilePage() {
         />
 
         <StatCard
-          label="CalificaciÃ³n"
+          label="CalificaciÃƒÂ³n"
           value={
             stats.rating_count > 0
               ? rating.toFixed(2)
               : "Nueva"
           }
-          description={`${stats.rating_count} reseÃ±a${
+          description={`${stats.rating_count} reseÃƒÂ±a${
             stats.rating_count === 1
               ? ""
               : "s"
@@ -551,7 +547,7 @@ export default function DriverProfilePage() {
                 </div>
 
                 <p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-black/60">
-                  ReputaciÃ³n AXI
+                  ReputaciÃƒÂ³n AXI
                 </p>
 
                 <div className="mt-2 flex items-end gap-3">
@@ -593,14 +589,14 @@ export default function DriverProfilePage() {
 
             <div className="p-6">
               <p className="text-sm leading-7 text-slate-500">
-                Tu calificaciÃ³n se calcula con las
-                reseÃ±as recibidas despuÃ©s de cada
+                Tu calificaciÃƒÂ³n se calcula con las
+                reseÃƒÂ±as recibidas despuÃƒÂ©s de cada
                 viaje completado.
               </p>
 
               <div className="mt-5 rounded-2xl bg-slate-50 p-4">
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Total de reseÃ±as
+                  Total de reseÃƒÂ±as
                 </p>
 
                 <p className="mt-1 text-2xl font-black text-slate-950">
@@ -614,7 +610,7 @@ export default function DriverProfilePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  InformaciÃ³n personal
+                  InformaciÃƒÂ³n personal
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
@@ -636,10 +632,10 @@ export default function DriverProfilePage() {
               />
 
               <ProfileDataRow
-                label="TelÃ©fono"
+                label="TelÃƒÂ©fono"
                 value={
                   profile.phone ||
-                  "Sin telÃ©fono registrado"
+                  "Sin telÃƒÂ©fono registrado"
                 }
                 icon={Phone}
               />
@@ -652,7 +648,7 @@ export default function DriverProfilePage() {
             </div>
 
             <Link
-              href="/dashboard/profile"
+              href="/dashboard/driver/profile"
               className="mt-6 flex h-13 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
             >
               Administrar datos
@@ -700,7 +696,7 @@ export default function DriverProfilePage() {
 
                 <p className="mt-2 text-sm text-slate-500">
                   Viajes completados, ganancias y
-                  reseÃ±as recibidas.
+                  reseÃƒÂ±as recibidas.
                 </p>
               </div>
 
@@ -728,13 +724,13 @@ export default function DriverProfilePage() {
                 </span>
 
                 <h3 className="mt-7 text-3xl font-black text-slate-950">
-                  TodavÃ­a no hay viajes completados
+                  TodavÃƒÂ­a no hay viajes completados
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-slate-500">
                   Cuando completes tu primer viaje,
-                  aquÃ­ aparecerÃ¡n la ruta, ganancia,
-                  distancia, duraciÃ³n y calificaciÃ³n.
+                  aquÃƒÂ­ aparecerÃƒÂ¡n la ruta, ganancia,
+                  distancia, duraciÃƒÂ³n y calificaciÃƒÂ³n.
                 </p>
 
                 <Link
@@ -974,7 +970,7 @@ function ActivityCard({
               <Clock3 size={14} />
               {item.duration_minutes !== null
                 ? `${item.duration_minutes} min`
-                : "Sin duraciÃ³n"}
+                : "Sin duraciÃƒÂ³n"}
             </span>
           </div>
         </div>
@@ -1010,14 +1006,14 @@ function ActivityCard({
 
               <p className="mt-2 text-sm leading-6 text-yellow-800">
                 {item.passenger_comment ||
-                  "El pasajero no dejÃ³ comentario."}
+                  "El pasajero no dejÃƒÂ³ comentario."}
               </p>
             </div>
           ) : (
             <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-left">
               <p className="text-xs font-semibold text-slate-400">
-                Este viaje todavÃ­a no tiene
-                calificaciÃ³n.
+                Este viaje todavÃƒÂ­a no tiene
+                calificaciÃƒÂ³n.
               </p>
             </div>
           )}
@@ -1034,6 +1030,8 @@ function ActivityCard({
     </article>
   );
 }
+
+
 
 
 

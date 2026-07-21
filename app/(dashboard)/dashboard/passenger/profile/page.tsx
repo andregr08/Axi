@@ -13,17 +13,11 @@ import {
   ArrowRight,
   Bookmark,
   BriefcaseBusiness,
-  CheckCircle2,
-  CircleDollarSign,
-  Clock3,
   Home,
   LoaderCircle,
   MapPin,
   Navigation,
-  Phone,
   Plus,
-  RefreshCw,
-  Route,
   Sparkles,
   Star,
   Trash2,
@@ -32,7 +26,6 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
-import AvatarUploader from "@/components/profile/AvatarUploader";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { isPassenger } from "@/lib/auth/roles";
@@ -221,7 +214,6 @@ export default function PassengerProfilePage() {
       }
 
       setLoading(false);
-      setRefreshing(false);
     },
     [router]
   );
@@ -451,86 +443,96 @@ export default function PassengerProfilePage() {
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/20 blur-3xl" />
         <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 
-        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
-              <Sparkles size={15} />
-              Perfil del pasajero
-            </span>
+        <div className="relative">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+            <Sparkles size={15} />
+            Configuración
+          </span>
 
-            <p className="mt-6 text-sm font-semibold text-slate-400">
-              Bienvenido de nuevo
-            </p>
+          <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
+            Administra tu cuenta
+          </h1>
 
-            <h1 className="mt-2 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
-              {profile.full_name ||
-                "Pasajero AXI"}
-            </h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+            Controla la seguridad de tu cuenta, tus métodos de pago y
+            las herramientas disponibles para tus viajes.
+          </p>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta tus gastos, viajes, reputaciÃ³n y lugares
-              frecuentes desde un solo lugar.
-            </p>
-
-            <div className="mt-7 flex flex-wrap gap-3">
-              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <Route
-                  size={18}
-                  className="text-yellow-400"
-                />
-                {stats.completed_trips} viajes completados
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <Bookmark
-                  size={18}
-                  className="text-emerald-400"
-                />
-                {places.length} lugares guardados
-              </span>
-            </div>
-          </div>
-
-          <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-                  Gasto este mes
-                </p>
-
-                <p className="mt-2 text-4xl font-black">
-                  {formatMoney(
-                    stats.spent_this_month
-                  )}
-                </p>
-              </div>
-
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-                <WalletCards size={26} />
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                loadPassengerProfile(true)
-              }
-              disabled={refreshing}
-              className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 font-black text-slate-950 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-60"
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            <Link
+              href="/dashboard/security"
+              className="group rounded-[1.7rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-yellow-400/40 hover:bg-white/10"
             >
-              <RefreshCw
-                size={18}
-                className={
-                  refreshing
-                    ? "animate-spin"
-                    : ""
-                }
-              />
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+                <UserRound size={23} />
+              </span>
 
-              {refreshing
-                ? "Actualizando..."
-                : "Actualizar informaciÃ³n"}
-            </button>
+              <h2 className="mt-5 text-xl font-black">
+                Seguridad
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Contraseña, acceso y protección de tu cuenta.
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-yellow-300">
+                Administrar
+                <ArrowRight
+                  size={17}
+                  className="transition group-hover:translate-x-1"
+                />
+              </span>
+            </Link>
+
+            <Link
+              href="/dashboard/payments"
+              className="group rounded-[1.7rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-yellow-400/40 hover:bg-white/10"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-950">
+                <WalletCards size={23} />
+              </span>
+
+              <h2 className="mt-5 text-xl font-black">
+                Métodos de pago
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Administra las opciones que utilizas para pagar.
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-yellow-300">
+                Administrar
+                <ArrowRight
+                  size={17}
+                  className="transition group-hover:translate-x-1"
+                />
+              </span>
+            </Link>
+
+            <Link
+              href="/dashboard/passenger/history"
+              className="group rounded-[1.7rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-yellow-400/40 hover:bg-white/10"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400 text-slate-950">
+                <Navigation size={23} />
+              </span>
+
+              <h2 className="mt-5 text-xl font-black">
+                Herramientas del pasajero
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Viajes, pagos pendientes, historial y calificaciones.
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-yellow-300">
+                Ver herramientas
+                <ArrowRight
+                  size={17}
+                  className="transition group-hover:translate-x-1"
+                />
+              </span>
+            </Link>
           </div>
         </div>
       </div>
@@ -552,214 +554,6 @@ export default function PassengerProfilePage() {
           {message}
         </div>
       )}
-
-      <div className="grid gap-5 md:grid-cols-3">
-        <StatCard
-          label="Gasto total"
-          value={formatMoney(
-            stats.total_spent
-          )}
-          description="Acumulado en AXI"
-          icon={CircleDollarSign}
-          iconClass="bg-emerald-100 text-emerald-700"
-        />
-
-        <StatCard
-          label="Viajes este mes"
-          value={String(
-            stats.trips_this_month
-          )}
-          description="Actividad mensual"
-          icon={Route}
-          iconClass="bg-blue-100 text-blue-700"
-        />
-
-        <StatCard
-          label="CalificaciÃ³n"
-          value={
-            stats.rating_count > 0
-              ? `${Number(
-                  stats.average_rating
-                ).toFixed(2)} â˜…`
-              : "Sin reseÃ±as"
-          }
-          description={`${stats.rating_count} reseÃ±a${
-            stats.rating_count === 1
-              ? ""
-              : "s"
-          } recibidas`}
-          icon={Star}
-          iconClass="bg-yellow-100 text-yellow-700"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Actividad personal
-              </p>
-
-              <h2 className="mt-1 text-2xl font-black">
-                Resumen de viajes
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Consulta el comportamiento general de tu cuenta.
-              </p>
-            </div>
-
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
-              <Navigation size={23} />
-            </span>
-          </div>
-
-          <div className="mt-7 grid gap-4 sm:grid-cols-3">
-            <MetricBlock
-              label="Completados"
-              value={String(
-                stats.completed_trips
-              )}
-              icon={CheckCircle2}
-              iconClass="text-emerald-600"
-            />
-
-            <MetricBlock
-              label="Cancelados"
-              value={String(
-                stats.cancelled_trips
-              )}
-              icon={XCircle}
-              iconClass="text-red-600"
-            />
-
-            <MetricBlock
-              label="Efectividad"
-              value={`${successRate}%`}
-              icon={Clock3}
-              iconClass="text-blue-600"
-            />
-          </div>
-
-          <div className="mt-6 rounded-3xl bg-slate-50 p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Viajes finalizados
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Porcentaje de solicitudes que terminaron
-                  correctamente.
-                </p>
-              </div>
-
-              <p className="text-3xl font-black text-slate-950">
-                {successRate}%
-              </p>
-            </div>
-
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-yellow-400 transition-all duration-500"
-                style={{
-                  width: `${successRate}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/dashboard/passenger/history"
-              className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white transition hover:bg-slate-800"
-            >
-              Ver historial completo
-              <ArrowRight size={19} />
-            </Link>
-
-            <Link
-              href="/dashboard/trips/new"
-              className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
-            >
-              Solicitar viaje
-              <Navigation size={19} />
-            </Link>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden bg-[#0B0F19] text-white">
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-yellow-400/15 blur-3xl" />
-
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-                <UserRound size={26} />
-              </span>
-
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-emerald-300">
-                Cuenta activa
-              </span>
-            </div>
-
-            <p className="mt-8 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-              InformaciÃ³n personal
-            </p>
-
-            <h2 className="mt-2 text-2xl font-black">
-              {profile.full_name ||
-                "Pasajero AXI"}
-            </h2>
-
-            <div className="mt-6 space-y-3">
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <Phone
-                  size={19}
-                  className="text-yellow-400"
-                />
-
-                <div>
-                  <p className="text-xs font-bold text-slate-500">
-                    TelÃ©fono
-                  </p>
-
-                  <p className="mt-1 text-sm font-black">
-                    {profile.phone ||
-                      "Sin telÃ©fono registrado"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <MapPin
-                  size={19}
-                  className="text-emerald-400"
-                />
-
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-500">
-                    Lugar principal
-                  </p>
-
-                  <p className="mt-1 truncate text-sm font-black">
-                    {primaryPlace?.label ||
-                      "Sin lugar principal"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <Link
-              href="/dashboard/profile"
-              className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 font-black text-slate-950 transition hover:bg-slate-100"
-            >
-              Editar datos personales
-              <ArrowRight size={18} />
-            </Link>
-          </div>
-        </Card>
-      </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <Card className="h-fit xl:sticky xl:top-28">
@@ -1195,4 +989,5 @@ function ProfileInput({
     </div>
   );
 }
+
 

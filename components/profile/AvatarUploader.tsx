@@ -2,6 +2,7 @@
 
 import {
   ChangeEvent,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -11,6 +12,7 @@ import {
   LoaderCircle,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -87,15 +89,20 @@ export default function AvatarUploader({
   onUploaded,
 }: AvatarUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     currentAvatarUrl ?? null
   );
+
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     currentAvatarUrl ?? null
   );
+
+  const [menuOpen, setMenuOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
+
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -103,9 +110,46 @@ export default function AvatarUploader({
 
   const busy = uploading || removing;
 
+  useEffect(() => {
+    setAvatarUrl(currentAvatarUrl ?? null);
+    setPreviewUrl(currentAvatarUrl ?? null);
+  }, [currentAvatarUrl]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function closeMenu(event: MouseEvent) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeMenu);
+
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!message) return;
+
+    const timeout = window.setTimeout(() => {
+      setMessage(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [message]);
+
   function openFilePicker() {
     if (busy) return;
 
+    setMenuOpen(false);
     inputRef.current?.click();
   }
 
@@ -125,6 +169,7 @@ export default function AvatarUploader({
         type: "error",
         text: "Selecciona una imagen JPG, PNG o WebP.",
       });
+
       return;
     }
 
@@ -133,10 +178,12 @@ export default function AvatarUploader({
         type: "error",
         text: "La imagen no puede pesar más de 5 MB.",
       });
+
       return;
     }
 
     const temporaryPreview = URL.createObjectURL(file);
+
     setPreviewUrl(temporaryPreview);
     setUploading(true);
 
@@ -145,6 +192,7 @@ export default function AvatarUploader({
 
     try {
       const extension = getExtension(file);
+
       const filePath =
         `${userId}/avatar-${Date.now()}.${extension}`;
 
@@ -197,7 +245,7 @@ export default function AvatarUploader({
 
       setMessage({
         type: "success",
-        text: "Foto de perfil actualizada.",
+        text: "Foto actualizada.",
       });
     } catch (error) {
       console.error("Error subiendo foto:", error);
@@ -219,6 +267,8 @@ export default function AvatarUploader({
 
   async function removeAvatar() {
     if (!avatarUrl || busy) return;
+
+    setMenuOpen(false);
 
     const confirmed = window.confirm(
       required
@@ -285,135 +335,98 @@ export default function AvatarUploader({
   }
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-        <div className="relative mx-auto shrink-0 sm:mx-0">
+    <div
+      ref={menuRef}
+      className="relative h-32 w-32 shrink-0"
+    >
+      <div className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-white/15 bg-slate-800 shadow-2xl ring-1 ring-white/10">
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt="Foto de perfil"
+            className="h-full w-full object-cover"
+          />
+        ) : fullName ? (
+          <span className="text-3xl font-black text-white">
+            {getInitials(fullName)}
+          </span>
+        ) : (
+          <UserRound className="h-12 w-12 text-slate-400" />
+        )}
+
+        {busy && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/65">
+            <LoaderCircle className="h-8 w-8 animate-spin text-white" />
+          </div>
+        )}
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture={captureCamera ? "user" : undefined}
+        onChange={uploadAvatar}
+        disabled={busy}
+        className="hidden"
+      />
+
+      <button
+        type="button"
+        onClick={() => setMenuOpen((open) => !open)}
+        disabled={busy}
+        aria-label="Opciones de fotografía"
+        aria-expanded={menuOpen}
+        className="absolute right-0 top-0 z-20 flex h-10 w-10 -translate-y-1 translate-x-1 items-center justify-center rounded-full border-4 border-[#0B0F19] bg-yellow-400 text-slate-950 shadow-lg transition hover:scale-105 hover:bg-yellow-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {menuOpen ? (
+          <X className="h-4 w-4" strokeWidth={3} />
+        ) : (
+          <Camera className="h-5 w-5" strokeWidth={2.5} />
+        )}
+      </button>
+
+      {menuOpen && (
+        <div className="absolute left-1/2 top-12 z-40 w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl sm:left-full sm:ml-3 sm:translate-x-0">
           <button
             type="button"
             onClick={openFilePicker}
-            disabled={busy}
-            className="group relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-lg ring-1 ring-slate-200 transition hover:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
-            aria-label="Cambiar foto de perfil"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition hover:bg-slate-100"
           >
-            {previewUrl ? (
-              <img
-                src={previewUrl}
-                alt="Foto de perfil"
-                className="h-full w-full object-cover"
-              />
-            ) : fullName ? (
-              <span className="text-3xl font-bold text-slate-600">
-                {getInitials(fullName)}
-              </span>
-            ) : (
-              <UserRound className="h-12 w-12 text-slate-400" />
-            )}
-
-            <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
-              <Camera className="h-8 w-8 text-white" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+              <ImagePlus className="h-5 w-5" />
             </span>
 
-            {uploading && (
-              <span className="absolute inset-0 flex items-center justify-center bg-white/75">
-                <LoaderCircle className="h-9 w-9 animate-spin text-slate-900" />
-              </span>
-            )}
+            Elegir de biblioteca
           </button>
 
-          <button
-            type="button"
-            onClick={openFilePicker}
-            disabled={busy}
-            className="absolute bottom-1 right-1 flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-white shadow-md transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-            aria-label="Seleccionar fotografía"
-          >
-            <Camera className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 text-center sm:text-left">
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Foto de perfil
-            </h2>
-
-            {required && (
-              <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
-                Obligatoria
-              </span>
-            )}
-          </div>
-
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            Usa una fotografía clara donde se pueda reconocer tu
-            rostro. Formatos JPG, PNG o WebP, máximo 5 MB.
-          </p>
-
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            capture={captureCamera ? "user" : undefined}
-            onChange={uploadAvatar}
-            className="hidden"
-          />
-
-          <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
+          {avatarUrl && (
             <button
               type="button"
-              onClick={openFilePicker}
-              disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={removeAvatar}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold text-red-600 transition hover:bg-red-50"
             >
-              {uploading ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : (
-                <ImagePlus className="h-4 w-4" />
-              )}
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50">
+                <Trash2 className="h-5 w-5" />
+              </span>
 
-              {avatarUrl
-                ? "Cambiar fotografía"
-                : "Agregar fotografía"}
+              Eliminar fotografía
             </button>
-
-            {avatarUrl && (
-              <button
-                type="button"
-                onClick={removeAvatar}
-                disabled={busy}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {removing ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-
-                Eliminar
-              </button>
-            )}
-          </div>
-
-          {message && (
-            <p
-              className={`mt-3 text-sm font-medium ${
-                message.type === "success"
-                  ? "text-emerald-700"
-                  : "text-red-700"
-              }`}
-            >
-              {message.text}
-            </p>
-          )}
-
-          {required && !avatarUrl && (
-            <p className="mt-3 text-sm font-medium text-amber-700">
-              Debes agregar una fotografía antes de poder
-              recibir viajes.
-            </p>
           )}
         </div>
-      </div>
-    </section>
+      )}
+
+      {message && (
+        <div
+          className={`absolute left-1/2 top-full z-50 mt-4 w-max max-w-[260px] -translate-x-1/2 rounded-xl px-4 py-2.5 text-center text-xs font-bold shadow-xl ${
+            message.type === "success"
+              ? "bg-emerald-500 text-white"
+              : "bg-red-500 text-white"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+    </div>
   );
 }
