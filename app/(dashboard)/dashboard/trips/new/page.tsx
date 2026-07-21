@@ -576,6 +576,9 @@ export default function NewTripPage() {
                   value={origin}
                   onTextChange={handleOriginTextChange}
                   onPlaceSelect={handleOriginSelect}
+                  resolvedExternally={
+                    originCoordinates !== null
+                  }
                 />
 
                 {originReady && (
