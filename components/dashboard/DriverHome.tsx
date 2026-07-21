@@ -834,6 +834,7 @@ export function DriverHome({
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {/*
         <Card className="bg-[#0B0F19] text-white">
           <div className="flex items-center justify-between">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
@@ -861,6 +862,7 @@ export function DriverHome({
             <ArrowRight size={18} />
           </Link>
         </Card>
+        */}
 
         <Card>
           <div className="flex items-center justify-between">

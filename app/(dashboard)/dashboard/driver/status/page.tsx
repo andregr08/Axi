@@ -60,7 +60,7 @@ const operationalStatusLabels: Record<
   DriverOperationalStatus,
   string
 > = {
-  offline: "Fuera de lÃ­nea",
+  offline: "Fuera de línea",
   available: "Disponible",
   offer_pending: "Oferta pendiente",
   to_pickup: "Recogiendo pasajero",
@@ -73,17 +73,17 @@ const operationalStatusDescriptions: Record<
   string
 > = {
   offline:
-    "ConÃ©ctate para comenzar a recibir solicitudes de viaje.",
+    "Conéctate para comenzar a recibir solicitudes de viaje.",
   available:
-    "EstÃ¡s disponible y puedes recibir nuevas solicitudes.",
+    "Estás disponible y puedes recibir nuevas solicitudes.",
   offer_pending:
     "Tienes una solicitud pendiente por aceptar o rechazar.",
   to_pickup:
     "Tienes un viaje aceptado y debes dirigirte al pasajero.",
   on_trip:
-    "Actualmente estÃ¡s realizando un viaje.",
+    "Actualmente estás realizando un viaje.",
   paused:
-    "Sigues conectado, pero no recibirÃ¡s nuevas solicitudes.",
+    "Sigues conectado, pero no recibirás nuevas solicitudes.",
 };
 
 const EMPTY_STATS: DriverStats = {
@@ -202,7 +202,7 @@ export default function DriverStatusPage() {
 
       if (statsResult.error) {
         setMessage(
-          `Error cargando estadÃ­sticas: ${statsResult.error.message}`
+          `Error cargando estadísticas: ${statsResult.error.message}`
         );
       } else {
         const resolvedStats =
@@ -412,7 +412,7 @@ export default function DriverStatusPage() {
     setMessage("");
 
     if (!navigator.geolocation) {
-      setMessage("Tu navegador no permite utilizar la ubicaciÃ³n.");
+      setMessage("Tu navegador no permite utilizar la ubicación.");
       return;
     }
 
@@ -438,14 +438,14 @@ export default function DriverStatusPage() {
         setLocating(false);
 
         if (error) {
-          setMessage(`Error actualizando ubicaciÃ³n: ${error.message}`);
+          setMessage(`Error actualizando ubicación: ${error.message}`);
           return;
         }
 
         setLatitude(newLatitude);
         setLongitude(newLongitude);
         setAccuracy(newAccuracy);
-        setMessage("UbicaciÃ³n actualizada correctamente.");
+        setMessage("Ubicación actualizada correctamente.");
       },
       (error) => {
         setLocating(false);
@@ -455,7 +455,7 @@ export default function DriverStatusPage() {
           return;
         }
 
-        setMessage("No pudimos obtener tu ubicaciÃ³n.");
+        setMessage("No pudimos obtener tu ubicación.");
       },
       {
         enableHighAccuracy: true,
@@ -699,8 +699,8 @@ export default function DriverStatusPage() {
 
     setMessage(
       resolvedStatus === "paused"
-        ? "Pausaste las solicitudes. SeguirÃ¡s conectado y compartiendo tu ubicaciÃ³n."
-        : "Reanudaste las solicitudes y ya estÃ¡s disponible."
+        ? "Pausaste las solicitudes. Seguirás conectado y compartiendo tu ubicación."
+        : "Reanudaste las solicitudes y ya estás disponible."
     );
   }
 
@@ -757,7 +757,7 @@ export default function DriverStatusPage() {
 
   const locationQuality =
     accuracy === null
-      ? "Sin mediciÃ³n"
+      ? "Sin medición"
       : accuracy <= 20
         ? "Excelente"
         : accuracy <= 50
@@ -810,7 +810,7 @@ export default function DriverStatusPage() {
                 : operationalStatus === "offer_pending"
                   ? "Tienes una nueva solicitud"
                   : operationalStatus === "to_pickup"
-                    ? "DirÃ­gete al pasajero"
+                    ? "Dirígete al pasajero"
                     : operationalStatus === "on_trip"
                       ? "Viaje en curso"
                       : operationalStatus === "paused"
@@ -819,8 +819,8 @@ export default function DriverStatusPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              {currentStatusDescription} Mientras permanezcas en lÃ­nea,
-              AXI actualizarÃ¡ automÃ¡ticamente tu posiciÃ³n para solicitudes
+              {currentStatusDescription} Mientras permanezcas en línea,
+              AXI actualizará automáticamente tu posición para solicitudes
               y viajes activos.
             </p>
 
@@ -908,7 +908,7 @@ export default function DriverStatusPage() {
                   ? "Viaje activo"
                   : online
                     ? "Terminar jornada"
-                    : "Ponerme en lÃ­nea"}
+                    : "Ponerme en línea"}
 
               {!processing && <ArrowRight size={19} />}
             </button>
@@ -937,15 +937,15 @@ export default function DriverStatusPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  PosiciÃ³n del conductor
+                  Posición del conductor
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
-                  UbicaciÃ³n GPS
+                  Ubicación GPS
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Actualiza tu ubicaciÃ³n antes de conectarte.
+                  Actualiza tu ubicación antes de conectarte.
                 </p>
               </div>
 
@@ -992,7 +992,7 @@ export default function DriverStatusPage() {
                   <Gauge size={21} className="text-blue-600" />
 
                   <p className="mt-4 text-xs font-black uppercase tracking-wider text-slate-400">
-                    PrecisiÃ³n
+                    Precisión
                   </p>
 
                   <p className="mt-2 font-black text-slate-950">
@@ -1015,10 +1015,10 @@ export default function DriverStatusPage() {
                 />
 
                 {locating
-                  ? "Obteniendo ubicaciÃ³n..."
+                  ? "Obteniendo ubicación..."
                   : hasLocation
-                    ? "Actualizar mi ubicaciÃ³n"
-                    : "Compartir mi ubicaciÃ³n"}
+                    ? "Actualizar mi ubicación"
+                    : "Compartir mi ubicación"}
               </button>
             </div>
           </div>
@@ -1043,7 +1043,7 @@ export default function DriverStatusPage() {
                   loadDriverStatus(true)
                 }
                 disabled={refreshingStats}
-                aria-label="Actualizar estadÃ­sticas"
+                aria-label="Actualizar estadísticas"
                 className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700 transition hover:bg-yellow-200 disabled:opacity-50"
               >
                 <RefreshCw
@@ -1101,11 +1101,11 @@ export default function DriverStatusPage() {
                     ? Number(
                         stats.average_rating
                       ).toFixed(2)
-                    : "â€”"}
+                    : "—"}
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  {stats.rating_count} reseÃ±a
+                  {stats.rating_count} reseña
                   {stats.rating_count === 1
                     ? ""
                     : "s"}
@@ -1123,7 +1123,7 @@ export default function DriverStatusPage() {
                 </p>
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  Viajes histÃ³ricos
+                  Viajes históricos
                 </p>
               </div>
             </div>
@@ -1209,8 +1209,8 @@ export default function DriverStatusPage() {
 
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {hasLocation
-                    ? "Tu posiciÃ³n estÃ¡ lista para recibir solicitudes."
-                    : "AXI necesita tu ubicaciÃ³n para mostrarte viajes cercanos."}
+                    ? "Tu posición está lista para recibir solicitudes."
+                    : "AXI necesita tu ubicación para mostrarte viajes cercanos."}
                 </p>
               </div>
             </div>

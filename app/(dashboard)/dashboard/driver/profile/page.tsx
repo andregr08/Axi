@@ -167,7 +167,7 @@ export default function DriverProfilePage() {
 
       if (statsResult.error) {
         setMessage(
-          `Error cargando estadÃƒÂ­sticas: ${statsResult.error.message}`
+          `Error cargando estadísticas: ${statsResult.error.message}`
         );
       } else {
         const resolvedStats =
@@ -274,7 +274,7 @@ export default function DriverProfilePage() {
 
   const ratingLabel =
     stats.rating_count === 0
-      ? "Sin reseÃƒÂ±as todavÃƒÂ­a"
+      ? "Sin reseñas todavía"
       : rating >= 4.8
         ? "Servicio excelente"
         : rating >= 4.5
@@ -515,13 +515,13 @@ export default function DriverProfilePage() {
         />
 
         <StatCard
-          label="CalificaciÃƒÂ³n"
+          label="Calificación"
           value={
             stats.rating_count > 0
               ? rating.toFixed(2)
               : "Nueva"
           }
-          description={`${stats.rating_count} reseÃƒÂ±a${
+          description={`${stats.rating_count} reseña${
             stats.rating_count === 1
               ? ""
               : "s"
@@ -547,7 +547,7 @@ export default function DriverProfilePage() {
                 </div>
 
                 <p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-black/60">
-                  ReputaciÃƒÂ³n AXI
+                  Reputación AXI
                 </p>
 
                 <div className="mt-2 flex items-end gap-3">
@@ -589,14 +589,14 @@ export default function DriverProfilePage() {
 
             <div className="p-6">
               <p className="text-sm leading-7 text-slate-500">
-                Tu calificaciÃƒÂ³n se calcula con las
-                reseÃƒÂ±as recibidas despuÃƒÂ©s de cada
+                Tu calificación se calcula con las
+                reseñas recibidas después de cada
                 viaje completado.
               </p>
 
               <div className="mt-5 rounded-2xl bg-slate-50 p-4">
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Total de reseÃƒÂ±as
+                  Total de reseñas
                 </p>
 
                 <p className="mt-1 text-2xl font-black text-slate-950">
@@ -610,7 +610,7 @@ export default function DriverProfilePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  InformaciÃƒÂ³n personal
+                  Información personal
                 </p>
 
                 <h2 className="mt-1 text-2xl font-black">
@@ -632,10 +632,10 @@ export default function DriverProfilePage() {
               />
 
               <ProfileDataRow
-                label="TelÃƒÂ©fono"
+                label="Teléfono"
                 value={
                   profile.phone ||
-                  "Sin telÃƒÂ©fono registrado"
+                  "Sin teléfono registrado"
                 }
                 icon={Phone}
               />
@@ -696,7 +696,7 @@ export default function DriverProfilePage() {
 
                 <p className="mt-2 text-sm text-slate-500">
                   Viajes completados, ganancias y
-                  reseÃƒÂ±as recibidas.
+                  reseñas recibidas.
                 </p>
               </div>
 
@@ -724,13 +724,13 @@ export default function DriverProfilePage() {
                 </span>
 
                 <h3 className="mt-7 text-3xl font-black text-slate-950">
-                  TodavÃƒÂ­a no hay viajes completados
+                  Todavía no hay viajes completados
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-slate-500">
                   Cuando completes tu primer viaje,
-                  aquÃƒÂ­ aparecerÃƒÂ¡n la ruta, ganancia,
-                  distancia, duraciÃƒÂ³n y calificaciÃƒÂ³n.
+                  aquí aparecerán la ruta, ganancia,
+                  distancia, duración y calificación.
                 </p>
 
                 <Link
@@ -970,7 +970,7 @@ function ActivityCard({
               <Clock3 size={14} />
               {item.duration_minutes !== null
                 ? `${item.duration_minutes} min`
-                : "Sin duraciÃƒÂ³n"}
+                : "Sin duración"}
             </span>
           </div>
         </div>
@@ -1006,14 +1006,14 @@ function ActivityCard({
 
               <p className="mt-2 text-sm leading-6 text-yellow-800">
                 {item.passenger_comment ||
-                  "El pasajero no dejÃƒÂ³ comentario."}
+                  "El pasajero no dejó comentario."}
               </p>
             </div>
           ) : (
             <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-left">
               <p className="text-xs font-semibold text-slate-400">
-                Este viaje todavÃƒÂ­a no tiene
-                calificaciÃƒÂ³n.
+                Este viaje todavía no tiene
+                calificación.
               </p>
             </div>
           )}

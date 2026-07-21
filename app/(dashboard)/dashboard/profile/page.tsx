@@ -406,6 +406,7 @@ const savedLanguage =
             </div>
           </Card>
 
+          {/*
           <Card className="bg-[#0B0F19] text-white">
             <div className="flex items-start gap-4">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-400 text-black">
@@ -429,6 +430,7 @@ const savedLanguage =
               <SecurityItem label={t("profile.roleBasedAccess")} />
             </div>
           </Card>
+          */}
         </div>
 
         <div className="space-y-6">
@@ -817,12 +819,3 @@ function SecurityItem({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
