@@ -117,7 +117,15 @@ export default function DriverStatusPage() {
   const [message, setMessage] = useState("");
 
   const locationWatchId = useRef<number | null>(null);
+  const locationHeartbeatId = useRef<number | null>(null);
   const lastLocationUpdate = useRef(0);
+  const latestLocation = useRef<{
+    latitude: number;
+    longitude: number;
+    speed: number | null;
+    heading: number | null;
+    accuracy: number | null;
+  } | null>(null);
 
   const loadDriverStatus = useCallback(
     async (silent = false) => {
@@ -268,10 +276,7 @@ export default function DriverStatusPage() {
   }, []);
 
   useEffect(() => {
-    if (
-      !online ||
-      !navigator.geolocation
-    ) {
+    function clearLocationTracking() {
       if (locationWatchId.current !== null) {
         navigator.geolocation.clearWatch(
           locationWatchId.current
@@ -280,58 +285,77 @@ export default function DriverStatusPage() {
         locationWatchId.current = null;
       }
 
+      if (locationHeartbeatId.current !== null) {
+        window.clearInterval(
+          locationHeartbeatId.current
+        );
+
+        locationHeartbeatId.current = null;
+      }
+    }
+
+    async function persistLocation(location: {
+      latitude: number;
+      longitude: number;
+      speed: number | null;
+      heading: number | null;
+      accuracy: number | null;
+    }) {
+      const { error } = await supabase.rpc(
+        "update_driver_location",
+        {
+          latitude_value: location.latitude,
+          longitude_value: location.longitude,
+          speed_value: location.speed,
+          heading_value: location.heading,
+          accuracy_value: location.accuracy,
+        }
+      );
+
+      if (error) {
+        console.error(
+          "Error actualizando GPS continuo:",
+          error.message
+        );
+
+        return;
+      }
+
+      lastLocationUpdate.current = Date.now();
+    }
+
+    if (
+      !online ||
+      !navigator.geolocation
+    ) {
+      clearLocationTracking();
       return;
     }
 
     locationWatchId.current =
       navigator.geolocation.watchPosition(
         (position) => {
-          const now = Date.now();
+          const location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            speed: position.coords.speed,
+            heading: position.coords.heading,
+            accuracy: position.coords.accuracy,
+          };
 
-          setLatitude(
-            position.coords.latitude
-          );
-          setLongitude(
-            position.coords.longitude
-          );
-          setAccuracy(
-            position.coords.accuracy
-          );
+          latestLocation.current = location;
+
+          setLatitude(location.latitude);
+          setLongitude(location.longitude);
+          setAccuracy(location.accuracy);
 
           if (
-            now -
-              lastLocationUpdate.current <
+            Date.now() -
+              lastLocationUpdate.current >=
             5000
           ) {
-            return;
+            void persistLocation(location);
           }
-
-          lastLocationUpdate.current = now;
-
-          void supabase
-            .rpc(
-              "update_driver_location",
-              {
-                latitude_value:
-                  position.coords.latitude,
-                longitude_value:
-                  position.coords.longitude,
-                speed_value:
-                  position.coords.speed,
-                heading_value:
-                  position.coords.heading,
-                accuracy_value:
-                  position.coords.accuracy,
-              }
-            )
-            .then(({ error }) => {
-              if (error) {
-                console.error(
-                  "Error actualizando GPS continuo:",
-                  error.message
-                );
-              }
-            });
         },
         (error) => {
           if (
@@ -350,18 +374,66 @@ export default function DriverStatusPage() {
         }
       );
 
-    return () => {
-      if (
-        locationWatchId.current !== null
-      ) {
-        navigator.geolocation.clearWatch(
-          locationWatchId.current
-        );
+    locationHeartbeatId.current =
+      window.setInterval(() => {
+        const location =
+          latestLocation.current;
 
-        locationWatchId.current = null;
-      }
-    };
+        if (!location) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const refreshedLocation = {
+                latitude:
+                  position.coords.latitude,
+                longitude:
+                  position.coords.longitude,
+                speed:
+                  position.coords.speed,
+                heading:
+                  position.coords.heading,
+                accuracy:
+                  position.coords.accuracy,
+              };
+
+              latestLocation.current =
+                refreshedLocation;
+
+              setLatitude(
+                refreshedLocation.latitude
+              );
+              setLongitude(
+                refreshedLocation.longitude
+              );
+              setAccuracy(
+                refreshedLocation.accuracy
+              );
+
+              void persistLocation(
+                refreshedLocation
+              );
+            },
+            (error) => {
+              console.error(
+                "No se pudo renovar el GPS:",
+                error.message
+              );
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 20000,
+              maximumAge: 30000,
+            }
+          );
+
+          return;
+        }
+
+        void persistLocation(location);
+      }, 60000);
+
+    return clearLocationTracking;
   }, [online]);
+
 
 function shareLocation() {
     setMessage("");
