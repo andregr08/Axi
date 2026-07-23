@@ -5,6 +5,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -118,8 +119,10 @@ function formatCurrency(
     {
       style: "currency",
       currency: "MXN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }
-  ).format(value);
+  ).format(Math.round(value));
 }
 
 function formatDate(
@@ -162,7 +165,9 @@ function calculateDistanceKm(
       Math.cos(secondLatitude) *
       Math.sin(longitudeDifference / 2) ** 2;
 
-  return (
+  console.log("DEBUG driverIdentity:", driverIdentity);
+console.log("DEBUG trip:", trip);
+return (
     earthRadiusKm *
     2 *
     Math.atan2(
@@ -218,13 +223,18 @@ export default function ActiveTripPage({
   const [locationConnected, setLocationConnected] =
     useState(false);
 
+  
+  const autoArrivalProcessingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] =
     useState(false);
 
   const [message, setMessage] = useState("");
+  const [pinError, setPinError] = useState("");
 
-  const loadTrip = useCallback(async () => {
+  const [passengerTripPin, setPassengerTripPin] = useState<string | null>(null);
+
+  const loadTrip = useCallback(async (currentRole?: TripDetailRole) => {
     const { data, error } = await supabase
       .from("trips")
       .select(`
@@ -242,7 +252,8 @@ export default function ActiveTripPage({
         estimated_price,
         final_price,
         requested_at,
-        accepted_at,
+        accepted_at,
+        trip_pin_verified_at,
         started_at,
         completed_at
       `)
@@ -264,6 +275,32 @@ export default function ActiveTripPage({
 
     setTrip(loadedTrip);
 
+    if (currentRole === "passenger") {
+      const { data: pinData, error: pinError } =
+        await supabase.rpc(
+          "get_passenger_trip_pin",
+          {
+            trip_id: loadedTrip.id,
+          }
+        );
+
+      if (pinError) {
+        console.error(
+          "Error loading passenger trip PIN:",
+          pinError.message
+        );
+
+        setPassengerTripPin(null);
+      } else {
+        setPassengerTripPin(
+          typeof pinData === "string"
+            ? pinData
+            : null
+        );
+      }
+    } else {
+      setPassengerTripPin(null);
+    }
     const userIds = [
       loadedTrip.passenger_id,
       loadedTrip.driver_id,
@@ -408,7 +445,7 @@ export default function ActiveTripPage({
         profile.role as TripDetailRole
       );
 
-      await loadTrip();
+      await loadTrip(profile.role as TripDetailRole);
 
       channel = supabase
         .channel(
@@ -423,7 +460,7 @@ export default function ActiveTripPage({
             filter: `id=eq.${id}`,
           },
           () => {
-            void loadTrip();
+            void loadTrip(role ?? undefined);
           }
         )
         .subscribe();
@@ -431,7 +468,9 @@ export default function ActiveTripPage({
 
     void start();
 
-    return () => {
+    console.log("DEBUG driverIdentity:", driverIdentity);
+console.log("DEBUG trip:", trip);
+return () => {
       if (channel) {
         void supabase.removeChannel(channel);
       }
@@ -511,7 +550,9 @@ export default function ActiveTripPage({
 
     void startLocationTracking();
 
-    return () => {
+    console.log("DEBUG driverIdentity:", driverIdentity);
+console.log("DEBUG trip:", trip);
+return () => {
       if (locationChannel) {
         void supabase.removeChannel(
           locationChannel
@@ -522,6 +563,94 @@ export default function ActiveTripPage({
     };
   }, [trip?.driver_id]);
 
+
+  // AUTO DRIVER ARRIVAL
+  useEffect(() => {
+    if (
+      role !== "driver" ||
+      !trip ||
+      trip.status !== "driver_arriving" ||
+      !driverLocation ||
+      trip.origin_lat === null ||
+      trip.origin_lng === null
+    ) {
+      autoArrivalProcessingRef.current = false;
+      return;
+    }
+
+    const accuracyMeters =
+      driverLocation.accuracy_meters !== null &&
+      driverLocation.accuracy_meters !== undefined
+        ? Number(driverLocation.accuracy_meters)
+        : null;
+
+    if (
+      accuracyMeters !== null &&
+      accuracyMeters > 50
+    ) {
+      return;
+    }
+
+    const distanceToPickupKm =
+      calculateDistanceKm(
+        Number(driverLocation.latitude),
+        Number(driverLocation.longitude),
+        Number(trip.origin_lat),
+        Number(trip.origin_lng)
+      );
+
+    const arrivalRadiusKm = 0.015;
+
+    if (distanceToPickupKm > arrivalRadiusKm) {
+      autoArrivalProcessingRef.current = false;
+      return;
+    }
+
+    if (autoArrivalProcessingRef.current) {
+      return;
+    }
+
+    autoArrivalProcessingRef.current = true;
+
+    const currentTripId = trip.id;
+
+    async function markDriverArrived() {
+      const { error } = await supabase.rpc(
+        "advance_trip_status",
+        {
+          trip_id: currentTripId,
+          next_status: "driver_arrived",
+        }
+      );
+
+      if (error) {
+        console.error(
+          "Error marking automatic arrival:",
+          error.message
+        );
+
+        setMessage(
+          `No fue posible registrar la llegada automática: ${error.message}`
+        );
+
+        autoArrivalProcessingRef.current = false;
+        return;
+      }
+
+      setMessage(
+        "Llegada detectada automáticamente. Solicita el PIN al pasajero."
+      );
+
+      await loadTrip("driver");
+    }
+
+    void markDriverArrived();
+  }, [
+    role,
+    trip,
+    driverLocation,
+    loadTrip,
+  ]);
   async function advanceStatus(
     nextStatus: TripDetailStatus
   ) {
@@ -557,14 +686,95 @@ export default function ActiveTripPage({
         t("tripDetail.updateSuccess")
       );
 
-      await loadTrip();
+      await loadTrip(role ?? undefined);
     }
 
     setProcessing(false);
   }
 
+  async function verifyTripPin(pin: string) {
+    if (
+      !trip ||
+      trip.status !== "driver_arrived" ||
+      processing
+    ) {
+      return;
+    }
+
+    setProcessing(true);
+    setPinError("");
+    setMessage("");
+
+    const {
+      data: pinVerified,
+      error: verificationError,
+    } = await supabase.rpc(
+      "verify_trip_pin",
+      {
+        trip_id: trip.id,
+        provided_pin: pin,
+      }
+    );
+
+    if (verificationError) {
+      console.error(
+        "Error verifying trip PIN:",
+        verificationError.message
+      );
+
+      setPinError(
+        `No fue posible verificar el PIN: ${verificationError.message}`
+      );
+
+      setProcessing(false);
+      return;
+    }
+
+    if (pinVerified !== true) {
+      setPinError(
+        "PIN incorrecto. Verifica el código con el pasajero."
+      );
+
+      setProcessing(false);
+      return;
+    }
+
+    const { error: startError } =
+      await supabase.rpc(
+        "advance_trip_status",
+        {
+          trip_id: trip.id,
+          next_status: "in_progress",
+        }
+      );
+
+    if (startError) {
+      console.error(
+        "Error starting trip after PIN verification:",
+        startError.message
+      );
+
+      setPinError(
+        `El PIN fue correcto, pero no fue posible iniciar el viaje: ${startError.message}`
+      );
+
+      setProcessing(false);
+      return;
+    }
+
+    setPinError("");
+    setMessage(
+      "PIN confirmado. El viaje ha iniciado."
+    );
+
+    await loadTrip("driver");
+    setProcessing(false);
+  }
+
   if (loading) {
-    return (
+    console.log("DEBUG driverIdentity:", driverIdentity);
+console.log("DEBUG trip:", trip);
+return (
       <section className="space-y-6">
         <div className="h-64 animate-pulse rounded-[2rem] bg-slate-200" />
 
@@ -580,7 +790,9 @@ export default function ActiveTripPage({
   }
 
   if (!trip || !role) {
-    return (
+    console.log("DEBUG driverIdentity:", driverIdentity);
+console.log("DEBUG trip:", trip);
+return (
       <section className="flex min-h-[65vh] items-center justify-center">
         <Card className="max-w-lg text-center">
           <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-red-100 text-red-700">
@@ -648,7 +860,9 @@ export default function ActiveTripPage({
         ? "Servicio activo"
         : t("tripDetail.hero.active");
 
-  return (
+  console.log("DEBUG driverIdentity:", driverIdentity);
+console.log("DEBUG trip:", trip);
+return (
     <section className="space-y-8">
       <TripDetailHeader
         role={role}
@@ -702,9 +916,11 @@ export default function ActiveTripPage({
               : null
           }
           processing={processing}
+          pinError={pinError}
           isCompleted={isCompleted}
           isCancelled={isCancelled}
           onAdvanceStatus={advanceStatus}
+          onVerifyPin={verifyTripPin}
         />
       ) : (
         <PassengerTripView
@@ -732,7 +948,7 @@ export default function ActiveTripPage({
         !isCancelled && (
           <div className="grid gap-6 xl:grid-cols-2">
             <TripPinCard
-              pin={null}
+              pin={passengerTripPin}
               visibleToPassenger={
                 role === "passenger"
               }
@@ -801,4 +1017,23 @@ export default function ActiveTripPage({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

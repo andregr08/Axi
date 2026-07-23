@@ -1,4 +1,4 @@
-export type TripDetailRole =
+﻿export type TripDetailRole =
   | "director_general"
   | "admin"
   | "support"
@@ -31,7 +31,8 @@ export type TripDetailData = {
   estimated_price: number | null;
   final_price: number | null;
   requested_at: string;
-  accepted_at: string | null;
+  accepted_at: string | null;
+  trip_pin_verified_at: string | null;
   started_at: string | null;
   completed_at: string | null;
 };
@@ -93,3 +94,5 @@ export type TripViewSharedProps = {
     nextStatus: TripDetailStatus
   ) => Promise<void>;
 };
+
+
