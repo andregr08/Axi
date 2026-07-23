@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   CircleDollarSign,
@@ -25,10 +25,14 @@ type DriverTripViewProps = {
   nextStatus: TripDetailStatus | null;
   actionLabel: string | null;
   processing: boolean;
+  pinError?: string;
   isCompleted: boolean;
   isCancelled: boolean;
   onAdvanceStatus: (
     nextStatus: TripDetailStatus
+  ) => Promise<void>;
+  onVerifyPin: (
+    pin: string
   ) => Promise<void>;
 };
 
@@ -41,9 +45,11 @@ export function DriverTripView({
   nextStatus,
   actionLabel,
   processing,
+  pinError,
   isCompleted,
   isCancelled,
   onAdvanceStatus,
+  onVerifyPin,
 }: DriverTripViewProps) {
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
@@ -83,7 +89,9 @@ export function DriverTripView({
           nextStatus={nextStatus}
           actionLabel={actionLabel}
           processing={processing}
+          pinError={pinError}
           onAdvanceStatus={onAdvanceStatus}
+          onVerifyPin={onVerifyPin}
         />
 
         <Card>
