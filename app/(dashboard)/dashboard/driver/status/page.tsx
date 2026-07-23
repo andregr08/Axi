@@ -278,7 +278,11 @@ export default function DriverStatusPage() {
   }, []);
 
   useEffect(() => {
-    const clearLocationTracking = () => {
+    let permissionStatus: PermissionStatus | null = null;
+    let disposed = false;
+    let trackingStarted = false;
+
+    const stopLocationTracking = () => {
       if (
         locationWatchId.current !== null &&
         navigator.geolocation
@@ -311,9 +315,28 @@ export default function DriverStatusPage() {
         "online",
         handleConnectionRestored
       );
+
+      trackingStarted = false;
     };
 
-    if (!online || !navigator.geolocation) {
+    const clearLocationTracking = () => {
+      disposed = true;
+      stopLocationTracking();
+
+      if (permissionStatus) {
+        permissionStatus.onchange = null;
+      }
+    };
+
+    if (!online) {
+      return clearLocationTracking;
+    }
+
+    if (!navigator.geolocation) {
+      setMessage(
+        "Tu navegador no permite utilizar la ubicaci?n."
+      );
+
       return clearLocationTracking;
     }
 
@@ -383,12 +406,14 @@ export default function DriverStatusPage() {
         error.code ===
         error.PERMISSION_DENIED
       ) {
+        stopLocationTracking();
+
         setMessage(
-          "Debes permitir el acceso continuo al GPS para permanecer en línea."
+          "La ubicaci?n est? bloqueada. Act?vala desde la configuraci?n del navegador para permanecer en l?nea."
         );
       } else {
         console.error(
-          "Error obteniendo ubicación:",
+          "Error obteniendo ubicaci?n:",
           error.message
         );
       }
@@ -425,52 +450,123 @@ export default function DriverStatusPage() {
       refreshLocation();
     }
 
-    refreshLocation();
+    const startLocationTracking = () => {
+      if (
+        disposed ||
+        trackingStarted ||
+        !online
+      ) {
+        return;
+      }
 
-    locationWatchId.current =
-      navigator.geolocation.watchPosition(
-        (position) =>
-          handlePosition(position),
-        handleLocationError,
-        {
-          enableHighAccuracy: true,
-          timeout: 20000,
-          maximumAge: 5000,
-        }
+      trackingStarted = true;
+      setMessage("");
+
+      refreshLocation();
+
+      locationWatchId.current =
+        navigator.geolocation.watchPosition(
+          (position) =>
+            handlePosition(position),
+          handleLocationError,
+          {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 5000,
+          }
+        );
+
+      locationHeartbeatId.current =
+        setInterval(() => {
+          if (
+            document.visibilityState !==
+            "visible"
+          ) {
+            return;
+          }
+
+          if (latestLocation.current) {
+            void sendLocationToSupabase(
+              latestLocation.current
+            );
+            return;
+          }
+
+          refreshLocation();
+        }, 30000);
+
+      document.addEventListener(
+        "visibilitychange",
+        handleVisibilityChange
       );
+      window.addEventListener(
+        "focus",
+        handleWindowFocus
+      );
+      window.addEventListener(
+        "pageshow",
+        handlePageShow
+      );
+      window.addEventListener(
+        "online",
+        handleConnectionRestored
+      );
+    };
 
-    locationHeartbeatId.current =
-      setInterval(() => {
-        if (document.visibilityState !== "visible") {
+    const synchronizePermission = () => {
+      if (!permissionStatus || disposed) {
+        return;
+      }
+
+      if (
+        permissionStatus.state ===
+        "granted"
+      ) {
+        startLocationTracking();
+        return;
+      }
+
+      stopLocationTracking();
+
+      if (
+        permissionStatus.state ===
+        "denied"
+      ) {
+        setMessage(
+          "La ubicaci?n est? bloqueada. Act?vala desde la configuraci?n del navegador para permanecer en l?nea."
+        );
+      }
+    };
+
+    const initializeLocationPermission =
+      async () => {
+        if (!navigator.permissions) {
           return;
         }
 
-        if (latestLocation.current) {
-          void sendLocationToSupabase(
-            latestLocation.current
+        try {
+          permissionStatus =
+            await navigator.permissions.query({
+              name: "geolocation",
+            });
+
+          if (disposed) {
+            return;
+          }
+
+          permissionStatus.onchange =
+            synchronizePermission;
+
+          synchronizePermission();
+        } catch (error) {
+          console.error(
+            "Error revisando permiso de ubicaci?n:",
+            error
           );
-          return;
         }
+      };
 
-        refreshLocation();
-      }, 30000);
-
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibilityChange
-    );
-    window.addEventListener(
-      "focus",
-      handleWindowFocus
-    );
-    window.addEventListener(
-      "pageshow",
-      handlePageShow
-    );
-    window.addEventListener(
-      "online",
-      handleConnectionRestored
-    );
+    void initializeLocationPermission();
 
     return clearLocationTracking;
   }, [online]);
