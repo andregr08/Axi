@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -164,9 +164,6 @@ function calculateDistanceKm(
     Math.cos(firstLatitude) *
       Math.cos(secondLatitude) *
       Math.sin(longitudeDifference / 2) ** 2;
-
-  console.log("DEBUG driverIdentity:", driverIdentity);
-console.log("DEBUG trip:", trip);
 return (
     earthRadiusKm *
     2 *
@@ -467,9 +464,6 @@ export default function ActiveTripPage({
     }
 
     void start();
-
-    console.log("DEBUG driverIdentity:", driverIdentity);
-console.log("DEBUG trip:", trip);
 return () => {
       if (channel) {
         void supabase.removeChannel(channel);
@@ -549,9 +543,6 @@ return () => {
     }
 
     void startLocationTracking();
-
-    console.log("DEBUG driverIdentity:", driverIdentity);
-console.log("DEBUG trip:", trip);
 return () => {
       if (locationChannel) {
         void supabase.removeChannel(
@@ -772,8 +763,6 @@ return () => {
   }
 
   if (loading) {
-    console.log("DEBUG driverIdentity:", driverIdentity);
-console.log("DEBUG trip:", trip);
 return (
       <section className="space-y-6">
         <div className="h-64 animate-pulse rounded-[2rem] bg-slate-200" />
@@ -790,8 +779,6 @@ return (
   }
 
   if (!trip || !role) {
-    console.log("DEBUG driverIdentity:", driverIdentity);
-console.log("DEBUG trip:", trip);
 return (
       <section className="flex min-h-[65vh] items-center justify-center">
         <Card className="max-w-lg text-center">
@@ -859,9 +846,6 @@ return (
       : role === "driver"
         ? "Servicio activo"
         : t("tripDetail.hero.active");
-
-  console.log("DEBUG driverIdentity:", driverIdentity);
-console.log("DEBUG trip:", trip);
 return (
     <section className="space-y-8">
       <TripDetailHeader
