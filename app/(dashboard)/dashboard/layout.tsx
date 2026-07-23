@@ -16,6 +16,7 @@ import AIFloatingButton from "@/components/ai/AIFloatingButton";
 import AIChatPanel from "@/components/ai/AIChatPanel";
 import { useAI } from "@/hooks/useAI";
 import { supabase } from "@/lib/supabaseClient";
+import { DriverLocationTracker } from "@/components/driver/DriverLocationTracker";
 
 const AVAILABLE_TRIPS_PATH =
   "/dashboard/driver/available-trips";
@@ -228,6 +229,8 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+
+      <DriverLocationTracker enabled={role === "driver"} />
 
       <PushServiceWorker />
 
