@@ -78,6 +78,7 @@ export function DriverTripView({
 
       <div className="space-y-6">
         <DriverActionCard
+          tripId={trip.id}
           currentStatus={trip.status}
           nextStatus={nextStatus}
           actionLabel={actionLabel}

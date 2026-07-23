@@ -224,6 +224,9 @@ export default function ActiveTripPage({
 
   const [message, setMessage] = useState("");
 
+  const [tripPin, setTripPin] =
+    useState<string | null>(null);
+
   const loadTrip = useCallback(async () => {
     const { data, error } = await supabase
       .from("trips")
@@ -439,6 +442,53 @@ export default function ActiveTripPage({
   }, [id, loadTrip, router, t]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadPassengerPin() {
+      if (
+        role !== "passenger" ||
+        !trip ||
+        ![
+          "accepted",
+          "driver_arriving",
+          "driver_arrived",
+        ].includes(trip.status)
+      ) {
+        setTripPin(null);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc(
+        "get_trip_security_pin",
+        {
+          p_trip_id: trip.id,
+        }
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(
+          "Error loading trip PIN:",
+          error.message
+        );
+        setTripPin(null);
+        return;
+      }
+
+      setTripPin(
+        typeof data === "string" ? data : null
+      );
+    }
+
+    void loadPassengerPin();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [role, trip]);
+
+  useEffect(() => {
     if (!trip?.driver_id) {
       queueMicrotask(() => {
         setDriverLocation(null);
@@ -527,6 +577,16 @@ export default function ActiveTripPage({
   ) {
     if (!trip) return;
 
+    if (
+      trip.status === "driver_arrived" &&
+      nextStatus === "in_progress"
+    ) {
+      setMessage(
+        "El viaje solo puede iniciar después de verificar el PIN del pasajero."
+      );
+      return;
+    }
+
     const confirmed = window.confirm(
       `${t("tripDetail.confirmAction")} "${t(
         statusLabelKeys[nextStatus]
@@ -541,8 +601,8 @@ export default function ActiveTripPage({
     const { error } = await supabase.rpc(
       "advance_trip_status",
       {
-        trip_id: trip.id,
-        next_status: nextStatus,
+        p_trip_id: trip.id,
+        p_next_status: nextStatus,
       }
     );
 
@@ -732,7 +792,7 @@ export default function ActiveTripPage({
         !isCancelled && (
           <div className="grid gap-6 xl:grid-cols-2">
             <TripPinCard
-              pin={null}
+              pin={tripPin}
               visibleToPassenger={
                 role === "passenger"
               }
