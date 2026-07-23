@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Bell,
@@ -81,7 +81,20 @@ export function PushNotificationsCard() {
 
       try {
         const registration =
-          await navigator.serviceWorker.ready;
+          await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<ServiceWorkerRegistration>(
+              (_, reject) => {
+                window.setTimeout(() => {
+                  reject(
+                    new Error(
+                      "El Service Worker tardó demasiado en responder."
+                    )
+                  );
+                }, 5000);
+              }
+            ),
+          ]);
 
         const subscription =
           await registration.pushManager.getSubscription();
@@ -274,10 +287,23 @@ export function PushNotificationsCard() {
 
     try {
       const registration =
-        await navigator.serviceWorker.ready;
+          await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<ServiceWorkerRegistration>(
+              (_, reject) => {
+                window.setTimeout(() => {
+                  reject(
+                    new Error(
+                      "El Service Worker tardó demasiado en responder."
+                    )
+                  );
+                }, 5000);
+              }
+            ),
+          ]);
 
-      const subscription =
-        await registration.pushManager.getSubscription();
+        const subscription =
+          await registration.pushManager.getSubscription();
 
       if (subscription) {
         const endpoint =
@@ -474,3 +500,5 @@ export function PushNotificationsCard() {
     </Card>
   );
 }
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -35,11 +35,11 @@ export default function PaymentsPage() {
               {t("payments.finance")}
             </span>
 
-            <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
+            <h1 className="mt-6 whitespace-nowrap text-[clamp(1.75rem,5vw,3rem)] font-black tracking-tight">
               {t("payments.title")}
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{t("payments.description").replace(" La conexión con Mercado Pago se agregará en la etapa final.","")}
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{t("payments.description").replace(" La conexiÃ³n con Mercado Pago se agregarÃ¡ en la etapa final.","")}
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -130,7 +130,7 @@ export default function PaymentsPage() {
               </div>
 
               <p className="mt-10 text-lg font-black tracking-[0.22em] text-slate-400">
-                •••• •••• •••• ••••
+                â€¢â€¢â€¢â€¢ â€¢â€¢â€¢â€¢ â€¢â€¢â€¢â€¢ â€¢â€¢â€¢â€¢
               </p>
 
               <div className="mt-7 flex items-end justify-between">
@@ -252,3 +252,4 @@ function SecurityItem({
     </div>
   );
 }
+
