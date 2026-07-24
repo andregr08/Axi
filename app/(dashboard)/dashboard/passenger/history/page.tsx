@@ -33,6 +33,7 @@ import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { isPassenger } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type PassengerActivity = {
   trip_id: string;
@@ -217,6 +218,8 @@ function getPaymentStatusClasses(status: string) {
 }
 
 export default function PassengerHistoryPage() {
+  const { locale } = useLanguage();
+  const english = locale === "en";
   const router = useRouter();
 
   const [activity, setActivity] =
@@ -485,16 +488,21 @@ export default function PassengerHistoryPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
               <Sparkles size={15} />
-              Centro del pasajero
+              {english
+                ? "Passenger center"
+                : "Centro del pasajero"}
             </span>
 
             <h1 className="mt-6 whitespace-nowrap text-[1.45rem] font-black leading-tight tracking-tight sm:text-5xl">
-              Herramientas del pasajero
+              {english
+                ? "Passenger tools"
+                : "Herramientas del pasajero"}
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta tus viajes, pagos, pendientes y
-              calificaciones desde una sola pantalla.
+              {english
+                ? "Review your rides, payments, pending items and ratings from one screen."
+                : "Consulta tus viajes, pagos, pendientes y calificaciones desde una sola pantalla."}
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -503,10 +511,14 @@ export default function PassengerHistoryPage() {
                   size={18}
                   className="text-yellow-400"
                 />
-                {activity.length} viaje
-                {activity.length === 1
-                  ? ""
-                  : "s"}
+                {activity.length}{" "}
+                {english
+                  ? activity.length === 1
+                    ? "ride"
+                    : "rides"
+                  : activity.length === 1
+                    ? "viaje"
+                    : "viajes"}
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
@@ -525,7 +537,9 @@ export default function PassengerHistoryPage() {
               className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
             >
               <Navigation size={19} />
-              Solicitar nuevo viaje
+              {english
+                ? "Request a new ride"
+                : "Solicitar nuevo viaje"}
               <ArrowRight size={19} />
             </Link>
 
@@ -547,8 +561,12 @@ export default function PassengerHistoryPage() {
               />
 
               {refreshing
-                ? "Actualizando..."
-                : "Actualizar historial"}
+                ? english
+                  ? "Refreshing..."
+                  : "Actualizando..."
+                : english
+                  ? "Refresh history"
+                  : "Actualizar historial"}
             </button>
           </div>
         </div>
@@ -581,7 +599,15 @@ export default function PassengerHistoryPage() {
                 )}
               >
                 <span className="block text-sm font-black">
-                  {tab.label}
+                  {english
+                    ? {
+                        summary: "Summary",
+                        trips: "Rides",
+                        payments: "Payments",
+                        pending: "Pending",
+                        ratings: "Ratings",
+                      }[tab.value]
+                    : tab.label}
                 </span>
 
                 <span
@@ -592,7 +618,15 @@ export default function PassengerHistoryPage() {
                       : "text-slate-400"
                   )}
                 >
-                  {tab.description}
+                  {english
+                    ? {
+                        summary: "Overview of your activity",
+                        trips: "All your rides",
+                        payments: "Payments and receipts",
+                        pending: "Payments requiring attention",
+                        ratings: "Reviews and rides to rate",
+                      }[tab.value]
+                    : tab.description}
                 </span>
               </button>
             );
@@ -602,39 +636,39 @@ export default function PassengerHistoryPage() {
       {activeTab === "summary" && (
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total gastado"
+          label={english ? "Total spent" : "Total gastado"}
           value={formatMoney(totalSpent)}
-          description="En viajes completados"
+          description={english ? "On completed rides" : "En viajes completados"}
           icon={CircleDollarSign}
           iconClass="bg-emerald-100 text-emerald-700"
         />
 
         <StatCard
-          label="Completados"
+          label={english ? "Completed" : "Completados"}
           value={String(
             completedTrips.length
           )}
-          description="Viajes terminados"
+          description={english ? "Finished rides" : "Viajes terminados"}
           icon={CheckCircle2}
           iconClass="bg-blue-100 text-blue-700"
         />
 
         <StatCard
-          label="Activos"
+          label={english ? "Active" : "Activos"}
           value={String(
             activeTrips.length
           )}
-          description="Solicitados o en curso"
+          description={english ? "Requested or in progress" : "Solicitados o en curso"}
           icon={Clock3}
           iconClass="bg-amber-100 text-amber-800"
         />
 
         <StatCard
-          label="Pagos pendientes"
+          label={english ? "Pending payments" : "Pagos pendientes"}
           value={String(
             pendingPayments.length
           )}
-          description={`${reviewedTrips} viajes calificados`}
+          description={english ? `${reviewedTrips} rated rides` : `${reviewedTrips} viajes calificados`}
           icon={CreditCard}
           iconClass="bg-violet-100 text-violet-700"
         />
@@ -646,16 +680,21 @@ export default function PassengerHistoryPage() {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-              Buscar y organizar
+              {english
+                ? "Search and organize"
+                : "Buscar y organizar"}
             </p>
 
             <h2 className="mt-1 text-2xl font-black">
-              Tus recorridos
+              {english
+                ? "Your rides"
+                : "Tus recorridos"}
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Filtra por estado o busca una
-              dirección o conductor.
+              {english
+                ? "Filter by status or search for an address or driver."
+                : "Filtra por estado o busca una dirección o conductor."}
             </p>
           </div>
 
@@ -673,7 +712,7 @@ export default function PassengerHistoryPage() {
                   event.target.value
                 )
               }
-              placeholder="Buscar por dirección o conductor..."
+              placeholder={english ? "Search by address or driver..." : "Buscar por dirección o conductor..."}
               className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-semibold outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
             />
           </div>
@@ -698,7 +737,15 @@ export default function PassengerHistoryPage() {
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
                 )}
               >
-                {item.label}
+                {english
+                  ? {
+                      all: "All",
+                      active: "Active",
+                      completed: "Completed",
+                      payment_pending: "Payment pending",
+                      cancelled: "Cancelled",
+                    }[item.value]
+                  : item.label}
               </button>
             );
           })}
@@ -717,14 +764,22 @@ export default function PassengerHistoryPage() {
 
             <h2 className="mt-7 text-3xl font-black text-slate-950">
               {activity.length === 0
-                ? "Todavía no tienes viajes"
-                : "No encontramos resultados"}
+                ? english
+                  ? "You do not have any rides yet"
+                  : "Todavía no tienes viajes"
+                : english
+                  ? "No results found"
+                  : "No encontramos resultados"}
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-500">
               {activity.length === 0
-                ? "Cuando solicites tu primer viaje, aparecerá aquí con todos sus detalles."
-                : "Prueba con otro término de búsqueda o cambia el filtro seleccionado."}
+                ? english
+                  ? "When you request your first ride, it will appear here with all its details."
+                  : "Cuando solicites tu primer viaje, aparecerá aquí con todos sus detalles."
+                : english
+                  ? "Try another search term or change the selected filter."
+                  : "Prueba con otro término de búsqueda o cambia el filtro seleccionado."}
             </p>
 
             {activity.length === 0 ? (
@@ -733,7 +788,9 @@ export default function PassengerHistoryPage() {
                 className="mt-7 inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
               >
                 <Navigation size={19} />
-                Solicitar mi primer viaje
+                {english
+                  ? "Request my first ride"
+                  : "Solicitar mi primer viaje"}
               </Link>
             ) : (
               <button
@@ -744,7 +801,9 @@ export default function PassengerHistoryPage() {
                 }}
                 className="mt-7 inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white transition hover:bg-slate-800"
               >
-                Limpiar filtros
+                {english
+                  ? "Clear filters"
+                  : "Limpiar filtros"}
               </button>
             )}
           </div>
@@ -767,17 +826,21 @@ export default function PassengerHistoryPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                ¿Listo para volver a salir?
+                {english
+                  ? "Ready to ride again?"
+                  : "¿Listo para volver a salir?"}
               </p>
 
               <h2 className="mt-2 text-2xl font-black">
-                Solicita tu próximo AXI
+                {english
+                  ? "Request your next AXI"
+                  : "Solicita tu próximo AXI"}
               </h2>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-                Elige origen, destino, forma
-                de pago y confirma el viaje
-                desde tu panel.
+                {english
+                  ? "Choose your pickup, destination and payment method, then confirm the ride from your dashboard."
+                  : "Elige origen, destino, forma de pago y confirma el viaje desde tu panel."}
               </p>
             </div>
 
@@ -786,7 +849,9 @@ export default function PassengerHistoryPage() {
               className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 font-black text-black transition hover:bg-yellow-300"
             >
               <Navigation size={19} />
-              Nuevo viaje
+              {english
+                ? "New ride"
+                : "Nuevo viaje"}
               <ArrowRight size={19} />
             </Link>
           </div>
@@ -801,6 +866,34 @@ function TripHistoryCard({
 }: {
   item: PassengerActivity;
 }) {
+  const { locale } = useLanguage();
+  const english = locale === "en";
+
+  const englishTripStatusLabels: Record<string, string> = {
+    requested: "Requested",
+    searching: "Searching for driver",
+    accepted: "Accepted",
+    driver_arriving: "Driver on the way",
+    driver_arrived: "Driver arrived",
+    in_progress: "In progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  };
+
+  const englishPaymentStatusLabels: Record<string, string> = {
+    pending: "Pending",
+    processing: "Processing",
+    paid: "Paid",
+    failed: "Failed",
+    refunded: "Refunded",
+    cancelled: "Cancelled",
+  };
+
+  const englishPaymentMethodLabels: Record<string, string> = {
+    cash: "Cash",
+    card: "Card",
+    mercado_pago: "Mercado Pago",
+  };
   const isCompleted =
     item.status === "completed";
 
@@ -862,9 +955,10 @@ function TripHistoryCard({
                     <Clock3 size={14} />
                   )}
 
-                  {tripStatusLabels[
-                    item.status
-                  ] ?? item.status}
+                  {(english
+                    ? englishTripStatusLabels[item.status]
+                    : tripStatusLabels[item.status]) ??
+                  item.status}
                 </span>
 
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400">
@@ -878,7 +972,7 @@ function TripHistoryCard({
               </div>
 
               <p className="mt-5 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Recorrido
+                {english ? "Route" : "Recorrido"}
               </p>
             </div>
 
@@ -909,7 +1003,9 @@ function TripHistoryCard({
             <div className="min-w-0 flex-1 space-y-8">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Punto de partida
+                  {english
+                    ? "Pickup point"
+                    : "Punto de partida"}
                 </p>
 
                 <h2 className="mt-2 text-lg font-black leading-6 text-slate-950">
@@ -919,7 +1015,7 @@ function TripHistoryCard({
 
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Destino
+                  {english ? "Destination" : "Destino"}
                 </p>
 
                 <p className="mt-2 font-black leading-6 text-slate-950">
@@ -932,35 +1028,44 @@ function TripHistoryCard({
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
             <InfoBox
               icon={UserRound}
-              label="Conductor"
+              label={english ? "Driver" : "Conductor"}
               value={
                 item.driver_name ||
-                "Sin conductor"
+                (english ? "No driver" : "Sin conductor")
               }
             />
 
             <InfoBox
               icon={CreditCard}
-              label="Método"
+              label={english ? "Method" : "Método"}
               value={
                 item.payment_method
-                  ? paymentMethodLabels[
-                      item
-                        .payment_method
-                    ] ??
+                  ? (english
+                      ? englishPaymentMethodLabels[
+                          item.payment_method
+                        ]
+                      : paymentMethodLabels[
+                          item.payment_method
+                        ]) ??
                     item.payment_method
-                  : "No seleccionado"
+                  : english
+                    ? "Not selected"
+                    : "No seleccionado"
               }
             />
 
             <InfoBox
               icon={ReceiptText}
-              label="Pago"
+              label={english ? "Payment" : "Pago"}
               value={
-                paymentStatusLabels[
+                (english
+                    ? englishPaymentStatusLabels[
+                        item.payment_status
+                      ]
+                    : paymentStatusLabels[
+                        item.payment_status
+                      ]) ??
                   item.payment_status
-                ] ??
-                item.payment_status
               }
             />
           </div>
@@ -977,14 +1082,18 @@ function TripHistoryCard({
 
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-yellow-700">
-                  Reputación del conductor
+                  {english
+                    ? "Driver rating"
+                    : "Reputación del conductor"}
                 </p>
 
                 <p className="mt-1 font-black text-yellow-900">
                   {Number(
                     item.driver_rating
                   ).toFixed(2)}{" "}
-                  de 5 estrellas
+                  {english
+                    ? "out of 5 stars"
+                    : "de 5 estrellas"}
                 </p>
               </div>
             </div>
@@ -1001,14 +1110,19 @@ function TripHistoryCard({
                 />
 
                 <p className="font-black text-blue-900">
-                  Tu calificación:{" "}
-                  {item.review_rating} de 5
+                  {english
+                    ? "Your rating:"
+                    : "Tu calificación:"}{" "}
+                  {item.review_rating}{" "}
+                  {english ? "out of 5" : "de 5"}
                 </p>
               </div>
 
               <p className="mt-2 text-sm leading-6 text-blue-800">
                 {item.review_comment ||
-                  "No escribiste comentario."}
+                  (english
+                  ? "No comment provided."
+                  : "No escribiste comentario.")}
               </p>
             </div>
           )}
@@ -1017,25 +1131,32 @@ function TripHistoryCard({
         <div className="flex flex-col border-t border-slate-100 bg-slate-50 p-6 xl:border-l xl:border-t-0">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-              Detalles del viaje
+              {english
+                ? "Ride details"
+                : "Detalles del viaje"}
             </p>
 
             <div className="mt-5 space-y-3">
               <DetailRow
-                label="Estado del viaje"
+                label={english ? "Ride status" : "Estado del viaje"}
                 value={
-                  tripStatusLabels[
-                    item.status
-                  ] ?? item.status
+                  (english
+                    ? englishTripStatusLabels[item.status]
+                    : tripStatusLabels[item.status]) ??
+                  item.status
                 }
               />
 
               <DetailRow
-                label="Estado del pago"
+                label={english ? "Payment status" : "Estado del pago"}
                 value={
-                  paymentStatusLabels[
-                    item.payment_status
-                  ] ??
+                  (english
+                    ? englishPaymentStatusLabels[
+                        item.payment_status
+                      ]
+                    : paymentStatusLabels[
+                        item.payment_status
+                      ]) ??
                   item.payment_status
                 }
                 valueClass={cn(
@@ -1048,7 +1169,7 @@ function TripHistoryCard({
 
               {item.completed_at && (
                 <DetailRow
-                  label="Finalizado"
+                  label={english ? "Completed" : "Finalizado"}
                   value={formatDate(
                     item.completed_at
                   )}
@@ -1063,7 +1184,7 @@ function TripHistoryCard({
               className="flex h-13 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 font-black text-white transition hover:bg-slate-800"
             >
               <Route size={18} />
-              Ver viaje
+              {english ? "View ride" : "Ver viaje"}
               <ArrowRight size={18} />
             </Link>
 
@@ -1075,7 +1196,9 @@ function TripHistoryCard({
                 <CreditCard
                   size={18}
                 />
-                Completar pago
+                {english
+                  ? "Complete payment"
+                  : "Completar pago"}
               </Link>
             )}
 
@@ -1087,7 +1210,7 @@ function TripHistoryCard({
                 <ReceiptText
                   size={18}
                 />
-                Ver recibo
+                {english ? "View receipt" : "Ver recibo"}
               </Link>
             )}
 
@@ -1100,7 +1223,7 @@ function TripHistoryCard({
                   className="flex h-13 items-center justify-center gap-2 rounded-2xl border border-yellow-200 bg-yellow-50 px-5 font-black text-yellow-800 transition hover:bg-yellow-100"
                 >
                   <Star size={18} />
-                  Calificar viaje
+                  {english ? "Rate ride" : "Calificar viaje"}
                 </Link>
               )}
 
@@ -1112,7 +1235,9 @@ function TripHistoryCard({
                 <ShieldAlert
                   size={18}
                 />
-                Reportar problema
+                {english
+                  ? "Report an issue"
+                  : "Reportar problema"}
               </Link>
             )}
           </div>

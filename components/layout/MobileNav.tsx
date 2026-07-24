@@ -51,7 +51,7 @@ export function MobileNav({
   onLogout,
 }: MobileNavProps) {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const primaryItems: NavigationItem[] = [
@@ -91,8 +91,14 @@ export function MobileNav({
 
     {
       href: "/dashboard/passenger/profile",
-      label: "Configuración",
-      description: "Perfil, seguridad y lugares guardados",
+      label:
+        locale === "en"
+          ? "Settings"
+          : "Configuración",
+      description:
+        locale === "en"
+          ? "Profile, security and saved places"
+          : "Perfil, seguridad y lugares guardados",
       icon: Settings,
       visible: role === "passenger",
     },

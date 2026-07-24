@@ -29,6 +29,7 @@ import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
 import { isPassenger } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
+import { useLanguage } from "@/hooks/useLanguage";
 
 type PlaceType =
   | "home"
@@ -83,6 +84,8 @@ const placeTypeIcons: Record<PlaceType, LucideIcon> = {
 };
 
 export default function PassengerProfilePage() {
+  const { locale } = useLanguage();
+  const english = locale === "en";
   const router = useRouter();
 
   const [stats, setStats] =
@@ -293,7 +296,9 @@ export default function PassengerProfilePage() {
   ) {
     const confirmed =
       window.confirm(
-        "¿Seguro que quieres eliminar este lugar?"
+        (english
+          ? "Are you sure you want to delete this place?"
+          : "¿Seguro que quieres eliminar este lugar?")
       );
 
     if (!confirmed) {
@@ -416,7 +421,7 @@ export default function PassengerProfilePage() {
           </span>
 
           <h1 className="mt-6 text-3xl font-black">
-            Perfil no disponible
+            {english ? "Profile unavailable" : "Perfil no disponible"}
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-500">
@@ -428,7 +433,7 @@ export default function PassengerProfilePage() {
             href="/dashboard"
             className="mt-7 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-black text-white"
           >
-            Volver al inicio
+            {english ? "Back to home" : "Volver al inicio"}
             <ArrowRight size={18} />
           </Link>
         </Card>
@@ -445,16 +450,15 @@ export default function PassengerProfilePage() {
         <div className="relative">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
             <Sparkles size={15} />
-            Configuración
+            {english ? "Settings" : "Configuración"}
           </span>
 
           <h1 className="mt-6 whitespace-nowrap text-[1.45rem] font-black leading-tight tracking-tight sm:text-5xl">
-            Administra tu cuenta
+            {english ? "Manage your account" : "Administra tu cuenta"}
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-            Controla la seguridad de tu cuenta, tus métodos de pago y
-            las herramientas disponibles para tus viajes.
+            {english ? "Manage your account security, payment methods and available ride tools." : "Controla la seguridad de tu cuenta, tus métodos de pago y las herramientas disponibles para tus viajes."}
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -467,15 +471,15 @@ export default function PassengerProfilePage() {
               </span>
 
               <h2 className="mt-5 text-xl font-black">
-                Métodos de pago
+                {english ? "Payment methods" : "Métodos de pago"}
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Administra las opciones que utilizas para pagar.
+                {english ? "Manage the options you use to pay." : "Administra las opciones que utilizas para pagar."}
               </p>
 
               <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-yellow-300">
-                Administrar
+                {english ? "Manage" : "Administrar"}
                 <ArrowRight
                   size={17}
                   className="transition group-hover:translate-x-1"
@@ -492,15 +496,15 @@ export default function PassengerProfilePage() {
               </span>
 
               <h2 className="mt-5 text-xl font-black">
-                Herramientas del pasajero
+                {english ? "Passenger tools" : "Herramientas del pasajero"}
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Viajes, pagos pendientes, historial y calificaciones.
+                {english ? "Rides, pending payments, history and ratings." : "Viajes, pagos pendientes, historial y calificaciones."}
               </p>
 
               <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-yellow-300">
-                Ver herramientas
+                {english ? "View tools" : "Ver herramientas"}
                 <ArrowRight
                   size={17}
                   className="transition group-hover:translate-x-1"
@@ -534,16 +538,15 @@ export default function PassengerProfilePage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Nueva dirección
+                {english ? "New address" : "Nueva dirección"}
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
-                Guardar lugar
+                {english ? "Save place" : "Guardar lugar"}
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Agrega una dirección frecuente para solicitar
-                viajes más rápido.
+                {english ? "Add a frequent address to request rides faster." : "Agrega una dirección frecuente para solicitar viajes más rápido."}
               </p>
             </div>
 
@@ -554,7 +557,7 @@ export default function PassengerProfilePage() {
 
           <div className="mt-6">
             <div className="flex items-center justify-between text-xs font-black text-slate-500">
-              <span>Progreso</span>
+              <span>{english ? "Progress" : "Progreso"}</span>
               <span>{formProgress}%</span>
             </div>
 
@@ -574,7 +577,7 @@ export default function PassengerProfilePage() {
           >
             <div>
               <p className="mb-3 text-sm font-black text-slate-700">
-                Tipo de lugar
+                {english ? "Place type" : "Tipo de lugar"}
               </p>
 
               <div className="grid grid-cols-3 gap-2">
@@ -606,7 +609,13 @@ export default function PassengerProfilePage() {
                       )}
                     >
                       <Icon size={21} />
-                      {placeTypeLabels[type]}
+                      {english
+                        ? {
+                            home: "Home",
+                            work: "Work",
+                            favorite: "Favorite",
+                          }[type]
+                        : placeTypeLabels[type]}
                     </button>
                   );
                 })}
@@ -614,9 +623,9 @@ export default function PassengerProfilePage() {
             </div>
 
             <ProfileInput
-              label="Nombre del lugar"
+              label={english ? "Place name" : "Nombre del lugar"}
               value={label}
-              placeholder="Ejemplo: Casa de mis papás"
+              placeholder={english ? "Example: My parents home" : "Ejemplo: Casa de mis papás"}
               icon={Bookmark}
               maxLength={80}
               onChange={setLabel}
@@ -627,7 +636,7 @@ export default function PassengerProfilePage() {
                 htmlFor="savedAddress"
                 className="mb-2 block text-sm font-black text-slate-700"
               >
-                Dirección completa
+                {english ? "Full address" : "Dirección completa"}
               </label>
 
               <div className="relative">
@@ -646,7 +655,7 @@ export default function PassengerProfilePage() {
                   }
                   rows={5}
                   maxLength={300}
-                  placeholder="Calle, número, colonia, ciudad..."
+                  placeholder={english ? "Street, number, neighborhood, city..." : "Calle, número, colonia, ciudad..."}
                   className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 font-semibold text-slate-950 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5"
                 />
               </div>
@@ -664,8 +673,7 @@ export default function PassengerProfilePage() {
                 />
 
                 <p className="text-xs leading-6 text-blue-800">
-                  Podrás utilizar este lugar como origen o destino
-                  al solicitar futuros viajes.
+                  {english ? "You can use this place as the pickup or destination for future rides." : "Podrás utilizar este lugar como origen o destino al solicitar futuros viajes."}
                 </p>
               </div>
             </div>
@@ -681,12 +689,12 @@ export default function PassengerProfilePage() {
                     size={19}
                     className="animate-spin"
                   />
-                  Guardando...
+                  {english ? "Saving..." : "Guardando..."}
                 </>
               ) : (
                 <>
                   <Plus size={19} />
-                  Guardar lugar
+                  {english ? "Save place" : "Guardar lugar"}
                 </>
               )}
             </button>
@@ -696,16 +704,15 @@ export default function PassengerProfilePage() {
         <Card className="overflow-hidden p-0">
           <div className="border-b border-slate-100 px-6 py-6 sm:px-8">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-              Direcciones frecuentes
+              {english ? "Frequent addresses" : "Direcciones frecuentes"}
             </p>
 
             <h2 className="mt-1 text-2xl font-black">
-              Mis lugares guardados
+              {english ? "My saved places" : "Mis lugares guardados"}
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Usa estas direcciones para ahorrar tiempo al
-              solicitar un viaje.
+              {english ? "Use these addresses to save time when requesting a ride." : "Usa estas direcciones para ahorrar tiempo al solicitar un viaje."}
             </p>
           </div>
 
@@ -719,12 +726,11 @@ export default function PassengerProfilePage() {
                 </span>
 
                 <h3 className="mt-7 text-3xl font-black">
-                  Todavía no tienes lugares
+                  {english ? "You do not have saved places yet" : "Todavía no tienes lugares"}
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-slate-500">
-                  Guarda casa, trabajo u otra dirección frecuente
-                  para preparar tus viajes más rápido.
+                  {english ? "Save home, work or another frequent address to prepare rides faster." : "Guarda casa, trabajo u otra dirección frecuente para preparar tus viajes más rápido."}
                 </p>
               </div>
             </div>
@@ -759,6 +765,8 @@ function SavedPlaceCard({
   deleting: boolean;
   onDelete: () => void;
 }) {
+  const { locale } = useLanguage();
+  const english = locale === "en";
   const Icon =
     placeTypeIcons[place.type];
 
@@ -798,7 +806,13 @@ function SavedPlaceCard({
             </h3>
 
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-              {placeTypeLabels[place.type]}
+              {english
+                  ? {
+                      home: "Home",
+                      work: "Work",
+                      favorite: "Favorite",
+                    }[place.type]
+                  : placeTypeLabels[place.type]}
             </span>
           </div>
 
@@ -809,7 +823,7 @@ function SavedPlaceCard({
           {place.latitude !== null &&
             place.longitude !== null && (
               <p className="mt-2 text-xs font-semibold text-emerald-600">
-                Ubicación exacta registrada
+                {english ? "Exact location saved" : "Ubicación exacta registrada"}
               </p>
             )}
         </div>
@@ -822,7 +836,7 @@ function SavedPlaceCard({
             className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-slate-800"
           >
             <Navigation size={16} />
-            Usar
+            {english ? "Use" : "Usar"}
           </Link>
 
           <button
@@ -841,8 +855,12 @@ function SavedPlaceCard({
             )}
 
             {deleting
-              ? "Eliminando"
-              : "Eliminar"}
+                ? english
+                  ? "Deleting"
+                  : "Eliminando"
+                : english
+                  ? "Delete"
+                  : "Eliminar"}
           </button>
         </div>
       </div>
