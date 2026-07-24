@@ -24,7 +24,8 @@ interface RideActionPanelProps {
 export function RideActionPanel({
   role,
 }: RideActionPanelProps) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const english = locale === "en";
 
   if (role === "driver") {
     return (
@@ -235,21 +236,21 @@ export function RideActionPanel({
         </span>
 
         <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-slate-200">
-          Nuevo viaje
+          {english ? "New ride" : "Nuevo viaje"}
         </span>
       </div>
 
       <div className="my-auto py-10">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-          Viaja con AXI
+          {english ? "Ride with AXI" : "Viaja con AXI"}
         </p>
 
         <h2 className="mt-3 max-w-sm text-3xl font-black leading-tight sm:text-4xl">
-          Solicita tu viaje en pocos pasos
+          {english ? "Request your ride in a few steps" : "Solicita tu viaje en pocos pasos"}
         </h2>
 
         <p className="mt-4 max-w-sm text-sm leading-7 text-slate-400">
-          Elige tu origen y destino. Después podrás comparar AXI 4 y AXI 6 con el precio real de tu recorrido.
+          {english ? "Choose your pickup and destination. Then compare AXI 4 and AXI 6 using the actual price for your route." : "Elige tu origen y destino. Después podrás comparar AXI 4 y AXI 6 con el precio real de tu recorrido."}
         </p>
 
         <div className="mt-7 grid gap-3 text-sm text-slate-300">
@@ -257,21 +258,21 @@ export function RideActionPanel({
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-black text-yellow-400">
               1
             </span>
-            Selecciona tu destino
+            {english ? "Select your destination" : "Selecciona tu destino"}
           </div>
 
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-black text-yellow-400">
               2
             </span>
-            Compara el tipo de vehículo
+            {english ? "Compare vehicle types" : "Compara el tipo de vehículo"}
           </div>
 
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-black text-yellow-400">
               3
             </span>
-            Confirma y encuentra conductor
+            {english ? "Confirm and find a driver" : "Confirma y encuentra conductor"}
           </div>
         </div>
       </div>
@@ -280,7 +281,7 @@ export function RideActionPanel({
         href="/dashboard/trips/new"
         className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300"
       >
-        Solicitar viaje
+        {english ? "Request a ride" : "Solicitar viaje"}
         <ArrowRight size={19} />
       </Link>
     </aside>
