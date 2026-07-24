@@ -6,6 +6,7 @@ import {
   Search,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/hooks/useLanguage";
 import type {
   TripDetailStatus,
 } from "@/components/trips/detail/TripDetailTypes";
@@ -19,6 +20,9 @@ export function PassengerWaitingCard({
   status,
   driverAssigned,
 }: PassengerWaitingCardProps) {
+  const { locale } = useLanguage();
+  const english = locale === "en";
+
   if (
     driverAssigned ||
     !["requested", "searching"].includes(status)
@@ -40,16 +44,21 @@ export function PassengerWaitingCard({
 
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-            Buscando conductor
+            {english
+              ? "Searching for a driver"
+              : "Buscando conductor"}
           </p>
 
           <h2 className="mt-1 text-2xl font-black">
-            Estamos encontrando tu AXI
+            {english
+              ? "We're finding your AXI"
+              : "Estamos encontrando tu AXI"}
           </h2>
 
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            Buscamos conductores disponibles cerca de tu punto de
-            partida. Esta pantalla se actualizará automáticamente.
+            {english
+              ? "We are searching for available drivers near your pickup point. This screen will update automatically."
+              : "Buscamos conductores disponibles cerca de tu punto de partida. Esta pantalla se actualizará automáticamente."}
           </p>
         </div>
       </div>
@@ -61,7 +70,9 @@ export function PassengerWaitingCard({
         />
 
         <p className="text-sm font-semibold text-slate-300">
-          No necesitas actualizar ni salir de esta pantalla.
+          {english
+            ? "You don't need to refresh or leave this screen."
+            : "No necesitas actualizar ni salir de esta pantalla."}
         </p>
       </div>
     </Card>

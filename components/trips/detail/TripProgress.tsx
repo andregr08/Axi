@@ -5,6 +5,7 @@ import {
   Clock3,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 import type {
   TripDetailRole,
@@ -54,6 +55,26 @@ export function TripProgress({
   role,
   status,
 }: TripProgressProps) {
+  const { locale } = useLanguage();
+
+  const passengerEnglish =
+    role === "passenger" &&
+    locale === "en";
+
+  const englishPassengerLabels: Record<
+    TripDetailStatus,
+    string
+  > = {
+    requested: "Requested",
+    searching: "Searching",
+    accepted: "Driver assigned",
+    driver_arriving: "Driver on the way",
+    driver_arrived: "Driver arrived",
+    in_progress: "Ride in progress",
+    completed: "Ride completed",
+    cancelled: "Cancelled",
+  };
+
   if (status === "cancelled") {
     return null;
   }
@@ -70,13 +91,17 @@ export function TripProgress({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-            Seguimiento
+            {passengerEnglish
+              ? "Tracking"
+              : "Seguimiento"}
           </p>
 
           <h2 className="mt-1 text-2xl font-black">
             {role === "driver"
               ? "Progreso del servicio"
-              : "Estado de tu viaje"}
+              : passengerEnglish
+                ? "Ride status"
+                : "Estado de tu viaje"}
           </h2>
         </div>
 
@@ -99,7 +124,11 @@ export function TripProgress({
           const label =
             role === "driver"
               ? step.driverLabel
-              : step.passengerLabel;
+              : passengerEnglish
+                ? englishPassengerLabels[
+                    step.status
+                  ]
+                : step.passengerLabel;
 
           return (
             <div

@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 import type {
   TripDetailRole,
@@ -49,6 +50,12 @@ export function TripDetailHeader({
   title,
   description,
 }: TripDetailHeaderProps) {
+  const { locale } = useLanguage();
+
+  const passengerEnglish =
+    role === "passenger" &&
+    locale === "en";
+
   const backHref =
     role === "driver"
       ? "/dashboard/driver/available-trips"
@@ -60,7 +67,9 @@ export function TripDetailHeader({
     role === "driver"
       ? "Volver a viajes disponibles"
       : role === "passenger"
-        ? "Volver a mis viajes"
+        ? passengerEnglish
+          ? "Back to my rides"
+          : "Volver a mis viajes"
         : "Volver a viajes";
 
   const isCancelled = status === "cancelled";
@@ -118,7 +127,9 @@ export function TripDetailHeader({
           <div className="min-w-64 rounded-3xl border border-white/10 bg-white/10 px-6 py-5 backdrop-blur-xl">
             <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-300">
               <CircleDollarSign size={16} />
-              Precio del viaje
+              {passengerEnglish
+                ? "Ride price"
+                : "Precio del viaje"}
             </p>
 
             <p className="mt-2 text-4xl font-black">

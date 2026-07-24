@@ -19,6 +19,7 @@ import {
 import { ShareTripCard } from "@/components/trips/ShareTripCard";
 import { PassengerWaitingCard } from "@/components/trips/passenger/PassengerWaitingCard";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/hooks/useLanguage";
 import type {
   TripDetailData,
 } from "@/components/trips/detail/TripDetailTypes";
@@ -46,6 +47,9 @@ export function PassengerTripView({
   isCompleted,
   isCancelled,
 }: PassengerTripViewProps) {
+  const { locale } = useLanguage();
+  const english = locale === "en";
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
       <div className="space-y-6">
@@ -58,11 +62,15 @@ export function PassengerTripView({
           <Card className="overflow-hidden p-0">
             <div className="border-b border-slate-100 px-6 py-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Seguimiento en vivo
+                {english
+                  ? "Live tracking"
+                  : "Seguimiento en vivo"}
               </p>
 
               <h2 className="mt-1 text-2xl font-black">
-                Ubicación de tu conductor
+                {english
+                  ? "Your driver's location"
+                  : "Ubicación de tu conductor"}
               </h2>
             </div>
 
@@ -82,25 +90,29 @@ export function PassengerTripView({
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Distancia
+                    {english
+                      ? "Distance"
+                      : "Distancia"}
                   </p>
 
                   <p className="mt-2 text-lg font-black">
                     {driverDistanceKm !== null
                       ? `${driverDistanceKm.toFixed(1)} km`
-                      : "Calculando"}
+                      : (english ? "Calculating" : "Calculando")}
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Llegada estimada
+                    {english
+                      ? "Estimated arrival"
+                      : "Llegada estimada"}
                   </p>
 
                   <p className="mt-2 text-lg font-black">
                     {driverArrivalMinutes !== null
                       ? `${driverArrivalMinutes} min`
-                      : "Calculando"}
+                      : (english ? "Calculating" : "Calculando")}
                   </p>
                 </div>
               </div>
@@ -120,7 +132,9 @@ export function PassengerTripView({
                     className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 font-black transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
                   >
                     <Phone size={18} />
-                    Llamar
+                    {english
+                      ? "Call"
+                      : "Llamar"}
                   </a>
                 ) : (
                   <button
@@ -129,7 +143,9 @@ export function PassengerTripView({
                     className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 font-black text-slate-400 opacity-60"
                   >
                     <Phone size={18} />
-                    Sin teléfono
+                    {english
+                      ? "No phone"
+                      : "Sin teléfono"}
                   </button>
                 )}
               </div>
@@ -141,7 +157,9 @@ export function PassengerTripView({
         <Card>
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-black">
-              Tu ruta
+              {english
+                ? "Your route"
+                : "Tu ruta"}
             </h2>
 
             <Route
@@ -166,7 +184,9 @@ export function PassengerTripView({
             <div className="min-w-0 flex-1 space-y-8">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Origen
+                  {english
+                    ? "Pickup"
+                    : "Origen"}
                 </p>
 
                 <p className="mt-2 font-black">
@@ -176,7 +196,9 @@ export function PassengerTripView({
 
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Destino
+                  {english
+                    ? "Destination"
+                    : "Destino"}
                 </p>
 
                 <p className="mt-2 font-black">
@@ -194,7 +216,9 @@ export function PassengerTripView({
               />
 
               <p className="mt-3 text-xs font-black uppercase tracking-wider text-slate-400">
-                Estimado
+                {english
+                  ? "Estimated"
+                  : "Estimado"}
               </p>
 
               <p className="mt-1 font-black">
@@ -209,7 +233,9 @@ export function PassengerTripView({
               />
 
               <p className="mt-3 text-xs font-black uppercase tracking-wider text-slate-400">
-                Estado
+                {english
+                  ? "Status"
+                  : "Estado"}
               </p>
 
               <p className="mt-1 font-black">
@@ -233,12 +259,15 @@ export function PassengerTripView({
               />
 
               <h2 className="mt-5 text-xl font-black">
-                Todavía no hay conductor asignado
+                {english
+                  ? "No driver has been assigned yet"
+                  : "Todavía no hay conductor asignado"}
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Te avisaremos en cuanto un conductor acepte
-                el viaje.
+                {english
+                  ? "We will notify you as soon as a driver accepts the ride."
+                  : "Te avisaremos en cuanto un conductor acepte el viaje."}
               </p>
             </Card>
           )}

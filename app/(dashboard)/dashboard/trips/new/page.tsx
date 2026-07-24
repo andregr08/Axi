@@ -37,6 +37,7 @@ import {
   type MobilityCoordinates,
 } from "@/lib/mobility";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/utils/cn";
 
 type Coordinates = MobilityCoordinates;
@@ -84,6 +85,8 @@ function getPassengerFareTotal(
 
 export default function NewTripPage() {
   const router = useRouter();
+  const { locale } = useLanguage();
+  const english = locale === "en";
 
   const mockMobilityMode =
     isMockMobilityMode();
@@ -504,27 +507,35 @@ export default function NewTripPage() {
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
           >
             <ArrowLeft size={18} />
-            Volver a viajes
+            {english
+              ? "Back to rides"
+              : "Volver a viajes"}
           </button>
 
           <p className="mt-8 text-xs font-black uppercase tracking-[0.2em] text-yellow-600">
-            Nueva solicitud
+            {english
+              ? "New request"
+              : "Nueva solicitud"}
           </p>
 
           <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-            ¿A dónde vamos?
+            {english
+              ? "Where are we going?"
+              : "¿A dónde vamos?"}
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
-            Selecciona tu ruta, revisa el precio estimado y elige cómo
-            pagarás el viaje.
+            {english
+              ? "Select your route, review the estimated price and choose how you will pay."
+              : "Selecciona tu ruta, revisa el precio estimado y elige cómo pagarás el viaje."}
           </p>
         </div>
 
         {!placesConfigured && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-            Modo demo activo: las direcciones y estimaciones son
-            provisionales hasta configurar Google Places y Routes.
+            {english
+              ? "Demo mode is active: addresses and estimates are provisional until Google Places and Routes are configured."
+              : "Modo demo activo: las direcciones y estimaciones son provisionales hasta configurar Google Places y Routes."}
           </div>
         )}
 
@@ -541,23 +552,27 @@ export default function NewTripPage() {
 
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-400">
-                    Ruta AXI
+                    {english
+                      ? "AXI route"
+                      : "Ruta AXI"}
                   </p>
 
                   <p className="mt-1 font-black">
-                    Selecciona origen y destino
+                    {english
+                      ? "Select pickup and destination"
+                      : "Selecciona origen y destino"}
                   </p>
                 </div>
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <LocationStatus
-                  label="Origen"
+                  label={english ? "Pickup" : "Origen"}
                   ready={originReady}
                 />
 
                 <LocationStatus
-                  label="Destino"
+                  label={english ? "Destination" : "Destino"}
                   ready={destinationReady}
                 />
               </div>
@@ -567,7 +582,9 @@ export default function NewTripPage() {
               <div>
                 <div className="mb-3 flex items-center justify-between gap-4">
                   <p className="text-sm font-black text-slate-700">
-                    Punto de partida
+                    {english
+                      ? "Pickup point"
+                      : "Punto de partida"}
                   </p>
 
                   <button
@@ -582,14 +599,26 @@ export default function NewTripPage() {
                     />
 
                     {locating
-                      ? "Ubicando..."
-                      : "Usar mi ubicación"}
+                      ? english
+                        ? "Locating..."
+                        : "Ubicando..."
+                      : english
+                        ? "Use my location"
+                        : "Usar mi ubicación"}
                   </button>
                 </div>
 
                 <PlaceAutocomplete
-                  label="Busca el lugar donde te recogerán"
-                  placeholder="Ejemplo: UDLAP, Cholula"
+                  label={
+                    english
+                      ? "Search for your pickup location"
+                      : "Busca el lugar donde te recogerán"
+                  }
+                  placeholder={
+                    english
+                      ? "Example: UDLAP, Cholula"
+                      : "Ejemplo: UDLAP, Cholula"
+                  }
                   value={origin}
                   onTextChange={handleOriginTextChange}
                   onPlaceSelect={handleOriginSelect}
@@ -600,7 +629,11 @@ export default function NewTripPage() {
 
                 {originReady && (
                   <ConfirmedLocation
-                    title="Punto de partida confirmado"
+                    title={
+                      english
+                        ? "Pickup point confirmed"
+                        : "Punto de partida confirmado"
+                    }
                     value={origin}
                     variant="origin"
                   />
@@ -611,8 +644,16 @@ export default function NewTripPage() {
                 <span className="absolute bottom-2 left-0 top-2 border-l-2 border-dashed border-slate-300" />
 
                 <PlaceAutocomplete
-                  label="¿A dónde quieres ir?"
-                  placeholder="Ejemplo: Angelópolis, Puebla"
+                  label={
+                    english
+                      ? "Where do you want to go?"
+                      : "¿A dónde quieres ir?"
+                  }
+                  placeholder={
+                    english
+                      ? "Example: Angelópolis, Puebla"
+                      : "Ejemplo: Angelópolis, Puebla"
+                  }
                   value={destination}
                   onTextChange={handleDestinationTextChange}
                   onPlaceSelect={handleDestinationSelect}
@@ -620,7 +661,11 @@ export default function NewTripPage() {
 
                 {destinationReady && (
                   <ConfirmedLocation
-                    title="Destino confirmado"
+                    title={
+                      english
+                        ? "Destination confirmed"
+                        : "Destino confirmado"
+                    }
                     value={
                       destinationPlace?.address ?? destination
                     }
@@ -632,22 +677,34 @@ export default function NewTripPage() {
 
             <div className="mt-8">
               <p className="text-sm font-black text-slate-700">
-                Método de pago
+                {english ? "Payment method" : "Método de pago"}
               </p>
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <PaymentOption
                   active={paymentMethod === "cash"}
-                  title="Efectivo"
-                  description="Paga directamente al taxista"
+                  title={
+                    english ? "Cash" : "Efectivo"
+                  }
+                  description={
+                    english
+                      ? "Pay the driver directly"
+                      : "Paga directamente al taxista"
+                  }
                   icon={Banknote}
                   onClick={() => setPaymentMethod("cash")}
                 />
 
                 <PaymentOption
                   active={paymentMethod === "card"}
-                  title="Tarjeta"
-                  description="Cobro digital al terminar"
+                  title={
+                    english ? "Card" : "Tarjeta"
+                  }
+                  description={
+                    english
+                      ? "Digital charge when the ride ends"
+                      : "Cobro digital al terminar"
+                  }
                   icon={CreditCard}
                   onClick={() => setPaymentMethod("card")}
                 />
@@ -661,8 +718,9 @@ export default function NewTripPage() {
                   />
 
                   <p className="text-xs leading-6 text-blue-800">
-                    La tarjeta se elegirá o registrará en la pantalla
-                    segura de pagos.
+                    {english
+                      ? "Your card will be selected or added on the secure payment screen."
+                      : "La tarjeta se elegirá o registrará en la pantalla segura de pagos."}
                   </p>
                 </div>
               )}
@@ -677,23 +735,29 @@ export default function NewTripPage() {
 
           <aside className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] xl:sticky xl:top-8">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-600">
-              Resumen del viaje
+              {english ? "Ride summary" : "Resumen del viaje"}
             </p>
 
             <h2 className="mt-2 text-2xl font-black text-slate-950">
-              Tu viaje AXI
+              {english ? "Your AXI ride" : "Tu viaje AXI"}
             </h2>
 
             <div className="mt-6 space-y-4">
               <SummaryLocation
-                label="Origen"
-                value={origin || "Pendiente"}
+                label={english ? "Pickup" : "Origen"}
+                value={
+                  origin ||
+                  (english ? "Pending" : "Pendiente")
+                }
                 active={originReady}
               />
 
               <SummaryLocation
-                label="Destino"
-                value={destination || "Pendiente"}
+                label={english ? "Destination" : "Destino"}
+                value={
+                  destination ||
+                  (english ? "Pending" : "Pendiente")
+                }
                 active={destinationReady}
               />
             </div>
@@ -701,7 +765,7 @@ export default function NewTripPage() {
             <div className="mt-6 grid grid-cols-2 gap-3">
               <EstimateCard
                 icon={Route}
-                label="Distancia"
+                label={english ? "Distance" : "Distancia"}
                 value={
                   estimate
                     ? `${estimate.distanceKm.toFixed(1)} km`
@@ -711,7 +775,7 @@ export default function NewTripPage() {
 
               <EstimateCard
                 icon={Clock3}
-                label="Tiempo"
+                label={english ? "Time" : "Tiempo"}
                 value={
                   estimate
                     ? `${estimate.durationMinutes} min`
@@ -724,11 +788,11 @@ export default function NewTripPage() {
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-                    Elige tu vehículo
+                    {english ? "Choose your vehicle" : "Elige tu vehículo"}
                   </p>
 
                   <p className="mt-1 text-sm font-bold text-slate-700">
-                    Selecciona la opción para tu viaje
+                    {english ? "Select an option for your ride" : "Selecciona la opción para tu viaje"}
                   </p>
                 </div>
 
@@ -757,7 +821,7 @@ export default function NewTripPage() {
 
                       {rideType === "economy" && (
                         <span className="rounded-full bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase text-black">
-                          Seleccionado
+                          {english ? "Selected" : "Seleccionado"}
                         </span>
                       )}
                     </div>
@@ -770,7 +834,7 @@ export default function NewTripPage() {
                           : "text-slate-500"
                       )}
                     >
-                      Hasta 4 pasajeros
+                      {english ? "Up to 4 passengers" : "Hasta 4 pasajeros"}
                     </p>
                   </div>
 
@@ -810,7 +874,7 @@ export default function NewTripPage() {
 
                       {rideType === "comfort" && (
                         <span className="rounded-full bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase text-black">
-                          Seleccionado
+                          {english ? "Selected" : "Seleccionado"}
                         </span>
                       )}
                     </div>
@@ -823,7 +887,7 @@ export default function NewTripPage() {
                           : "text-slate-500"
                       )}
                     >
-                      Hasta 6 pasajeros
+                      {english ? "Up to 6 passengers" : "Hasta 6 pasajeros"}
                     </p>
                   </div>
 
@@ -857,19 +921,21 @@ export default function NewTripPage() {
                     className="animate-pulse"
                   />
 
-                  Actualizando tarifa...
+                  {english ? "Refreshing fare..." : "Actualizando tarifa..."}
                 </div>
               )}
 
               {!pricingLoading && dynamicFare && (
                 <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
-                  Precio actualizado para tu viaje.
+                  {english ? "The price for your ride has been updated." : "Precio actualizado para tu viaje."}
                 </div>
               )}
 
               {pricingError && (
                 <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                  Mostrando estimación local.{" "}
+                  {english
+                      ? "Showing local estimate. "
+                      : "Mostrando estimación local. "}
                   {pricingError}
                 </div>
               )}
@@ -885,13 +951,17 @@ export default function NewTripPage() {
 
                 <div>
                   <p className="text-xs font-bold text-slate-400">
-                    Método
+                    {english ? "Method" : "Método"}
                   </p>
 
                   <p className="font-black">
                     {paymentMethod === "cash"
-                      ? "Efectivo"
-                      : "Tarjeta"}
+                      ? english
+                        ? "Cash"
+                        : "Efectivo"
+                      : english
+                        ? "Card"
+                        : "Tarjeta"}
                   </p>
                 </div>
               </div>
@@ -907,7 +977,7 @@ export default function NewTripPage() {
               }
               className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-40"
             >
-              Revisar y solicitar
+              {english ? "Review and request" : "Revisar y solicitar"}
               <ArrowRight size={19} />
             </button>
 
@@ -916,7 +986,7 @@ export default function NewTripPage() {
               onClick={() => router.push("/dashboard/trips")}
               className="mt-3 h-12 w-full rounded-2xl border border-slate-200 font-black text-slate-600 transition hover:bg-slate-50"
             >
-              Cancelar
+              {english ? "Cancel" : "Cancelar"}
             </button>
           </aside>
         </form>
@@ -936,7 +1006,9 @@ export default function NewTripPage() {
                 onClick={() => setConfirmOpen(false)}
                 disabled={loading}
                 className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10"
-                aria-label="Cerrar"
+                aria-label={
+                  english ? "Close" : "Cerrar"
+                }
               >
                 <X size={20} />
               </button>
@@ -950,25 +1022,26 @@ export default function NewTripPage() {
                 id="confirm-trip-title"
                 className="mt-5 text-3xl font-black"
               >
-                Confirma tu viaje
+                {english ? "Confirm your ride" : "Confirma tu viaje"}
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Revisa la ruta, el método de pago y el precio antes de
-                buscar un conductor.
+                {english
+                  ? "Review the route, payment method and price before searching for a driver."
+                  : "Revisa la ruta, el método de pago y el precio antes de buscar un conductor."}
               </p>
             </div>
 
             <div className="p-6 sm:p-8">
               <div className="space-y-4">
                 <SummaryLocation
-                  label="Origen"
+                  label={english ? "Pickup" : "Origen"}
                   value={origin}
                   active
                 />
 
                 <SummaryLocation
-                  label="Destino"
+                  label={english ? "Destination" : "Destino"}
                   value={resolvedTrip.destinationPlace.address}
                   active
                 />
@@ -977,19 +1050,19 @@ export default function NewTripPage() {
               <div className="mt-6 grid grid-cols-3 gap-3">
                 <EstimateCard
                   icon={Route}
-                  label="Distancia"
+                  label={english ? "Distance" : "Distancia"}
                   value={`${estimate.distanceKm.toFixed(1)} km`}
                 />
 
                 <EstimateCard
                   icon={Clock3}
-                  label="Tiempo"
+                  label={english ? "Time" : "Tiempo"}
                   value={`${estimate.durationMinutes} min`}
                 />
 
                 <EstimateCard
                   icon={CircleDollarSign}
-                  label="Estimado"
+                  label={english ? "Estimated" : "Estimado"}
                   value={formatCurrency(
                     getPassengerFareTotal(
                       dynamicFare
@@ -1009,12 +1082,16 @@ export default function NewTripPage() {
 
                   <div>
                     <p className="text-xs font-bold text-slate-400">
-                      Método de pago
+                      {english ? "Payment method" : "Método de pago"}
                     </p>
 
                     <p className="font-black">
                       {paymentMethod === "cash"
-                        ? "Efectivo"
+                      ? english
+                        ? "Cash"
+                        : "Efectivo"
+                      : english
+                        ? "Card"
                         : "Tarjeta"}
                     </p>
                   </div>
@@ -1028,8 +1105,12 @@ export default function NewTripPage() {
                 className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 font-black text-black transition hover:bg-yellow-300 disabled:opacity-60"
               >
                 {loading
-                  ? "Buscando conductores..."
-                  : "Confirmar y buscar conductor"}
+                  ? english
+                    ? "Searching for drivers..."
+                    : "Buscando conductores..."
+                  : english
+                    ? "Confirm and search for a driver"
+                    : "Confirmar y buscar conductor"}
 
                 {!loading && <ArrowRight size={19} />}
               </button>
@@ -1040,12 +1121,13 @@ export default function NewTripPage() {
                 disabled={loading}
                 className="mt-3 h-12 w-full rounded-2xl border border-slate-200 font-black text-slate-600"
               >
-                Modificar viaje
+                {english ? "Edit ride" : "Modificar viaje"}
               </button>
 
               <p className="mt-5 text-center text-xs leading-5 text-slate-400">
-                El precio podrá ajustarse cuando Google Routes calcule
-                la ruta exacta.
+                {english
+                  ? "The price may change when Google Routes calculates the exact route."
+                  : "El precio podrá ajustarse cuando Google Routes calcule la ruta exacta."}
               </p>
             </div>
           </div>
@@ -1062,6 +1144,8 @@ function LocationStatus({
   label: string;
   ready: boolean;
 }) {
+  const { locale } = useLanguage();
+  const english = locale === "en";
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
       <span
@@ -1077,7 +1161,13 @@ function LocationStatus({
         </p>
 
         <p className="mt-0.5 text-xs font-bold text-slate-200">
-          {ready ? "Ubicación confirmada" : "Pendiente"}
+          {ready
+            ? english
+              ? "Location confirmed"
+              : "Ubicación confirmada"
+            : english
+              ? "Pending"
+              : "Pendiente"}
         </p>
       </div>
     </div>

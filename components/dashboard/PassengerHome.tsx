@@ -22,6 +22,7 @@ import { GoogleMapView } from "@/components/maps/GoogleMap";
 import { RideActionPanel } from "@/components/trips/RideActionPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/utils/cn";
 
@@ -114,6 +115,8 @@ function formatDate(value: string | null) {
 }
 
 export function PassengerHome({ name }: PassengerHomeProps) {
+  const { locale } = useLanguage();
+  const english = locale === "en";
   const [stats, setStats] =
     useState<PassengerStats>(EMPTY_STATS);
 
@@ -148,7 +151,9 @@ export function PassengerHome({ name }: PassengerHomeProps) {
 
       if (!session) {
         setMessage(
-          "Tu sesión ya no está disponible."
+          english
+            ? "Your session is no longer available."
+            : "Tu sesión ya no está disponible."
         );
         setLoading(false);
         setRefreshing(false);
@@ -216,14 +221,16 @@ export function PassengerHome({ name }: PassengerHomeProps) {
 
       if (errors.length > 0) {
         setMessage(
-          "Algunos datos no pudieron actualizarse, pero puedes seguir utilizando tu panel."
+          english
+            ? "Some information could not be refreshed, but you can continue using your dashboard."
+            : "Algunos datos no pudieron actualizarse, pero puedes seguir utilizando tu panel."
         );
       }
 
       setLoading(false);
       setRefreshing(false);
     },
-    []
+    [english]
   );
 
   useEffect(() => {
@@ -310,19 +317,19 @@ export function PassengerHome({ name }: PassengerHomeProps) {
         <div className="relative max-w-5xl">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
             <Navigation size={15} />
-            Movilidad inteligente
+            {english ? "Smart mobility" : "Movilidad inteligente"}
           </span>
 
           <p className="mt-6 text-sm font-semibold text-slate-400">
-            Hola, {name}
+            {english ? "Hello" : "Hola"}, {name}
           </p>
 
           <h1 className="mt-2 whitespace-nowrap text-[clamp(1.7rem,8vw,2.25rem)] font-black tracking-tight sm:text-5xl lg:text-6xl">
-            ¿A dónde vamos hoy?
+            {english ? "Where are we going today?" : "¿A dónde vamos hoy?"}
           </h1>
 
           <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-            Solicita un viaje rápido, seguro y confiable desde AXI.
+            {english ? "Request a fast, safe and reliable ride with AXI." : "Solicita un viaje rápido, seguro y confiable desde AXI."}
           </p>
 
           <div className="mt-8">
@@ -331,7 +338,7 @@ export function PassengerHome({ name }: PassengerHomeProps) {
               className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-7 font-black text-black transition hover:bg-yellow-300 sm:w-auto"
             >
               <CarFront size={19} />
-              Solicitar viaje
+              {english ? "Request a ride" : "Solicitar viaje"}
               <ArrowRight size={19} />
             </Link>
           </div>
@@ -363,8 +370,12 @@ export function PassengerHome({ name }: PassengerHomeProps) {
           />
 
           {refreshing
-            ? "Actualizando..."
-            : "Actualizar panel"}
+            ? english
+              ? "Refreshing..."
+              : "Actualizando..."
+            : english
+              ? "Refresh dashboard"
+              : "Actualizar panel"}
         </button>
       </div>
 
@@ -373,20 +384,20 @@ export function PassengerHome({ name }: PassengerHomeProps) {
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-              Solicitud de viaje
+              {english ? "Ride request" : "Solicitud de viaje"}
             </p>
 
             <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Encuentra tu próximo destino
+              {english ? "Find your next destination" : "Encuentra tu próximo destino"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Consulta el mapa y comienza una nueva solicitud.
+              {english ? "Check the map and start a new ride request." : "Consulta el mapa y comienza una nueva solicitud."}
             </p>
           </div>
 
           <Badge variant="success">
-            Sistema disponible
+            {english ? "System available" : "Sistema disponible"}
           </Badge>
         </div>
 
