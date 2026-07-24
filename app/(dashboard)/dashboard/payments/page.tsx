@@ -35,7 +35,7 @@ export default function PaymentsPage() {
               {t("payments.finance")}
             </span>
 
-            <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
+            <h1 className="mt-6 whitespace-nowrap text-[1.65rem] font-black leading-tight tracking-tight sm:text-5xl">
               {t("payments.title")}
             </h1>
 
