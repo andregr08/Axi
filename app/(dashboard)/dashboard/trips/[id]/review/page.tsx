@@ -28,6 +28,8 @@ import { cn } from "@/utils/cn";
 
 type Trip = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   status: string;
@@ -130,7 +132,7 @@ export default function TripReviewPage() {
     } = await supabase
       .from("trips")
       .select(
-        "id, passenger_id, driver_id, status"
+        "id, trip_number, trip_code, passenger_id, driver_id, status"
       )
       .eq("id", tripId)
       .single();
@@ -387,6 +389,10 @@ export default function TripReviewPage() {
               {reviewedName}
             </strong>
             . Tu opinión ayuda a mantener un servicio seguro y confiable.
+          </p>
+
+          <p className="mt-3 font-mono text-sm font-bold text-yellow-400">
+            {trip?.trip_code}
           </p>
         </div>
       </div>
