@@ -13,6 +13,8 @@ export type TripDetailStatus =
 
 export type TripDetailData = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   vehicle_id: string | null;

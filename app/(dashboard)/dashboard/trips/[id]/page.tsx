@@ -236,6 +236,8 @@ export default function ActiveTripPage({
       .from("trips")
       .select(`
         id,
+        trip_number,
+        trip_code,
         passenger_id,
         driver_id,
         vehicle_id,
@@ -249,7 +251,8 @@ export default function ActiveTripPage({
         estimated_price,
         final_price,
         requested_at,
-        accepted_at,
+        accepted_at,
+
         trip_pin_verified_at,
         started_at,
         completed_at
@@ -851,6 +854,7 @@ return (
       <TripDetailHeader
         role={role}
         status={trip.status}
+        tripCode={trip.trip_code}
         requestedAt={formatDate(
           trip.requested_at,
           locale
