@@ -135,7 +135,8 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -358,11 +359,9 @@ export default function PasajeroPage() {
 
     const basePrice = Math.max(
       55,
-      Math.round(
-        BASE_FARE +
-          distanceKm * PRICE_PER_KM +
-          BOOKING_FEE
-      )
+      BASE_FARE +
+        distanceKm * PRICE_PER_KM +
+        BOOKING_FEE
     );
 
     return {
@@ -381,10 +380,8 @@ export default function PasajeroPage() {
   const selectedPrice =
     getPassengerFareTotal(selectedFare) ??
     (estimate
-      ? Math.round(
-          estimate.basePrice *
-            selectedRide.multiplier
-        )
+      ? estimate.basePrice *
+          selectedRide.multiplier
       : null);
 
   useEffect(() => {
@@ -1143,11 +1140,9 @@ function OptionsPanel({
 }) {
   const basePrice = Math.max(
     55,
-    Math.round(
-      BASE_FARE +
-        distanceKm * PRICE_PER_KM +
-        BOOKING_FEE
-    )
+    BASE_FARE +
+      distanceKm * PRICE_PER_KM +
+      BOOKING_FEE
   );
 
   const selectedOption =
@@ -1161,10 +1156,8 @@ function OptionsPanel({
 
   const selectedPrice =
     getPassengerFareTotal(selectedFare) ??
-    Math.round(
-      basePrice *
-        selectedOption.multiplier
-    );
+    basePrice *
+      selectedOption.multiplier;
 
   return (
     <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 sm:px-7">
@@ -1258,10 +1251,8 @@ function OptionsPanel({
 
           const price =
             getPassengerFareTotal(fare) ??
-            Math.round(
-              basePrice *
-                option.multiplier
-            );
+            basePrice *
+              option.multiplier;
 
           return (
             <button

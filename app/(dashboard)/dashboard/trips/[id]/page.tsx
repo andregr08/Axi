@@ -119,10 +119,10 @@ function formatCurrency(
     {
       style: "currency",
       currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }
-  ).format(Math.round(value));
+  ).format(value);
 }
 
 function formatDate(
