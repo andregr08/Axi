@@ -10,10 +10,7 @@ export function getSuggestions(role: AIUserRole): string[] {
     ];
   }
 
-  if (
-    role === "director_general" ||
-    role === "admin"
-  ) {
+  if (role === "admin") {
     return [
       "Muéstrame el reporte del día",
       "Ayúdame a crear una promoción",

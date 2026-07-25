@@ -1,35 +1,16 @@
 export type AIRole = "assistant" | "copilot";
 
 export type AIUserRole =
-  | "director_general"
-  | "admin"
-  | "support"
-  | "finance"
-  | "driver"
-  | "passenger";
+  "admin" | "support" | "finance" | "driver" | "passenger";
 
-export type AIMessageRole =
-  | "user"
-  | "assistant"
-  | "system";
+export type AIMessageRole = "user" | "assistant" | "system";
 
-export type AIConversationStatus =
-  | "active"
-  | "closed"
-  | "waiting_human";
+export type AIConversationStatus = "active" | "closed" | "waiting_human";
 
 export type AITicketDepartment =
-  | "support"
-  | "finance"
-  | "operations"
-  | "marketing"
-  | "security";
+  "support" | "finance" | "operations" | "marketing" | "security";
 
-export type AITicketPriority =
-  | "low"
-  | "medium"
-  | "high"
-  | "critical";
+export type AITicketPriority = "low" | "medium" | "high" | "critical";
 
 export interface AIMessage {
   id: string;

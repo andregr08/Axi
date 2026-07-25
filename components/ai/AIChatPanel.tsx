@@ -1,24 +1,10 @@
 "use client";
 
-import {
-  type FormEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
-  Bot,
-  Menu,
-  Send,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Bot, Menu, Send, Sparkles, X } from "lucide-react";
 import ConversationSidebar from "@/components/ai/ConversationSidebar";
 import { useConversation } from "@/hooks/useConversation";
-import type {
-  AIMessage,
-  AIUserRole,
-} from "@/types/ai";
+import type { AIMessage, AIUserRole } from "@/types/ai";
 
 interface AIChatPanelProps {
   open: boolean;
@@ -31,10 +17,6 @@ interface AIChatPanelProps {
 }
 
 function getRoleLabel(role: AIUserRole) {
-  if (role === "director_general") {
-    return "Copilot de Dirección General";
-  }
-
   if (role === "admin") {
     return "Copilot administrativo";
   }
@@ -64,11 +46,9 @@ export default function AIChatPanel({
   onSendMessage,
 }: AIChatPanelProps) {
   const [input, setInput] = useState("");
-  const [showMobileHistory, setShowMobileHistory] =
-    useState(false);
+  const [showMobileHistory, setShowMobileHistory] = useState(false);
 
-  const messagesEndRef =
-    useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const {
     conversations,
@@ -90,16 +70,14 @@ export default function AIChatPanel({
     if (!open) return;
 
     const previousOverflow = document.body.style.overflow;
-    const previousOverscrollBehavior =
-      document.body.style.overscrollBehavior;
+    const previousOverscrollBehavior = document.body.style.overscrollBehavior;
 
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.body.style.overscrollBehavior =
-        previousOverscrollBehavior;
+      document.body.style.overscrollBehavior = previousOverscrollBehavior;
     };
   }, [open]);
 
@@ -115,25 +93,19 @@ export default function AIChatPanel({
     window.addEventListener("keydown", handleEscape);
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleEscape
-      );
+      window.removeEventListener("keydown", handleEscape);
     };
   }, [open, onClose]);
 
   function handleClose() {
-    const activeElement =
-      document.activeElement as HTMLElement | null;
+    const activeElement = document.activeElement as HTMLElement | null;
 
     activeElement?.blur();
     setShowMobileHistory(false);
     onClose();
   }
 
-  function submitMessage(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const content = input.trim();
@@ -174,15 +146,9 @@ export default function AIChatPanel({
         <div className="hidden md:flex">
           <ConversationSidebar
             conversations={conversations}
-            currentConversationId={
-              currentConversationId
-            }
-            onNewConversation={
-              handleNewConversation
-            }
-            onSelectConversation={
-              handleSelectConversation
-            }
+            currentConversationId={currentConversationId}
+            onNewConversation={handleNewConversation}
+            onSelectConversation={handleSelectConversation}
           />
         </div>
 
@@ -190,23 +156,15 @@ export default function AIChatPanel({
           <div className="absolute inset-0 z-20 flex md:hidden">
             <ConversationSidebar
               conversations={conversations}
-              currentConversationId={
-                currentConversationId
-              }
-              onNewConversation={
-                handleNewConversation
-              }
-              onSelectConversation={
-                handleSelectConversation
-              }
+              currentConversationId={currentConversationId}
+              onNewConversation={handleNewConversation}
+              onSelectConversation={handleSelectConversation}
             />
 
             <button
               type="button"
               aria-label="Cerrar historial"
-              onClick={() =>
-                setShowMobileHistory(false)
-              }
+              onClick={() => setShowMobileHistory(false)}
               className="flex-1 bg-slate-950/30"
             />
           </div>
@@ -217,9 +175,7 @@ export default function AIChatPanel({
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  setShowMobileHistory(true)
-                }
+                onClick={() => setShowMobileHistory(true)}
                 aria-label="Abrir historial"
                 className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 md:hidden"
               >
@@ -236,8 +192,7 @@ export default function AIChatPanel({
                 </h2>
 
                 <p className="truncate text-xs font-medium text-slate-500">
-                  {currentConversation?.title ??
-                    getRoleLabel(role)}
+                  {currentConversation?.title ?? getRoleLabel(role)}
                   {" · "}
                   {getRoleLabel(role)}
                 </p>
@@ -257,16 +212,13 @@ export default function AIChatPanel({
           <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto bg-slate-50 px-4 py-5 sm:px-6">
             <div className="mx-auto max-w-3xl space-y-4">
               {messages.map((message) => {
-                const isUser =
-                  message.role === "user";
+                const isUser = message.role === "user";
 
                 return (
                   <div
                     key={message.id}
                     className={
-                      isUser
-                        ? "flex justify-end"
-                        : "flex justify-start"
+                      isUser ? "flex justify-end" : "flex justify-start"
                     }
                   >
                     <div
@@ -315,22 +267,16 @@ export default function AIChatPanel({
                 </p>
 
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {suggestions.map(
-                    (suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        onClick={() =>
-                          onSendMessage(
-                            suggestion
-                          )
-                        }
-                        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:border-yellow-400 hover:bg-yellow-50"
-                      >
-                        {suggestion}
-                      </button>
-                    )
-                  )}
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => onSendMessage(suggestion)}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:border-yellow-400 hover:bg-yellow-50"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -344,14 +290,9 @@ export default function AIChatPanel({
               <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-white p-2 focus-within:border-yellow-400 focus-within:ring-2 focus-within:ring-yellow-100">
                 <textarea
                   value={input}
-                  onChange={(event) =>
-                    setInput(event.target.value)
-                  }
+                  onChange={(event) => setInput(event.target.value)}
                   onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" &&
-                      !event.shiftKey
-                    ) {
+                    if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
                       event.currentTarget.form?.requestSubmit();
                     }
@@ -373,8 +314,7 @@ export default function AIChatPanel({
               </div>
 
               <p className="mt-2 text-center text-[11px] text-slate-400">
-                AXI AI no ejecutará acciones críticas
-                sin tu confirmación.
+                AXI AI no ejecutará acciones críticas sin tu confirmación.
               </p>
             </div>
           </form>

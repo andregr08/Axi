@@ -39,7 +39,6 @@ type Profile = {
 };
 
 const roleName: Record<UserRole, string> = {
-  director_general: "Director General",
   admin: "Administrador",
   support: "Soporte",
   finance: "Finanzas",
@@ -48,14 +47,12 @@ const roleName: Record<UserRole, string> = {
 };
 
 const roleDescription: Record<UserRole, string> = {
-  director_general: "Dirección y control total de la plataforma",
   admin: "Control operativo de la plataforma",
   support: "Atención y soporte a usuarios",
   finance: "Administración financiera de la plataforma",
   driver: "Listo para recibir viajes",
   passenger: "Tu movilidad, en un solo lugar",
 };
-
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -121,31 +118,15 @@ export default function DashboardPage() {
   const displayName = profile?.full_name || t("common.user");
 
   if (role === "driver") {
-    return (
-      <DriverHome
-        name={displayName}
-        email={email}
-      />
-    );
+    return <DriverHome name={displayName} email={email} />;
   }
 
   if (role === "passenger") {
-    return (
-      <PassengerHome
-        name={displayName}
-        email={email}
-      />
-    );
+    return <PassengerHome name={displayName} email={email} />;
   }
 
-
   if (isAdmin(role)) {
-    return (
-      <AdminHome
-        name={displayName}
-        email={email}
-      />
-    );
+    return <AdminHome name={displayName} email={email} />;
   }
 
   if (isSupport(role)) {
@@ -194,8 +175,13 @@ export default function DashboardPage() {
               <Badge variant="warning">{t("dashboard.thisMonth")}</Badge>
             </div>
 
-            <p className="mt-6 text-sm font-semibold text-slate-500">{t("dashboard.rating")}</p><p className="mt-1 text-4xl font-black tracking-tight">5.0</p>
-            <p className="mt-3 text-sm text-slate-400">{t("dashboard.newAccount")}</p>
+            <p className="mt-6 text-sm font-semibold text-slate-500">
+              {t("dashboard.rating")}
+            </p>
+            <p className="mt-1 text-4xl font-black tracking-tight">5.0</p>
+            <p className="mt-3 text-sm text-slate-400">
+              {t("dashboard.newAccount")}
+            </p>
           </div>
         </Card>
 
@@ -211,13 +197,18 @@ export default function DashboardPage() {
               <Badge variant="success">{t("dashboard.online")}</Badge>
             </div>
 
-            <p className="mt-6 text-sm font-semibold text-slate-500">{t("dashboard.accountStatus")}</p>
-            <p className="mt-2 text-2xl font-black text-emerald-600">{t("dashboard.active")}</p>
-            <p className="mt-3 text-sm text-slate-400">{t("dashboard.servicesAvailable")}</p>
+            <p className="mt-6 text-sm font-semibold text-slate-500">
+              {t("dashboard.accountStatus")}
+            </p>
+            <p className="mt-2 text-2xl font-black text-emerald-600">
+              {t("dashboard.active")}
+            </p>
+            <p className="mt-3 text-sm text-slate-400">
+              {t("dashboard.servicesAvailable")}
+            </p>
           </div>
         </Card>
       </div>
-
 
       <section>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -249,8 +240,12 @@ export default function DashboardPage() {
         <Card className="overflow-hidden p-0">
           <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">{t("dashboard.activity")}</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">{t("dashboard.recentTrips")}</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                {t("dashboard.activity")}
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                {t("dashboard.recentTrips")}
+              </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {t("dashboard.recentDescription")}
               </p>
@@ -259,7 +254,9 @@ export default function DashboardPage() {
             <Link
               href="/dashboard/trips"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
-            >{t("dashboard.viewAll")}<ArrowUpRight size={17} />
+            >
+              {t("dashboard.viewAll")}
+              <ArrowUpRight size={17} />
             </Link>
           </div>
 
@@ -318,7 +315,9 @@ export default function DashboardPage() {
               <Link
                 href="/dashboard/profile"
                 className="mt-6 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-bold transition hover:bg-white/10"
-              >{t("dashboard.manageProfile")}<ChevronRight size={18} />
+              >
+                {t("dashboard.manageProfile")}
+                <ChevronRight size={18} />
               </Link>
             </div>
           </Card>
@@ -329,7 +328,9 @@ export default function DashboardPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                   {t("dashboard.quickAccess")}
                 </p>
-                <h2 className="mt-1 text-xl font-black">{t("dashboard.yourAccount")}</h2>
+                <h2 className="mt-1 text-xl font-black">
+                  {t("dashboard.yourAccount")}
+                </h2>
               </div>
 
               <ShieldCheck className="text-emerald-500" size={26} />
@@ -345,8 +346,11 @@ export default function DashboardPage() {
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="block font-bold">{t("dashboard.payments")}</span>
-                  <span className="block truncate text-sm text-slate-500">{t("dashboard.paymentDescription")}
+                  <span className="block font-bold">
+                    {t("dashboard.payments")}
+                  </span>
+                  <span className="block truncate text-sm text-slate-500">
+                    {t("dashboard.paymentDescription")}
                   </span>
                 </span>
 
@@ -362,9 +366,7 @@ export default function DashboardPage() {
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="block font-bold">
-                    Panel financiero
-                  </span>
+                  <span className="block font-bold">Panel financiero</span>
                   <span className="block truncate text-sm text-slate-500">
                     Pagos, retiros, comisiones e incentivos
                   </span>
