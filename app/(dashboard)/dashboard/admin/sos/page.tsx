@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin, isSupport } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type SosStatus =
@@ -98,7 +98,7 @@ export default function AdminSOSPage() {
         .eq("id", session.user.id)
         .single();
 
-      if (!isAdmin(profile?.role)) {
+      if (!isAdmin(profile?.role) && !isSupport(profile?.role)) {
         router.replace("/dashboard");
         return;
       }

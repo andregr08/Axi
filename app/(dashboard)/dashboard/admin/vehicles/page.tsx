@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin, isSupport } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type VehicleStatus = "pending" | "active" | "maintenance" | "suspended";
@@ -99,7 +99,10 @@ export default function AdminVehiclesPage() {
         .eq("id", session.user.id)
         .single();
 
-      if (profileError || !isAdmin(currentProfile?.role)) {
+      if (
+        profileError ||
+        (!isAdmin(currentProfile?.role) && !isSupport(currentProfile?.role))
+      ) {
         router.replace("/dashboard");
         return;
       }
