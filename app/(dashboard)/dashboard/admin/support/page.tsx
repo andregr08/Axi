@@ -53,6 +53,8 @@ type TicketProfile = {
 
 type TicketTrip = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   origin_address: string;
   destination_address: string;
   status: string;
@@ -199,6 +201,8 @@ export default function AdminSupportPage() {
             ),
             trip:trips!support_tickets_trip_id_fkey (
               id,
+              trip_number,
+              trip_code,
               origin_address,
               destination_address,
               status,
@@ -773,7 +777,7 @@ export default function AdminSupportPage() {
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                               <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                                Viaje #{shortId(ticket.trip.id)}
+                                Viaje {ticket.trip.trip_code}
                               </p>
 
                               <p className="mt-2 flex items-start gap-2 text-sm font-bold text-slate-700">
