@@ -281,9 +281,7 @@ export default function AdminTripsPage() {
         driverName.includes(normalizedSearch) ||
         driverEmail.includes(normalizedSearch) ||
         trip.trip_code.toLowerCase().includes(normalizedSearch) ||
-        String(trip.trip_number).includes(normalizedSearch) ||
-        trip.id.toLowerCase().includes(normalizedSearch) ||
-        trip.id.slice(0, 8).toLowerCase().includes(normalizedSearch);
+        String(trip.trip_number).includes(normalizedSearch);
 
       if (!matchesSearch) return false;
 
