@@ -38,6 +38,8 @@ type TripFilter = "all" | "active" | "completed" | "cancelled" | TripStatus;
 
 type Trip = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   origin_address: string;
@@ -132,6 +134,8 @@ export default function AdminTripsPage() {
         .select(
           `
             id,
+            trip_number,
+            trip_code,
             passenger_id,
             driver_id,
             origin_address,
@@ -276,6 +280,8 @@ export default function AdminTripsPage() {
         passengerEmail.includes(normalizedSearch) ||
         driverName.includes(normalizedSearch) ||
         driverEmail.includes(normalizedSearch) ||
+        trip.trip_code.toLowerCase().includes(normalizedSearch) ||
+        String(trip.trip_number).includes(normalizedSearch) ||
         trip.id.toLowerCase().includes(normalizedSearch) ||
         trip.id.slice(0, 8).toLowerCase().includes(normalizedSearch);
 
@@ -526,7 +532,7 @@ function TripRow({
             <TripStatusBadge status={trip.status} />
 
             <span className="text-xs font-semibold text-slate-400">
-              Folio #{trip.id.slice(0, 8).toUpperCase()}
+              Folio {trip.trip_code}
             </span>
           </div>
 
