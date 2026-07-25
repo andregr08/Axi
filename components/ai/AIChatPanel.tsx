@@ -3,17 +3,21 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Bot, Menu, Send, Sparkles, X } from "lucide-react";
 import ConversationSidebar from "@/components/ai/ConversationSidebar";
-import { useConversation } from "@/hooks/useConversation";
-import type { AIMessage, AIUserRole } from "@/types/ai";
+import type { AIConversation, AIMessage, AIUserRole } from "@/types/ai";
 
 interface AIChatPanelProps {
   open: boolean;
   role: AIUserRole;
+  conversations: AIConversation[];
+  currentConversation: AIConversation | null;
+  currentConversationId: string;
   messages: AIMessage[];
   suggestions: string[];
   isStreaming: boolean;
   onClose: () => void;
   onSendMessage: (content: string) => void;
+  onNewConversation: () => void | Promise<string | null>;
+  onSelectConversation: (id: string) => void;
 }
 
 function getRoleLabel(role: AIUserRole) {
@@ -39,24 +43,21 @@ function getRoleLabel(role: AIUserRole) {
 export default function AIChatPanel({
   open,
   role,
+  conversations,
+  currentConversation,
+  currentConversationId,
   messages,
   suggestions,
   isStreaming,
   onClose,
   onSendMessage,
+  onNewConversation,
+  onSelectConversation,
 }: AIChatPanelProps) {
   const [input, setInput] = useState("");
   const [showMobileHistory, setShowMobileHistory] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  const {
-    conversations,
-    currentConversation,
-    currentConversationId,
-    newConversation,
-    selectConversation,
-  } = useConversation();
 
   useEffect(() => {
     if (!open) return;
@@ -117,12 +118,12 @@ export default function AIChatPanel({
   }
 
   function handleSelectConversation(id: string) {
-    selectConversation(id);
+    onSelectConversation(id);
     setShowMobileHistory(false);
   }
 
   function handleNewConversation() {
-    newConversation();
+    void onNewConversation();
     setShowMobileHistory(false);
   }
 
@@ -213,6 +214,8 @@ export default function AIChatPanel({
             <div className="mx-auto max-w-3xl space-y-4">
               {messages.map((message) => {
                 const isUser = message.role === "user";
+                const isSupport = message.role === "support";
+                const isSystem = message.role === "system";
 
                 return (
                   <div
@@ -228,6 +231,18 @@ export default function AIChatPanel({
                           : "max-w-[85%] rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm"
                       }
                     >
+                      {isSupport && (
+                        <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-yellow-700">
+                          Soporte AXI
+                        </p>
+                      )}
+
+                      {isSystem && (
+                        <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                          Sistema
+                        </p>
+                      )}
+
                       {message.content}
                     </div>
                   </div>
@@ -260,7 +275,8 @@ export default function AIChatPanel({
 
               <div ref={messagesEndRef} />
 
-              <div className="pt-3">
+              {currentConversation?.status === "active" && (
+                <div className="pt-3">
                 <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                   <Sparkles className="h-4 w-4" />
                   Sugerencias
@@ -279,6 +295,7 @@ export default function AIChatPanel({
                   ))}
                 </div>
               </div>
+              )}
             </div>
           </div>
 
@@ -298,14 +315,26 @@ export default function AIChatPanel({
                     }
                   }}
                   rows={1}
-                  disabled={isStreaming}
-                  placeholder="Escribe un mensaje..."
+                  disabled={
+                    isStreaming || currentConversation?.status === "closed"
+                  }
+                  placeholder={
+                    currentConversation?.status === "waiting_human"
+                      ? "Escribe un mensaje para soporte..."
+                      : currentConversation?.status === "closed"
+                        ? "Esta conversación está cerrada"
+                        : "Escribe un mensaje..."
+                  }
                   className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-950 outline-none placeholder:text-slate-400"
                 />
 
                 <button
                   type="submit"
-                  disabled={!input.trim() || isStreaming}
+                  disabled={
+                    !input.trim() ||
+                    isStreaming ||
+                    currentConversation?.status === "closed"
+                  }
                   aria-label="Enviar mensaje"
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-slate-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -314,7 +343,11 @@ export default function AIChatPanel({
               </div>
 
               <p className="mt-2 text-center text-[11px] text-slate-400">
-                AXI AI no ejecutará acciones críticas sin tu confirmación.
+                {currentConversation?.status === "waiting_human"
+                  ? "Un agente de soporte está atendiendo esta conversación. AXI AI permanece pausada."
+                  : currentConversation?.status === "closed"
+                    ? "Esta conversación fue cerrada."
+                    : "AXI AI no ejecutará acciones críticas sin tu confirmación."}
               </p>
             </div>
           </form>

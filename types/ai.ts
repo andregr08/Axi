@@ -3,7 +3,7 @@ export type AIRole = "assistant" | "copilot";
 export type AIUserRole =
   "admin" | "support" | "finance" | "driver" | "passenger";
 
-export type AIMessageRole = "user" | "assistant" | "system";
+export type AIMessageRole = "user" | "assistant" | "support" | "system";
 
 export type AIConversationStatus = "active" | "closed" | "waiting_human";
 

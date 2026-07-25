@@ -36,12 +36,17 @@ export default function DashboardLayout({
 
   const {
     open: aiOpen,
+    conversations: aiConversations,
+    currentConversation: aiCurrentConversation,
+    currentConversationId: aiCurrentConversationId,
     messages: aiMessages,
     suggestions: aiSuggestions,
     isStreaming: aiIsStreaming,
     openAI,
     closeAI,
     sendMessage: sendAIMessage,
+    newConversation: createAIConversation,
+    selectConversation: selectAIConversation,
   } = useAI(role ?? "passenger");
 
   useEffect(() => {
@@ -238,11 +243,16 @@ export default function DashboardLayout({
       <AIChatPanel
         open={aiOpen}
         role={role ?? "passenger"}
+        conversations={aiConversations}
+        currentConversation={aiCurrentConversation}
+        currentConversationId={aiCurrentConversationId}
         messages={aiMessages}
         suggestions={aiSuggestions}
         isStreaming={aiIsStreaming}
         onClose={closeAI}
         onSendMessage={sendAIMessage}
+        onNewConversation={createAIConversation}
+        onSelectConversation={selectAIConversation}
       />
 
       <MobileNav
