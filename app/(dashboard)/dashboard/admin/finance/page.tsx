@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
   Banknote,
+  CircleDollarSign,
   Clock3,
   Gift,
+  HandCoins,
   LoaderCircle,
   RefreshCw,
+  ReceiptText,
+  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
@@ -20,6 +24,17 @@ import {
   type FinanceDashboard,
 } from "@/lib/finance/dashboard";
 import { supabase } from "@/lib/supabaseClient";
+
+const moneyFormatter = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function formatMoney(value: number) {
+  return moneyFormatter.format(value);
+}
 
 export default function FinanceAdminPage() {
   const router = useRouter();
@@ -108,26 +123,35 @@ export default function FinanceAdminPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Centro Financiero</h1>
+      <div className="overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-8 text-white shadow-xl sm:px-9">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-400">
+              AXI Finanzas
+            </p>
 
-          <p className="text-gray-500">
-            Administración financiera de AXI
-          </p>
+            <h1 className="mt-3 text-3xl font-black sm:text-4xl">
+              Centro Financiero
+            </h1>
+
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+              Control de saldos, comisiones, retiros, bonos, incentivos,
+              reembolsos y deudas de conductores.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void loadFinance(true)}
+            disabled={refreshing}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-yellow-400 px-5 text-sm font-black text-slate-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
+            Actualizar
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => void loadFinance(true)}
-          disabled={refreshing}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-          />
-          Actualizar
-        </button>
       </div>
 
       {message && (
@@ -138,45 +162,73 @@ export default function FinanceAdminPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <FinanceCard
+          title="Comisiones de hoy"
+          value={formatMoney(stats.commissionsToday)}
+          subtitle="Ingresos generados para AXI"
+          icon={TrendingUp}
+        />
+
+        <FinanceCard
+          title="Saldo disponible"
+          value={formatMoney(stats.availableBalance)}
+          subtitle="Disponible en wallets"
+          icon={CircleDollarSign}
+        />
+
+        <FinanceCard
           title="Saldo pendiente"
-          value={`$${stats.pendingBalance.toFixed(2)}`}
-          subtitle="Conductores"
+          value={formatMoney(stats.pendingBalance)}
+          subtitle="Pendiente para conductores"
           icon={Wallet}
         />
 
         <FinanceCard
           title="Retiros pendientes"
           value={String(stats.pendingWithdrawals)}
-          subtitle="Esperando aprobación"
+          subtitle={formatMoney(stats.pendingWithdrawalAmount)}
           icon={Clock3}
         />
 
         <FinanceCard
           title="Bonos pendientes"
           value={String(stats.pendingBonuses)}
-          subtitle="Por revisar"
+          subtitle={formatMoney(stats.pendingBonusAmount)}
           icon={Gift}
         />
 
         <FinanceCard
-          title="Deuda efectivo"
-          value={`$${stats.cashDebt.toFixed(2)}`}
-          subtitle="Conductores"
+          title="Incentivos pendientes"
+          value={String(stats.pendingIncentives)}
+          subtitle={formatMoney(stats.pendingIncentiveAmount)}
+          icon={HandCoins}
+        />
+
+        <FinanceCard
+          title="Deuda en efectivo"
+          value={formatMoney(stats.cashDebt)}
+          subtitle="Comisiones por recuperar"
           icon={Banknote}
         />
 
         <FinanceCard
-          title="Comisiones hoy"
-          value={`$${stats.commissionsToday.toFixed(2)}`}
-          subtitle="Ingresos AXI"
-          icon={BadgeDollarSign}
+          title="Reembolsos pendientes"
+          value={String(stats.pendingRefunds)}
+          subtitle="Solicitudes por revisar"
+          icon={ReceiptText}
         />
 
         <FinanceCard
-          title="Wallets activas"
-          value={String(stats.activeWallets)}
-          subtitle="Conductores"
+          title="Wallets registradas"
+          value={String(stats.totalWallets)}
+          subtitle="Cuentas de conductores"
           icon={Users}
+        />
+
+        <FinanceCard
+          title="Operación financiera"
+          value="Activa"
+          subtitle="Datos conectados con Supabase"
+          icon={BadgeDollarSign}
         />
       </div>
     </div>
