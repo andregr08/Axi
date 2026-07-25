@@ -490,6 +490,8 @@ export default function TripsPage() {
                 "requested",
                 "searching",
                 "accepted",
+                "driver_arriving",
+                "driver_arrived",
               ].includes(trip.status);
 
               const price =
