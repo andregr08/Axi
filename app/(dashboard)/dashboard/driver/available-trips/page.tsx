@@ -193,8 +193,13 @@ export default function AvailableTripsPage() {
       setNow(Date.now());
     }, 1000);
 
+    const refreshTimer = window.setInterval(() => {
+      void loadOffers(true);
+    }, 3000);
+
     return () => {
       window.clearInterval(timer);
+      window.clearInterval(refreshTimer);
 
       if (channel) {
         void supabase.removeChannel(channel);

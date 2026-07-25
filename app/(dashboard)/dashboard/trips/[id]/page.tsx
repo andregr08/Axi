@@ -249,7 +249,8 @@ export default function ActiveTripPage({
         estimated_price,
         final_price,
         requested_at,
-        accepted_at,
+        accepted_at,
+
         trip_pin_verified_at,
         started_at,
         completed_at
@@ -457,7 +458,7 @@ export default function ActiveTripPage({
             filter: `id=eq.${id}`,
           },
           () => {
-            void loadTrip(role ?? undefined);
+            void loadTrip(profile.role as TripDetailRole);
           }
         )
         .subscribe();
@@ -904,13 +905,21 @@ return (
       {trip.driver_id &&
         !isCompleted &&
         !isCancelled && (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <TripPinCard
-              pin={passengerTripPin}
-              visibleToPassenger={
-                role === "passenger"
-              }
-            />
+          <div
+            className={
+              role === "driver"
+                ? "grid gap-6"
+                : "grid gap-6 xl:grid-cols-2"
+            }
+          >
+            {role !== "driver" && (
+              <TripPinCard
+                pin={passengerTripPin}
+                visibleToPassenger={
+                  role === "passenger"
+                }
+              />
+            )}
 
             <TripSafetyCard
               tripId={trip.id}
