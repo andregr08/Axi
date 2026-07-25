@@ -15,6 +15,7 @@ import {
   MessageCircle,
   RefreshCw,
   Search,
+  Send,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -65,6 +66,7 @@ type SupportTicket = {
   id: string;
   user_id: string;
   trip_id: string | null;
+  conversation_id: string | null;
   category: TicketCategory;
   subject: string;
   description: string;
@@ -86,6 +88,17 @@ type SupportAgent = {
   full_name: string | null;
   email: string | null;
   role: string;
+};
+
+type AIConversationStatus = "active" | "waiting_human" | "closed";
+
+type SupportChatMessage = {
+  id: string;
+  conversation_id: string;
+  sender_type: "user" | "assistant" | "support" | "system";
+  sender_user_id: string | null;
+  content: string;
+  created_at: string;
 };
 
 const statusLabels: Record<TicketStatus, string> = {
@@ -133,6 +146,93 @@ export default function AdminSupportPage() {
     Record<string, string>
   >({});
 
+  const [conversationMessages, setConversationMessages] = useState<
+    Record<string, SupportChatMessage[]>
+  >({});
+
+  const [conversationStatuses, setConversationStatuses] = useState<
+    Record<string, AIConversationStatus>
+  >({});
+
+  const [conversationDrafts, setConversationDrafts] = useState<
+    Record<string, string>
+  >({});
+
+  const [expandedConversations, setExpandedConversations] = useState<
+    Record<string, boolean>
+  >({});
+
+  const [chatProcessingId, setChatProcessingId] = useState<string | null>(null);
+
+  const loadConversationData = useCallback(
+    async (conversationIds: string[]) => {
+      const uniqueIds = Array.from(
+        new Set(conversationIds.filter(Boolean)),
+      );
+
+      if (uniqueIds.length === 0) {
+        setConversationMessages({});
+        setConversationStatuses({});
+        return;
+      }
+
+      const [conversationsResult, messagesResult] = await Promise.all([
+        supabase
+          .from("ai_conversations")
+          .select("id, status")
+          .in("id", uniqueIds),
+
+        supabase
+          .from("ai_messages")
+          .select(
+            "id, conversation_id, sender_type, sender_user_id, content, created_at",
+          )
+          .in("conversation_id", uniqueIds)
+          .order("created_at", {
+            ascending: true,
+          }),
+      ]);
+
+      if (conversationsResult.error) {
+        setMessage((current) =>
+          current
+            ? `${current} Conversaciones: ${conversationsResult.error.message}`
+            : `No se pudieron cargar las conversaciones: ${conversationsResult.error.message}`,
+        );
+      } else {
+        setConversationStatuses(
+          Object.fromEntries(
+            (conversationsResult.data ?? []).map((conversation) => [
+              conversation.id,
+              conversation.status as AIConversationStatus,
+            ]),
+          ),
+        );
+      }
+
+      if (messagesResult.error) {
+        setMessage((current) =>
+          current
+            ? `${current} Mensajes: ${messagesResult.error.message}`
+            : `No se pudieron cargar los mensajes: ${messagesResult.error.message}`,
+        );
+        return;
+      }
+
+      const groupedMessages: Record<string, SupportChatMessage[]> = {};
+
+      for (const row of (messagesResult.data ?? []) as SupportChatMessage[]) {
+        groupedMessages[row.conversation_id] = [
+          ...(groupedMessages[row.conversation_id] ?? []),
+          row,
+        ];
+      }
+
+      setConversationMessages(groupedMessages);
+    },
+    [],
+  );
+
   const loadSupport = useCallback(
     async (showRefreshing = false) => {
       if (showRefreshing) {
@@ -176,6 +276,7 @@ export default function AdminSupportPage() {
             id,
             user_id,
             trip_id,
+            conversation_id,
             category,
             subject,
             description,
@@ -261,6 +362,8 @@ export default function AdminSupportPage() {
           `No se pudieron cargar los tickets: ${ticketsResult.error.message}`,
         );
         setTickets([]);
+        setConversationMessages({});
+        setConversationStatuses({});
       } else {
         const loadedTickets = (ticketsResult.data ?? []).map((ticket) => {
           const requester = Array.isArray(ticket.requester)
@@ -294,6 +397,13 @@ export default function AdminSupportPage() {
         }) as SupportTicket[];
 
         setTickets(loadedTickets);
+
+        await loadConversationData(
+          loadedTickets
+            .map((ticket) => ticket.conversation_id)
+            .filter((id): id is string => Boolean(id)),
+        );
+
         setResolutionDrafts(
           Object.fromEntries(
             loadedTickets.map((ticket) => [ticket.id, ticket.resolution ?? ""]),
@@ -320,7 +430,7 @@ export default function AdminSupportPage() {
       setLoading(false);
       setRefreshing(false);
     },
-    [router],
+    [loadConversationData, router],
   );
 
   useEffect(() => {
@@ -330,6 +440,26 @@ export default function AdminSupportPage() {
 
     return () => window.clearTimeout(timer);
   }, [loadSupport]);
+
+  const supportConversationIds = useMemo(
+    () =>
+      tickets
+        .map((ticket) => ticket.conversation_id)
+        .filter((id): id is string => Boolean(id)),
+    [tickets],
+  );
+
+  useEffect(() => {
+    if (supportConversationIds.length === 0) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void loadConversationData(supportConversationIds);
+    }, 4000);
+
+    return () => window.clearInterval(interval);
+  }, [loadConversationData, supportConversationIds]);
 
   async function updateTicket(
     ticketId: string,
@@ -385,6 +515,117 @@ export default function AdminSupportPage() {
 
   async function assignToMe(ticketId: string) {
     await assignTicket(ticketId, currentUserId);
+  }
+
+  function toggleConversation(ticketId: string) {
+    setExpandedConversations((current) => ({
+      ...current,
+      [ticketId]: !current[ticketId],
+    }));
+  }
+
+  async function sendSupportMessage(ticket: SupportTicket) {
+    const content = (conversationDrafts[ticket.id] ?? "").trim();
+
+    if (!ticket.conversation_id) {
+      setMessage("Este ticket no tiene una conversación de AXI AI vinculada.");
+      return;
+    }
+
+    if (!content) {
+      setMessage("Escribe una respuesta antes de enviarla.");
+      return;
+    }
+
+    setChatProcessingId(ticket.id);
+    setMessage("");
+
+    const { error: messageError } = await supabase.rpc(
+      "support_send_ai_message",
+      {
+        requested_conversation_id: ticket.conversation_id,
+        message_content: content,
+      },
+    );
+
+    if (messageError) {
+      setMessage(`No se pudo enviar la respuesta: ${messageError.message}`);
+      setChatProcessingId(null);
+      return;
+    }
+
+    const { error: ticketError } = await supabase
+      .from("support_tickets")
+      .update({
+        assigned_admin_id: currentUserId || ticket.assigned_admin_id,
+        status: "waiting_user",
+      })
+      .eq("id", ticket.id);
+
+    setConversationDrafts((current) => ({
+      ...current,
+      [ticket.id]: "",
+    }));
+
+    setExpandedConversations((current) => ({
+      ...current,
+      [ticket.id]: true,
+    }));
+
+    await loadSupport();
+
+    setMessage(
+      ticketError
+        ? `La respuesta fue enviada, pero no se actualizó el ticket: ${ticketError.message}`
+        : "Respuesta enviada al usuario correctamente.",
+    );
+
+    setChatProcessingId(null);
+  }
+
+  async function returnConversationToAI(ticket: SupportTicket) {
+    if (!ticket.conversation_id) {
+      setMessage("Este ticket no tiene una conversación vinculada.");
+      return;
+    }
+
+    setChatProcessingId(ticket.id);
+    setMessage("");
+
+    const { error: conversationError } = await supabase.rpc(
+      "resume_ai_conversation",
+      {
+        requested_conversation_id: ticket.conversation_id,
+      },
+    );
+
+    if (conversationError) {
+      setMessage(
+        `No se pudo devolver la conversación a AXI AI: ${conversationError.message}`,
+      );
+      setChatProcessingId(null);
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    const { error: ticketError } = await supabase
+      .from("support_tickets")
+      .update({
+        status: "resolved",
+        resolved_at: now,
+      })
+      .eq("id", ticket.id);
+
+    await loadSupport();
+
+    setMessage(
+      ticketError
+        ? `AXI AI fue reactivada, pero no se actualizó el ticket: ${ticketError.message}`
+        : "La conversación volvió a AXI AI y el ticket fue resuelto.",
+    );
+
+    setChatProcessingId(null);
   }
 
   async function saveResolution(ticket: SupportTicket) {
@@ -692,6 +933,19 @@ export default function AdminSupportPage() {
           <div className="space-y-5 p-5 sm:p-7">
             {filteredTickets.map((ticket) => {
               const processing = processingId === ticket.id;
+              const chatProcessing = chatProcessingId === ticket.id;
+              const conversationOpen = Boolean(
+                expandedConversations[ticket.id],
+              );
+
+              const ticketConversationMessages = ticket.conversation_id
+                ? (conversationMessages[ticket.conversation_id] ?? [])
+                : [];
+
+              const conversationStatus = ticket.conversation_id
+                ? (conversationStatuses[ticket.conversation_id] ??
+                  "waiting_human")
+                : null;
 
               return (
                 <article
@@ -802,13 +1056,213 @@ export default function AdminSupportPage() {
                               className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-slate-800"
                             >
                               <MessageCircle size={17} />
-                              Abrir conversación
+                              Abrir chat del viaje
                             </Link>
                           </div>
                         </div>
                       ) : (
                         <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
                           Este ticket no tiene un viaje relacionado.
+                        </div>
+                      )}
+
+                      {ticket.conversation_id && (
+                        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                          <button
+                            type="button"
+                            onClick={() => toggleConversation(ticket.id)}
+                            className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-slate-50"
+                          >
+                            <div>
+                              <p className="flex items-center gap-2 text-sm font-black text-slate-950">
+                                <MessageCircle size={18} />
+                                Conversación escalada
+                              </p>
+
+                              <p className="mt-1 text-xs font-bold text-slate-500">
+                                {ticketConversationMessages.length} mensajes
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={cn(
+                                  "rounded-full px-3 py-1 text-[11px] font-black",
+                                  conversationStatus === "waiting_human" &&
+                                    "bg-yellow-100 text-yellow-800",
+                                  conversationStatus === "active" &&
+                                    "bg-emerald-100 text-emerald-700",
+                                  conversationStatus === "closed" &&
+                                    "bg-slate-200 text-slate-600",
+                                )}
+                              >
+                                {conversationStatus === "waiting_human"
+                                  ? "Soporte humano"
+                                  : conversationStatus === "active"
+                                    ? "AXI AI activa"
+                                    : "Cerrada"}
+                              </span>
+
+                              <span className="text-xs font-black text-slate-500">
+                                {conversationOpen ? "Ocultar" : "Abrir"}
+                              </span>
+                            </div>
+                          </button>
+
+                          {conversationOpen && (
+                            <div className="border-t border-slate-200">
+                              <div className="max-h-[420px] space-y-3 overflow-y-auto bg-slate-50 p-4">
+                                {ticketConversationMessages.length === 0 ? (
+                                  <div className="rounded-xl bg-white p-5 text-center text-sm font-bold text-slate-500">
+                                    Todavía no hay mensajes en esta conversación.
+                                  </div>
+                                ) : (
+                                  ticketConversationMessages.map(
+                                    (chatMessage) => {
+                                      const isUser =
+                                        chatMessage.sender_type === "user";
+                                      const isSupport =
+                                        chatMessage.sender_type === "support";
+                                      const isSystem =
+                                        chatMessage.sender_type === "system";
+
+                                      const senderLabel = isUser
+                                        ? ticket.requester?.full_name ||
+                                          ticket.requester?.email ||
+                                          "Usuario"
+                                        : isSupport
+                                          ? "Soporte AXI"
+                                          : isSystem
+                                            ? "Sistema"
+                                            : "AXI AI";
+
+                                      return (
+                                        <div
+                                          key={chatMessage.id}
+                                          className={cn(
+                                            "w-fit max-w-[88%] rounded-2xl px-4 py-3 shadow-sm",
+                                            isUser &&
+                                              "ml-auto bg-slate-950 text-white",
+                                            isSupport &&
+                                              "mr-auto border border-yellow-200 bg-yellow-100 text-slate-950",
+                                            chatMessage.sender_type ===
+                                              "assistant" &&
+                                              "mr-auto border border-slate-200 bg-white text-slate-800",
+                                            isSystem &&
+                                              "mx-auto bg-slate-200 text-slate-600",
+                                          )}
+                                        >
+                                          <p
+                                            className={cn(
+                                              "mb-1 text-[10px] font-black uppercase tracking-wider",
+                                              isUser
+                                                ? "text-slate-300"
+                                                : "text-slate-500",
+                                            )}
+                                          >
+                                            {senderLabel}
+                                          </p>
+
+                                          <p className="whitespace-pre-wrap text-sm leading-6">
+                                            {chatMessage.content}
+                                          </p>
+
+                                          <p
+                                            className={cn(
+                                              "mt-2 text-[10px] font-bold",
+                                              isUser
+                                                ? "text-slate-400"
+                                                : "text-slate-400",
+                                            )}
+                                          >
+                                            {formatDate(chatMessage.created_at)}
+                                          </p>
+                                        </div>
+                                      );
+                                    },
+                                  )
+                                )}
+                              </div>
+
+                              <div className="border-t border-slate-200 bg-white p-4">
+                                {conversationStatus === "waiting_human" ? (
+                                  <>
+                                    <textarea
+                                      value={
+                                        conversationDrafts[ticket.id] ?? ""
+                                      }
+                                      onChange={(event) =>
+                                        setConversationDrafts((current) => ({
+                                          ...current,
+                                          [ticket.id]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder="Escribe una respuesta para el usuario..."
+                                      rows={3}
+                                      disabled={chatProcessing}
+                                      className="w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-slate-400 disabled:opacity-60"
+                                    />
+
+                                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void sendSupportMessage(ticket)
+                                        }
+                                        disabled={
+                                          chatProcessing ||
+                                          !(
+                                            conversationDrafts[ticket.id] ?? ""
+                                          ).trim()
+                                        }
+                                        className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 text-xs font-black text-slate-950 transition hover:bg-yellow-300 disabled:opacity-50"
+                                      >
+                                        {chatProcessing ? (
+                                          <LoaderCircle
+                                            size={16}
+                                            className="animate-spin"
+                                          />
+                                        ) : (
+                                          <Send size={16} />
+                                        )}
+                                        Enviar respuesta
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void returnConversationToAI(ticket)
+                                        }
+                                        disabled={chatProcessing}
+                                        className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                                      >
+                                        <Sparkles size={16} />
+                                        Devolver a AXI AI
+                                      </button>
+                                    </div>
+
+                                    <p className="mt-3 text-xs leading-5 text-slate-500">
+                                      Mientras soporte atiende esta conversación,
+                                      AXI AI permanece completamente pausada.
+                                    </p>
+                                  </>
+                                ) : (
+                                  <div
+                                    className={cn(
+                                      "rounded-xl p-4 text-sm font-bold",
+                                      conversationStatus === "active"
+                                        ? "bg-emerald-50 text-emerald-700"
+                                        : "bg-slate-100 text-slate-600",
+                                    )}
+                                  >
+                                    {conversationStatus === "active"
+                                      ? "La conversación ya fue devuelta a AXI AI."
+                                      : "Esta conversación está cerrada."}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
