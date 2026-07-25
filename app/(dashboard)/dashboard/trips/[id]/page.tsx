@@ -220,7 +220,7 @@ export default function ActiveTripPage({
   const [locationConnected, setLocationConnected] =
     useState(false);
 
-  
+
   const autoArrivalProcessingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] =
@@ -609,8 +609,8 @@ return () => {
       const { error } = await supabase.rpc(
         "advance_trip_status",
         {
-          trip_id: currentTripId,
-          next_status: "driver_arrived",
+          p_trip_id: currentTripId,
+          p_next_status: "driver_arrived",
         }
       );
 
@@ -661,8 +661,8 @@ return () => {
     const { error } = await supabase.rpc(
       "advance_trip_status",
       {
-        trip_id: trip.id,
-        next_status: nextStatus,
+        p_trip_id: trip.id,
+        p_next_status: nextStatus,
       }
     );
 
@@ -734,8 +734,8 @@ return () => {
       await supabase.rpc(
         "advance_trip_status",
         {
-          trip_id: trip.id,
-          next_status: "in_progress",
+          p_trip_id: trip.id,
+          p_next_status: "in_progress",
         }
       );
 
@@ -874,10 +874,12 @@ return (
         </div>
       )}
 
-      <TripProgress
-        role={role}
-        status={trip.status}
-      />
+      {role !== "driver" && (
+        <TripProgress
+          role={role}
+          status={trip.status}
+        />
+      )}
 
       {role === "driver" ? (
         <DriverTripView
@@ -926,6 +928,15 @@ return (
           isCancelled={isCancelled}
         />
       )}
+
+      {role === "driver" &&
+        !isCompleted &&
+        !isCancelled && (
+          <TripProgress
+            role={role}
+            status={trip.status}
+          />
+        )}
 
       {trip.driver_id &&
         !isCompleted &&

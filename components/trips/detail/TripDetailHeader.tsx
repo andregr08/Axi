@@ -119,9 +119,11 @@ export function TripDetailHeader({
               {title}
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              {description}
-            </p>
+            {!(role === "driver" && status === "accepted") && (
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                {description}
+              </p>
+            )}
           </div>
 
           <div className="min-w-64 rounded-3xl border border-white/10 bg-white/10 px-6 py-5 backdrop-blur-xl">

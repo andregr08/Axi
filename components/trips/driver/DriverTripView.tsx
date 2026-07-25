@@ -53,6 +53,18 @@ export function DriverTripView({
 }: DriverTripViewProps) {
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+      <div className="xl:col-span-2">
+        <DriverActionCard
+          currentStatus={trip.status}
+          nextStatus={nextStatus}
+          actionLabel={actionLabel}
+          processing={processing}
+          pinError={pinError}
+          onAdvanceStatus={onAdvanceStatus}
+          onVerifyPin={onVerifyPin}
+        />
+      </div>
+
       <div className="space-y-6">
         {!isCancelled && (
           <Card className="overflow-hidden p-0">
@@ -83,16 +95,6 @@ export function DriverTripView({
       </div>
 
       <div className="space-y-6">
-        <DriverActionCard
-          currentStatus={trip.status}
-          nextStatus={nextStatus}
-          actionLabel={actionLabel}
-          processing={processing}
-          pinError={pinError}
-          onAdvanceStatus={onAdvanceStatus}
-          onVerifyPin={onVerifyPin}
-        />
-
         <Card>
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-black">
