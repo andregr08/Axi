@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
+import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/utils/cn";
 
 type SOSButtonProps = {
@@ -23,6 +24,45 @@ type SOSButtonProps = {
 };
 
 const HOLD_DURATION = 2000;
+
+type EmergencyLocation = {
+  latitude: number | null;
+  longitude: number | null;
+};
+
+function getEmergencyLocation(): Promise<EmergencyLocation> {
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.geolocation
+  ) {
+    return Promise.resolve({
+      latitude: null,
+      longitude: null,
+    });
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      () => {
+        resolve({
+          latitude: null,
+          longitude: null,
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  });
+}
 
 export function SOSButton({
   tripId,
@@ -99,7 +139,36 @@ export function SOSButton({
     setErrorMessage("");
 
     try {
-      await onActivate?.();
+      if (onActivate) {
+        await onActivate();
+      } else {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          throw new Error(
+            "Tu sesión no está activa. Inicia sesión nuevamente."
+          );
+        }
+
+        const location = await getEmergencyLocation();
+
+        const { error } = await supabase.rpc(
+          "activate_sos",
+          {
+            related_trip_id: tripId ?? null,
+            latitude_value: location.latitude,
+            longitude_value: location.longitude,
+            message_value:
+              "Alerta SOS activada desde el viaje en curso.",
+          }
+        );
+
+        if (error) {
+          throw new Error(error.message);
+        }
+      }
 
       setActivated(true);
       setConfirmOpen(false);
@@ -107,11 +176,6 @@ export function SOSButton({
       if ("vibrate" in navigator) {
         navigator.vibrate([250, 120, 250]);
       }
-
-      console.info("SOS ready for backend", {
-        tripId: tripId ?? null,
-        activatedAt: new Date().toISOString(),
-      });
     } catch (error) {
       setErrorMessage(
         error instanceof Error
