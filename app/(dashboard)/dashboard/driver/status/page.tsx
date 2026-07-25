@@ -721,8 +721,8 @@ export default function DriverStatusPage() {
                   reject,
                   {
                     enableHighAccuracy: true,
-                    timeout: 20000,
-                    maximumAge: 0,
+                    timeout: 10000,
+                    maximumAge: 30000,
                   }
                 );
               }

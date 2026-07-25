@@ -696,16 +696,14 @@ return () => {
     setPinError("");
     setMessage("");
 
-    const {
-      data: pinVerified,
-      error: verificationError,
-    } = await supabase.rpc(
-      "verify_trip_pin",
-      {
-        trip_id: trip.id,
-        provided_pin: pin,
-      }
-    );
+    const { error: verificationError } =
+      await supabase.rpc(
+        "verify_trip_pin_and_start",
+        {
+          p_trip_id: trip.id,
+          p_security_pin: pin,
+        }
+      );
 
     if (verificationError) {
       console.error(
@@ -713,42 +711,7 @@ return () => {
         verificationError.message
       );
 
-      setPinError(
-        `No fue posible verificar el PIN: ${verificationError.message}`
-      );
-
-      setProcessing(false);
-      return;
-    }
-
-    if (pinVerified !== true) {
-      setPinError(
-        "PIN incorrecto. Verifica el código con el pasajero."
-      );
-
-      setProcessing(false);
-      return;
-    }
-
-    const { error: startError } =
-      await supabase.rpc(
-        "advance_trip_status",
-        {
-          p_trip_id: trip.id,
-          p_next_status: "in_progress",
-        }
-      );
-
-    if (startError) {
-      console.error(
-        "Error starting trip after PIN verification:",
-        startError.message
-      );
-
-      setPinError(
-        `El PIN fue correcto, pero no fue posible iniciar el viaje: ${startError.message}`
-      );
-
+      setPinError(verificationError.message);
       setProcessing(false);
       return;
     }
