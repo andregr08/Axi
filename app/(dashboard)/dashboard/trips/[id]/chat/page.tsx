@@ -26,6 +26,8 @@ import { supabase } from "@/lib/supabaseClient";
 
 type TripData = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   status: string;
@@ -465,7 +467,7 @@ export default function TripChatPage() {
         } = await supabase
           .from("trips")
           .select(
-            "id, passenger_id, driver_id, status"
+            "id, trip_number, trip_code, passenger_id, driver_id, status"
           )
           .eq("id", tripId)
           .single();
@@ -778,6 +780,10 @@ export default function TripChatPage() {
                 <h1 className="mt-1 truncate text-2xl font-black">
                   {otherUserName}
                 </h1>
+
+                <p className="mt-1 font-mono text-xs font-black text-yellow-400">
+                  {trip.trip_code}
+                </p>
 
                 <p className="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
