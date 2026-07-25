@@ -43,6 +43,8 @@ type SupportTicket = {
 
 type TripOption = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   origin_address: string;
   destination_address: string;
   requested_at: string;
@@ -136,6 +138,8 @@ export default function SupportPage() {
         .from("trips")
         .select(`
           id,
+          trip_number,
+          trip_code,
           origin_address,
           destination_address,
           requested_at
@@ -233,7 +237,7 @@ export default function SupportPage() {
 
     if (!trip) return "Viaje relacionado";
 
-    return `${trip.origin_address} → ${trip.destination_address}`;
+    return `${trip.trip_code} · ${trip.origin_address} → ${trip.destination_address}`;
   }
 
   if (loading) {
@@ -296,8 +300,7 @@ export default function SupportPage() {
                   key={trip.id}
                   value={trip.id}
                 >
-                  {trip.origin_address} →{" "}
-                  {trip.destination_address}
+                  [{trip.trip_code}] {trip.origin_address} → {trip.destination_address}
                 </option>
               ))}
             </select>
