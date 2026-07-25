@@ -71,9 +71,7 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Compatibilidad temporal:
-     * mientras conectamos useConversation y useAI,
-     * las llamadas sin conversationId continúan funcionando.
+     * Compatibilidad para clientes que todavía no envían conversationId.
      */
     if (!conversationId) {
       const result = await askAI({
