@@ -8,6 +8,8 @@ type PaymentMethod = "cash" | "card" | "mercado_pago";
 
 type TripPayment = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   status: string;
@@ -66,6 +68,8 @@ export default function TripPaymentPage() {
       .from("trips")
       .select(`
         id,
+        trip_number,
+        trip_code,
         passenger_id,
         driver_id,
         status,
@@ -222,6 +226,10 @@ export default function TripPaymentPage() {
         <p className="mt-2 text-gray-600">
           Elige cómo pagar y agrega una propina opcional.
         </p>
+
+        <p className="mt-2 font-mono text-sm font-bold text-gray-900">
+          {trip?.trip_code}
+        </p>
       </div>
 
       <form
@@ -323,6 +331,11 @@ export default function TripPaymentPage() {
         </div>
 
         <div className="space-y-3 rounded-xl border p-5">
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-600">Folio</span>
+            <span className="font-semibold">{trip.trip_code}</span>
+          </div>
+
           <div className="flex justify-between gap-4">
             <span className="text-gray-600">Viaje</span>
             <span className="font-semibold">
