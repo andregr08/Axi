@@ -473,6 +473,60 @@ return () => {
   }, [id, loadTrip, router, t]);
 
   useEffect(() => {
+    if (
+      role !== "passenger" ||
+      !trip?.id ||
+      !trip.driver_id ||
+      trip.status === "completed" ||
+      trip.status === "cancelled"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    const currentTripId = trip.id;
+
+    async function refreshPassengerPin() {
+      const { data, error } = await supabase.rpc(
+        "get_passenger_trip_pin",
+        {
+          trip_id: currentTripId,
+        }
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(
+          "Error refreshing passenger trip PIN:",
+          error.message
+        );
+        return;
+      }
+
+      setPassengerTripPin(
+        typeof data === "string" ? data : null
+      );
+    }
+
+    void refreshPassengerPin();
+
+    const pinTimer = window.setInterval(() => {
+      void refreshPassengerPin();
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(pinTimer);
+    };
+  }, [
+    role,
+    trip?.id,
+    trip?.driver_id,
+    trip?.status,
+  ]);
+
+  useEffect(() => {
     if (!trip?.driver_id) {
       queueMicrotask(() => {
         setDriverLocation(null);
