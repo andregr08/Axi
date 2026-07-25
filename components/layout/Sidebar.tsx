@@ -12,6 +12,7 @@ import {
   LogOut,
   Route,
   ShieldCheck,
+  Siren,
   UserRound,
   UsersRound,
   type LucideIcon,
@@ -55,12 +56,22 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       icon: Home,
       visible: true,
     },
+
+    // PASAJERO
     {
       href: "/dashboard/trips",
       labelKey: "navigation.myTrips",
       icon: Route,
       visible: isPassenger(role),
     },
+    {
+      href: "/dashboard/driver-application",
+      labelKey: "navigation.becomeDriver",
+      icon: ClipboardCheck,
+      visible: isPassenger(role),
+    },
+
+    // CONDUCTOR
     {
       href: "/dashboard/driver/status",
       labelKey: "navigation.availability",
@@ -80,29 +91,21 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       visible: isDriver(role),
     },
     {
-      href: "/dashboard/driver-application",
-      labelKey: "navigation.becomeDriver",
-      icon: ClipboardCheck,
-      visible: isPassenger(role),
-    },
-    {
       href: "/dashboard/vehicles",
       labelKey: "navigation.myVehicles",
       icon: CarFront,
       visible: isDriver(role),
     },
+
+    // PAGOS PERSONALES
     {
       href: "/dashboard/payments",
       labelKey: "navigation.payments",
       icon: CreditCard,
       visible: isPassenger(role) || isDriver(role),
     },
-    {
-      href: "/dashboard/profile",
-      labelKey: "navigation.profile",
-      icon: UserRound,
-      visible: true,
-    },
+
+    // ADMINISTRACIÓN
     {
       href: "/dashboard/admin/driver-applications",
       labelKey: "navigation.applications",
@@ -121,6 +124,14 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       icon: UsersRound,
       visible: canManagePassengers(role),
     },
+
+    // ADMINISTRACIÓN Y SOPORTE
+    {
+      href: "/dashboard/admin/trips",
+      labelKey: "navigation.adminTrips",
+      icon: Route,
+      visible: isAdmin(role) || isSupport(role),
+    },
     {
       href: "/dashboard/admin/vehicles",
       labelKey: "navigation.adminVehicles",
@@ -128,22 +139,32 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       visible: isAdmin(role) || isSupport(role),
     },
     {
-      href: "/dashboard/admin/trips",
-      labelKey: "navigation.adminTrips",
-      icon: ShieldCheck,
-      visible: isAdmin(role) || isSupport(role),
-    },
-    {
       href: "/dashboard/admin/support",
-      labelKey: "navigation.support",
+      label: "Centro de soporte",
       icon: Headphones,
       visible: canViewSupport(role),
     },
+    {
+      href: "/dashboard/admin/sos",
+      label: "Casos urgentes SOS",
+      icon: Siren,
+      visible: isAdmin(role) || isSupport(role),
+    },
+
+    // FINANZAS
     {
       href: "/dashboard/admin/finance",
       label: "Finanzas",
       icon: CreditCard,
       visible: isFinance(role),
+    },
+
+    // PERFIL GENERAL
+    {
+      href: "/dashboard/profile",
+      labelKey: "navigation.profile",
+      icon: UserRound,
+      visible: true,
     },
   ];
 

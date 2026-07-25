@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
@@ -29,20 +24,14 @@ import { supabase } from "@/lib/supabaseClient";
 import { isAdmin } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
-type VehicleStatus =
-  | "pending"
-  | "active"
-  | "maintenance"
-  | "suspended";
+type VehicleStatus = "pending" | "active" | "maintenance" | "suspended";
 
-type VehicleFilter =
-  | "all"
-  | VehicleStatus
-  | "verified"
-  | "unverified";
+type VehicleFilter = "all" | VehicleStatus | "verified" | "unverified";
 
 type DriverProfile = {
   full_name: string | null;
+  email: string | null;
+  phone: string | null;
 };
 
 type Vehicle = {
@@ -58,6 +47,7 @@ type Vehicle = {
   verified: boolean;
   created_at: string;
   profiles: DriverProfile | null;
+  vehicle_photo_url: string | null;
 };
 
 const statusLabels: Record<VehicleStatus, string> = {
@@ -79,12 +69,10 @@ export default function AdminVehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingId, setProcessingId] =
-    useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [filter, setFilter] =
-    useState<VehicleFilter>("all");
+  const [filter, setFilter] = useState<VehicleFilter>("all");
 
   const loadVehicles = useCallback(
     async (silent = false) => {
@@ -105,25 +93,21 @@ export default function AdminVehiclesPage() {
         return;
       }
 
-      const { data: currentProfile, error: profileError } =
-        await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
+      const { data: currentProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
 
-      if (
-        profileError ||
-        !isAdmin(currentProfile?.role)
-      ) {
+      if (profileError || !isAdmin(currentProfile?.role)) {
         router.replace("/dashboard");
         return;
       }
 
-      const { data: vehicleRows, error: vehiclesError } =
-        await supabase
-          .from("vehicles")
-          .select(`
+      const { data: vehicleRows, error: vehiclesError } = await supabase
+        .from("vehicles")
+        .select(
+          `
             id,
             driver_id,
             brand,
@@ -135,69 +119,124 @@ export default function AdminVehiclesPage() {
             status,
             verified,
             created_at
-          `)
-          .order("created_at", {
-            ascending: false,
-          });
+          `,
+        )
+        .order("created_at", {
+          ascending: false,
+        });
 
       if (vehiclesError) {
-        setMessage(
-          `Error cargando vehículos: ${vehiclesError.message}`
-        );
+        setMessage(`Error cargando vehículos: ${vehiclesError.message}`);
         setLoading(false);
         setRefreshing(false);
         return;
       }
 
       const driverIds = Array.from(
-        new Set(
-          (vehicleRows ?? []).map(
-            (vehicle) => vehicle.driver_id
-          )
-        )
+        new Set((vehicleRows ?? []).map((vehicle) => vehicle.driver_id)),
       );
 
-      let profilesById = new Map<
-        string,
-        DriverProfile
-      >();
+      let profilesById = new Map<string, DriverProfile>();
 
       if (driverIds.length > 0) {
-        const { data: profileRows, error: profilesError } =
-          await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", driverIds);
+        const { data: profileRows, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name, phone")
+          .in("id", driverIds);
 
         if (profilesError) {
           setMessage(
-            `Vehículos cargados, pero no fue posible cargar algunos conductores: ${profilesError.message}`
+            `Vehículos cargados, pero no fue posible cargar algunos conductores: ${profilesError.message}`,
           );
         } else {
+          const loadedProfiles = profileRows ?? [];
+
+          const { data: emailRows, error: emailsError } = await supabase.rpc(
+            "admin_get_profile_emails",
+            {
+              requested_user_ids: driverIds,
+            },
+          );
+
+          if (emailsError) {
+            setMessage(
+              `Vehículos cargados, pero no fue posible cargar algunos correos: ${emailsError.message}`,
+            );
+          }
+
+          const emailMap = new Map(
+            (emailRows ?? []).map(
+              (row: { id: string; email: string | null }) => [
+                row.id,
+                row.email,
+              ],
+            ),
+          );
+
           profilesById = new Map(
-            (profileRows ?? []).map((profile) => [
+            loadedProfiles.map((profile) => [
               profile.id,
               {
                 full_name: profile.full_name,
+                email:
+                  (emailMap.get(profile.id) as string | null | undefined) ??
+                  null,
+                phone: profile.phone,
               },
-            ])
+            ]),
           );
         }
       }
 
-      const mergedVehicles = (vehicleRows ?? []).map(
-        (vehicle) => ({
-          ...vehicle,
-          profiles:
-            profilesById.get(vehicle.driver_id) ?? null,
-        })
-      );
+      let vehiclePhotosByDriver = new Map<string, string | null>();
+
+      if (driverIds.length > 0) {
+        const { data: applicationRows, error: applicationsError } =
+          await supabase
+            .from("driver_applications")
+            .select("user_id, vehicle_front_photo_url, created_at")
+            .in("user_id", driverIds)
+            .order("created_at", { ascending: false });
+
+        if (applicationsError) {
+          setMessage(
+            `Vehículos cargados, pero no fue posible cargar algunas fotografías: ${applicationsError.message}`,
+          );
+        } else {
+          for (const application of applicationRows ?? []) {
+            if (vehiclePhotosByDriver.has(application.user_id)) {
+              continue;
+            }
+
+            if (!application.vehicle_front_photo_url) {
+              vehiclePhotosByDriver.set(application.user_id, null);
+              continue;
+            }
+
+            const { data: signedData, error: signedError } =
+              await supabase.storage
+                .from("driver-documents")
+                .createSignedUrl(application.vehicle_front_photo_url, 3600);
+
+            vehiclePhotosByDriver.set(
+              application.user_id,
+              signedError ? null : signedData.signedUrl,
+            );
+          }
+        }
+      }
+
+      const mergedVehicles = (vehicleRows ?? []).map((vehicle) => ({
+        ...vehicle,
+        profiles: profilesById.get(vehicle.driver_id) ?? null,
+        vehicle_photo_url: vehiclePhotosByDriver.get(vehicle.driver_id) ?? null,
+      }));
 
       setVehicles(mergedVehicles as Vehicle[]);
       setLoading(false);
       setRefreshing(false);
     },
-    [router]
+    [router],
   );
 
   useEffect(() => {
@@ -205,14 +244,11 @@ export default function AdminVehiclesPage() {
     void loadVehicles();
   }, [loadVehicles]);
 
-  async function reviewVehicle(
-    vehicleId: string,
-    newStatus: VehicleStatus
-  ) {
+  async function reviewVehicle(vehicleId: string, newStatus: VehicleStatus) {
     const confirmed = window.confirm(
       `¿Confirmas cambiar el estado del vehículo a ${statusLabels[
         newStatus
-      ].toLowerCase()}?`
+      ].toLowerCase()}?`,
     );
 
     if (!confirmed) return;
@@ -220,23 +256,16 @@ export default function AdminVehiclesPage() {
     setProcessingId(vehicleId);
     setMessage("");
 
-    const { error } = await supabase.rpc(
-      "review_vehicle",
-      {
-        vehicle_id: vehicleId,
-        new_status: newStatus,
-      }
-    );
+    const { error } = await supabase.rpc("review_vehicle", {
+      vehicle_id: vehicleId,
+      new_status: newStatus,
+    });
 
     if (error) {
-      setMessage(
-        `Error actualizando vehículo: ${error.message}`
-      );
+      setMessage(`Error actualizando vehículo: ${error.message}`);
     } else {
       setMessage(
-        `Vehículo actualizado a ${statusLabels[
-          newStatus
-        ].toLowerCase()}.`
+        `Vehículo actualizado a ${statusLabels[newStatus].toLowerCase()}.`,
       );
 
       await loadVehicles(true);
@@ -246,54 +275,50 @@ export default function AdminVehiclesPage() {
   }
 
   function getDriverName(vehicle: Vehicle) {
-    return (
-      vehicle.profiles?.full_name ||
-      "Conductor sin nombre"
-    );
+    return vehicle.profiles?.full_name || "Conductor sin nombre";
   }
 
   const pendingCount = vehicles.filter(
-    (vehicle) => vehicle.status === "pending"
+    (vehicle) => vehicle.status === "pending",
   ).length;
 
   const activeCount = vehicles.filter(
-    (vehicle) => vehicle.status === "active"
+    (vehicle) => vehicle.status === "active",
   ).length;
 
   const maintenanceCount = vehicles.filter(
-    (vehicle) => vehicle.status === "maintenance"
+    (vehicle) => vehicle.status === "maintenance",
   ).length;
 
   const suspendedCount = vehicles.filter(
-    (vehicle) => vehicle.status === "suspended"
+    (vehicle) => vehicle.status === "suspended",
   ).length;
 
-  const verifiedCount = vehicles.filter(
-    (vehicle) => vehicle.verified
-  ).length;
+  const verifiedCount = vehicles.filter((vehicle) => vehicle.verified).length;
 
   const filteredVehicles = useMemo(() => {
-    const normalizedSearch = search
-      .trim()
-      .toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
 
     return vehicles.filter((vehicle) => {
-      const driverName = getDriverName(vehicle)
-        .toLowerCase();
+      const driverName = getDriverName(vehicle).toLowerCase();
 
-      const vehicleName =
-        `${vehicle.brand} ${vehicle.model}`.toLowerCase();
+      const vehicleName = `${vehicle.brand} ${vehicle.model}`.toLowerCase();
 
       const plates = vehicle.plates.toLowerCase();
 
-      const color =
-        vehicle.color?.toLowerCase() ?? "";
+      const color = vehicle.color?.toLowerCase() ?? "";
+
+      const driverEmail = vehicle.profiles?.email?.toLowerCase() ?? "";
+
+      const driverPhone = vehicle.profiles?.phone?.toLowerCase() ?? "";
 
       const matchesSearch =
         !normalizedSearch ||
         vehicleName.includes(normalizedSearch) ||
         plates.includes(normalizedSearch) ||
         driverName.includes(normalizedSearch) ||
+        driverEmail.includes(normalizedSearch) ||
+        driverPhone.includes(normalizedSearch) ||
         color.includes(normalizedSearch);
 
       if (!matchesSearch) return false;
@@ -349,25 +374,18 @@ export default function AdminVehiclesPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Revisa las unidades registradas, valida sus
-              datos y administra su disponibilidad dentro de
-              la plataforma.
+              Revisa las unidades registradas, valida sus datos y administra su
+              disponibilidad dentro de la plataforma.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <CarFront
-                  size={18}
-                  className="text-yellow-400"
-                />
+                <CarFront size={18} className="text-yellow-400" />
                 {vehicles.length} unidades
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <BadgeCheck
-                  size={18}
-                  className="text-emerald-400"
-                />
+                <BadgeCheck size={18} className="text-emerald-400" />
                 {verifiedCount} verificadas
               </span>
             </div>
@@ -379,14 +397,9 @@ export default function AdminVehiclesPage() {
             disabled={refreshing}
             className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-7 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-60"
           >
-            <RefreshCw
-              size={19}
-              className={refreshing ? "animate-spin" : ""}
-            />
+            <RefreshCw size={19} className={refreshing ? "animate-spin" : ""} />
 
-            {refreshing
-              ? "Actualizando..."
-              : "Actualizar vehículos"}
+            {refreshing ? "Actualizando..." : "Actualizar vehículos"}
           </button>
         </div>
       </div>
@@ -398,7 +411,7 @@ export default function AdminVehiclesPage() {
             message.toLowerCase().includes("error") ||
               message.toLowerCase().includes("no fue posible")
               ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700",
           )}
         >
           {message}
@@ -450,6 +463,11 @@ export default function AdminVehiclesPage() {
               <h2 className="mt-1 text-2xl font-black">
                 Directorio de vehículos
               </h2>
+
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                Mostrando {filteredVehicles.length} de {vehicles.length}{" "}
+                vehículos
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 lg:flex-row">
@@ -462,10 +480,8 @@ export default function AdminVehiclesPage() {
                 <input
                   type="search"
                   value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
-                  placeholder="Buscar placas, vehículo o conductor..."
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar placas, vehículo, conductor, correo o teléfono..."
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-80"
                 />
               </div>
@@ -483,14 +499,12 @@ export default function AdminVehiclesPage() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() =>
-                      setFilter(value as VehicleFilter)
-                    }
+                    onClick={() => setFilter(value as VehicleFilter)}
                     className={cn(
                       "whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black transition",
                       filter === value
                         ? "bg-slate-950 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-950"
+                        : "text-slate-500 hover:text-slate-950",
                     )}
                   >
                     {label}
@@ -508,21 +522,18 @@ export default function AdminVehiclesPage() {
                 <CarFront size={34} />
               </span>
 
-              <h3 className="mt-6 text-2xl font-black">
-                No hay vehículos
-              </h3>
+              <h3 className="mt-6 text-2xl font-black">No hay vehículos</h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                No encontramos unidades que coincidan con la
-                búsqueda o el filtro seleccionado.
+                No encontramos unidades que coincidan con la búsqueda o el
+                filtro seleccionado.
               </p>
             </div>
           </div>
         ) : (
           <div className="grid gap-5 p-5 md:grid-cols-2 2xl:grid-cols-3 sm:p-7">
             {filteredVehicles.map((vehicle) => {
-              const processing =
-                processingId === vehicle.id;
+              const processing = processingId === vehicle.id;
 
               return (
                 <article
@@ -532,23 +543,33 @@ export default function AdminVehiclesPage() {
                   <div
                     className={cn(
                       "h-1.5",
-                      vehicle.status === "active" &&
-                        "bg-emerald-500",
-                      vehicle.status === "pending" &&
-                        "bg-amber-400",
-                      vehicle.status === "maintenance" &&
-                        "bg-blue-500",
-                      vehicle.status === "suspended" &&
-                        "bg-red-500"
+                      vehicle.status === "active" && "bg-emerald-500",
+                      vehicle.status === "pending" && "bg-amber-400",
+                      vehicle.status === "maintenance" && "bg-blue-500",
+                      vehicle.status === "suspended" && "bg-red-500",
                     )}
                   />
 
                   <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.22),_transparent_35%),linear-gradient(135deg,_#e2e8f0,_#f8fafc)]">
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.45)_1px,transparent_1px)] bg-[size:34px_34px]" />
+                    {vehicle.vehicle_photo_url ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={vehicle.vehicle_photo_url}
+                          alt={`${vehicle.brand} ${vehicle.model}`}
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
+                      </>
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.45)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
-                    <span className="relative flex h-24 w-24 items-center justify-center rounded-[2rem] bg-slate-950 text-yellow-400 shadow-2xl shadow-slate-950/20">
-                      <CarFront size={44} />
-                    </span>
+                        <span className="relative flex h-24 w-24 items-center justify-center rounded-[2rem] bg-slate-950 text-yellow-400 shadow-2xl shadow-slate-950/20">
+                          <CarFront size={44} />
+                        </span>
+                      </>
+                    )}
 
                     <span className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-black text-slate-950 shadow-lg backdrop-blur">
                       {vehicle.plates}
@@ -562,8 +583,12 @@ export default function AdminVehiclesPage() {
                           {vehicle.brand} {vehicle.model}
                         </h3>
 
-                        <p className="mt-1 truncate text-sm text-slate-500">
+                        <p className="mt-1 truncate text-sm font-semibold text-slate-600">
                           {getDriverName(vehicle)}
+                        </p>
+
+                        <p className="mt-1 truncate text-xs text-slate-400">
+                          {vehicle.profiles?.email || "Sin correo registrado"}
                         </p>
                       </div>
 
@@ -572,7 +597,7 @@ export default function AdminVehiclesPage() {
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
                           vehicle.verified
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
+                            : "bg-slate-100 text-slate-500",
                         )}
                         title={
                           vehicle.verified
@@ -589,21 +614,17 @@ export default function AdminVehiclesPage() {
                     </div>
 
                     <div className="mt-5 flex flex-wrap gap-2">
-                      <VehicleStatusBadge
-                        status={vehicle.status}
-                      />
+                      <VehicleStatusBadge status={vehicle.status} />
 
                       <span
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black",
                           vehicle.verified
                             ? "bg-blue-100 text-blue-700"
-                            : "bg-slate-100 text-slate-600"
+                            : "bg-slate-100 text-slate-600",
                         )}
                       >
-                        {vehicle.verified
-                          ? "Verificado"
-                          : "Sin verificar"}
+                        {vehicle.verified ? "Verificado" : "Sin verificar"}
                       </span>
                     </div>
 
@@ -635,6 +656,18 @@ export default function AdminVehiclesPage() {
                       />
 
                       <InfoRow
+                        icon={UserRound}
+                        label="Correo"
+                        value={vehicle.profiles?.email || "No registrado"}
+                      />
+
+                      <InfoRow
+                        icon={UserRound}
+                        label="Teléfono"
+                        value={vehicle.profiles?.phone || "No registrado"}
+                      />
+
+                      <InfoRow
                         icon={CarFront}
                         label="Placas"
                         value={vehicle.plates}
@@ -643,18 +676,13 @@ export default function AdminVehiclesPage() {
                       <InfoRow
                         icon={Palette}
                         label="Color"
-                        value={
-                          vehicle.color ||
-                          "No registrado"
-                        }
+                        value={vehicle.color || "No registrado"}
                       />
 
                       <InfoRow
                         icon={Clock3}
                         label="Registro"
-                        value={formatDate(
-                          vehicle.created_at
-                        )}
+                        value={formatDate(vehicle.created_at)}
                       />
                     </div>
 
@@ -666,62 +694,34 @@ export default function AdminVehiclesPage() {
                       <div className="grid grid-cols-2 gap-2">
                         <StatusButton
                           label="Aprobar"
-                          onClick={() =>
-                            reviewVehicle(
-                              vehicle.id,
-                              "active"
-                            )
-                          }
-                          disabled={
-                            processing ||
-                            vehicle.status === "active"
-                          }
+                          onClick={() => reviewVehicle(vehicle.id, "active")}
+                          disabled={processing || vehicle.status === "active"}
                           className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
                         />
 
                         <StatusButton
                           label="Mantenimiento"
                           onClick={() =>
-                            reviewVehicle(
-                              vehicle.id,
-                              "maintenance"
-                            )
+                            reviewVehicle(vehicle.id, "maintenance")
                           }
                           disabled={
-                            processing ||
-                            vehicle.status ===
-                              "maintenance"
+                            processing || vehicle.status === "maintenance"
                           }
                           className="bg-blue-100 text-blue-700 hover:bg-blue-200"
                         />
 
                         <StatusButton
                           label="Pendiente"
-                          onClick={() =>
-                            reviewVehicle(
-                              vehicle.id,
-                              "pending"
-                            )
-                          }
-                          disabled={
-                            processing ||
-                            vehicle.status === "pending"
-                          }
+                          onClick={() => reviewVehicle(vehicle.id, "pending")}
+                          disabled={processing || vehicle.status === "pending"}
                           className="bg-amber-100 text-amber-800 hover:bg-amber-200"
                         />
 
                         <StatusButton
                           label="Suspender"
-                          onClick={() =>
-                            reviewVehicle(
-                              vehicle.id,
-                              "suspended"
-                            )
-                          }
+                          onClick={() => reviewVehicle(vehicle.id, "suspended")}
                           disabled={
-                            processing ||
-                            vehicle.status ===
-                              "suspended"
+                            processing || vehicle.status === "suspended"
                           }
                           className="bg-red-100 text-red-700 hover:bg-red-200"
                         />
@@ -729,10 +729,7 @@ export default function AdminVehiclesPage() {
 
                       {processing && (
                         <div className="mt-3 flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
-                          <LoaderCircle
-                            size={15}
-                            className="animate-spin"
-                          />
+                          <LoaderCircle size={15} className="animate-spin" />
                           Actualizando vehículo...
                         </div>
                       )}
@@ -767,60 +764,40 @@ function StatCard({
         <span
           className={cn(
             "flex h-12 w-12 items-center justify-center rounded-2xl",
-            iconClass
+            iconClass,
           )}
         >
           <Icon size={23} />
         </span>
 
-        <p className="text-4xl font-black">
-          {value}
-        </p>
+        <p className="text-4xl font-black">{value}</p>
       </div>
 
-      <p className="mt-5 font-black">
-        {label}
-      </p>
+      <p className="mt-5 font-black">{label}</p>
 
-      <p className="mt-1 text-sm text-slate-500">
-        {description}
-      </p>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
     </Card>
   );
 }
 
-function VehicleStatusBadge({
-  status,
-}: {
-  status: VehicleStatus;
-}) {
+function VehicleStatusBadge({ status }: { status: VehicleStatus }) {
   return (
     <span
       className={cn(
         "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black",
-        status === "active" &&
-          "bg-emerald-100 text-emerald-700",
-        status === "pending" &&
-          "bg-amber-100 text-amber-800",
-        status === "maintenance" &&
-          "bg-blue-100 text-blue-700",
-        status === "suspended" &&
-          "bg-red-100 text-red-700"
+        status === "active" && "bg-emerald-100 text-emerald-700",
+        status === "pending" && "bg-amber-100 text-amber-800",
+        status === "maintenance" && "bg-blue-100 text-blue-700",
+        status === "suspended" && "bg-red-100 text-red-700",
       )}
     >
-      {status === "active" && (
-        <CheckCircle2 size={14} />
-      )}
+      {status === "active" && <CheckCircle2 size={14} />}
 
       {status === "pending" && <Clock3 size={14} />}
 
-      {status === "maintenance" && (
-        <Wrench size={14} />
-      )}
+      {status === "maintenance" && <Wrench size={14} />}
 
-      {status === "suspended" && (
-        <XCircle size={14} />
-      )}
+      {status === "suspended" && <XCircle size={14} />}
 
       {statusLabels[status]}
     </span>
@@ -840,18 +817,13 @@ function InfoBox({
 }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
-      <Icon
-        size={19}
-        className={iconClass}
-      />
+      <Icon size={19} className={iconClass} />
 
       <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
         {label}
       </p>
 
-      <p className="mt-1 text-lg font-black text-slate-950">
-        {value}
-      </p>
+      <p className="mt-1 text-lg font-black text-slate-950">{value}</p>
     </div>
   );
 }
@@ -867,10 +839,7 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon
-        size={16}
-        className="mt-0.5 shrink-0 text-slate-400"
-      />
+      <Icon size={16} className="mt-0.5 shrink-0 text-slate-400" />
 
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -903,7 +872,7 @@ function StatusButton({
       disabled={disabled}
       className={cn(
         "h-11 rounded-xl px-3 text-xs font-black transition disabled:pointer-events-none disabled:opacity-35",
-        className
+        className,
       )}
     >
       {label}

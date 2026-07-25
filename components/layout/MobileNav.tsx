@@ -8,12 +8,14 @@ import {
   ClipboardCheck,
   CreditCard,
   Gauge,
+  Headphones,
   Home,
   LogOut,
   Menu,
   Route,
   Settings,
   ShieldCheck,
+  Siren,
   SlidersHorizontal,
   UserRound,
   UsersRound,
@@ -64,7 +66,9 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
           ? "/dashboard/driver/available-trips"
           : "/dashboard/trips",
       labelKey:
-        role === "driver" ? "navigation.availableTrips" : "navigation.myTrips",
+        role === "driver"
+          ? "navigation.availableTrips"
+          : "navigation.myTrips",
       icon: Route,
       visible: role === "driver" || role === "passenger",
     },
@@ -83,6 +87,7 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
   ];
 
   const secondaryItems: NavigationItem[] = [
+    // PASAJERO
     {
       href: "/dashboard/passenger/profile",
       label: locale === "en" ? "Settings" : "Configuración",
@@ -100,6 +105,8 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
       icon: ClipboardCheck,
       visible: role === "passenger",
     },
+
+    // CONDUCTOR
     {
       href: "/dashboard/driver/status",
       labelKey: "navigation.availability",
@@ -126,9 +133,10 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
       labelKey: "navigation.myVehicles",
       descriptionKey: "navigation.manageFleet",
       icon: CarFront,
-
       visible: role === "driver",
     },
+
+    // ADMINISTRACIÓN
     {
       href: "/dashboard/admin/driver-applications",
       labelKey: "navigation.applications",
@@ -150,6 +158,15 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
       icon: UsersRound,
       visible: isAdmin(role),
     },
+
+    // ADMINISTRACIÓN Y SOPORTE
+    {
+      href: "/dashboard/admin/trips",
+      labelKey: "navigation.adminTrips",
+      descriptionKey: "navigation.superviseTrips",
+      icon: Route,
+      visible: isAdmin(role) || isSupport(role),
+    },
     {
       href: "/dashboard/admin/vehicles",
       labelKey: "navigation.adminVehicles",
@@ -158,23 +175,25 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
       visible: isAdmin(role) || isSupport(role),
     },
     {
-      href: "/dashboard/admin/trips",
-      labelKey: "navigation.adminTrips",
-      descriptionKey: "navigation.superviseTrips",
-      icon: ShieldCheck,
-      visible: isAdmin(role) || isSupport(role),
-    },
-    {
       href: "/dashboard/admin/support",
-      label: "Soporte",
-      description: "Gestiona tickets, reportes e incidentes",
-      icon: ShieldCheck,
+      label: "Centro de soporte",
+      description: "Gestiona conversaciones, tickets e incidentes",
+      icon: Headphones,
       visible: isSupport(role),
     },
     {
+      href: "/dashboard/admin/sos",
+      label: "Casos urgentes SOS",
+      description: "Atiende alertas y emergencias prioritarias",
+      icon: Siren,
+      visible: isAdmin(role) || isSupport(role),
+    },
+
+    // FINANZAS
+    {
       href: "/dashboard/admin/finance",
       label: "Finanzas",
-      description: "Pagos, retiros, comisiones e incentivos",
+      description: "Pagos, comisiones, retiros y conciliaciones",
       icon: CreditCard,
       visible: isFinance(role),
     },
