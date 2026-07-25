@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabaseClient";
 
 type TripPromo = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   status: string;
   origin_address: string;
@@ -76,6 +78,8 @@ export default function TripPromoPage() {
       .from("trips")
       .select(`
         id,
+        trip_number,
+        trip_code,
         passenger_id,
         status,
         origin_address,
@@ -297,12 +301,20 @@ export default function TripPromoPage() {
         <p className="mt-2 text-gray-600">
           Ingresa un código promocional antes de pagar.
         </p>
+
+        <p className="mt-2 font-mono text-sm font-bold text-gray-900">
+          {trip?.trip_code}
+        </p>
       </div>
 
       <div className="space-y-6 rounded-2xl bg-white p-8 shadow-sm">
         <div className="rounded-xl bg-gray-50 p-5">
           <p className="text-sm text-gray-500">
             Viaje
+          </p>
+
+          <p className="mt-1 font-mono text-xs font-bold text-gray-700">
+            {trip.trip_code}
           </p>
 
           <p className="mt-2 font-semibold">
