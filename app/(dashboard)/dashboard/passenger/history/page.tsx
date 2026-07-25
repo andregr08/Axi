@@ -37,6 +37,8 @@ import { useLanguage } from "@/hooks/useLanguage";
 
 type PassengerActivity = {
   trip_id: string;
+  trip_number: number;
+  trip_code: string;
   origin_address: string;
   destination_address: string;
   status: string;
@@ -383,6 +385,9 @@ export default function PassengerHistoryPage() {
     return activity.filter((item) => {
       const matchesSearch =
         !normalizedSearch ||
+        item.trip_code
+          .toLowerCase()
+          .includes(normalizedSearch) ||
         item.origin_address
           .toLowerCase()
           .includes(normalizedSearch) ||
@@ -959,6 +964,10 @@ function TripHistoryCard({
                     ? englishTripStatusLabels[item.status]
                     : tripStatusLabels[item.status]) ??
                   item.status}
+                </span>
+
+                <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-black text-slate-700">
+                  {item.trip_code}
                 </span>
 
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400">
