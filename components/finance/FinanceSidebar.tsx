@@ -5,12 +5,9 @@ import Link from "next/link";
 const items = [
   ["Resumen", "/dashboard/admin/finance"],
   ["Wallets", "/dashboard/admin/finance/wallets"],
-  ["Bonos", "/dashboard/admin/finance/bonuses"],
-  ["Incentivos", "/dashboard/admin/finance/incentives"],
   ["Promociones", "/dashboard/admin/finance/promotions"],
   ["Reembolsos", "/dashboard/admin/finance/refunds"],
   ["Retiros", "/dashboard/admin/finance/withdrawals"],
-  ["Comisiones", "/dashboard/admin/finance/commissions"],
   ["Deudas en efectivo", "/dashboard/admin/finance/cash-debts"],
   ["Ajustes manuales", "/dashboard/admin/finance/manual-adjustments"],
   ["Auditoría", "/dashboard/admin/finance/audit"],
