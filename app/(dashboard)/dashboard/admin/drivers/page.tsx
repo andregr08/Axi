@@ -170,36 +170,67 @@ export default function AdminDriversPage() {
       >();
 
       if (driverIds.length > 0) {
-        const { data: profileRows, error: profilesError } = await supabase
-          .from("profiles")
-          .select(
-            `
-              id,
-              full_name,
-              email,
-              phone,
-              avatar_url,
-              rating,
-              total_trips,
-              account_active
-            `,
-          )
-          .in("id", driverIds);
+        const [
+          { data: profileRows, error: profilesError },
+          { data: directoryRows, error: directoryError },
+        ] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select(
+              `
+                id,
+                full_name,
+                phone,
+                avatar_url,
+                rating,
+                total_trips,
+                account_active
+              `,
+            )
+            .in("id", driverIds),
+
+          supabase.rpc("finance_get_user_directory", {
+            requested_user_ids: driverIds,
+            requested_role: null,
+          }),
+        ]);
 
         if (profilesError) {
-          setMessage(`Error cargando perfiles: ${profilesError.message}`);
+          setMessage(
+            `Error cargando perfiles: ${profilesError.message}`,
+          );
         } else {
+          const emailsById = new Map<string, string | null>(
+            (directoryRows ?? []).map(
+              (entry: {
+                id: string;
+                email: string | null;
+              }) => [
+                entry.id,
+                entry.email,
+              ],
+            ),
+          );
+
+          if (directoryError) {
+            setMessage(
+              `Perfiles cargados, pero no fue posible consultar algunos correos: ${directoryError.message}`,
+            );
+          }
+
           profilesById = new Map(
             (profileRows ?? []).map((profile) => [
               profile.id,
               {
                 full_name: profile.full_name,
-                email: profile.email,
+                email:
+                  emailsById.get(profile.id) ?? null,
                 phone: profile.phone,
                 avatar_url: profile.avatar_url,
                 rating: profile.rating,
                 total_trips: profile.total_trips,
-                account_active: profile.account_active,
+                account_active:
+                  profile.account_active,
               },
             ]),
           );
