@@ -1,5 +1,97 @@
 import { supabase } from "@/lib/supabaseClient";
 
+type FinanceDirectoryEntry = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string;
+};
+
+type FinanceRow = Record<string, unknown>;
+
+function getUniqueIds(
+  values: Array<string | null | undefined>
+) {
+  return [
+    ...new Set(
+      values.filter(
+        (value): value is string =>
+          typeof value === "string" && value.length > 0
+      )
+    ),
+  ];
+}
+
+async function getFinanceUserDirectory({
+  userIds,
+  role,
+}: {
+  userIds?: string[];
+  role?: string;
+} = {}) {
+  const { data, error } = await supabase.rpc(
+    "finance_get_user_directory",
+    {
+      requested_user_ids:
+        userIds && userIds.length > 0 ? userIds : null,
+      requested_role: role ?? null,
+    }
+  );
+
+  if (error) throw error;
+
+  return (data ?? []) as FinanceDirectoryEntry[];
+}
+
+function createDirectoryMap(
+  directory: FinanceDirectoryEntry[]
+) {
+  return new Map(
+    directory.map((profile) => [profile.id, profile])
+  );
+}
+
+async function attachProfiles<
+  T extends FinanceRow
+>(
+  rows: T[],
+  userIdKey: string
+) {
+  const userIds = getUniqueIds(
+    rows.map((row) => {
+      const value = row[userIdKey];
+
+      return typeof value === "string" ? value : null;
+    })
+  );
+
+  if (userIds.length === 0) {
+    return rows.map((row) => ({
+      ...row,
+      profiles: null,
+    }));
+  }
+
+  const directory =
+    await getFinanceUserDirectory({ userIds });
+
+  const directoryById =
+    createDirectoryMap(directory);
+
+  return rows.map((row) => {
+    const value = row[userIdKey];
+
+    const userId =
+      typeof value === "string" ? value : "";
+
+    return {
+      ...row,
+      profiles:
+        directoryById.get(userId) ?? null,
+    };
+  });
+}
+
 export async function getFinanceDashboard() {
   const { data, error } = await supabase
     .from("finance_dashboard_summary")
@@ -14,23 +106,20 @@ export async function getFinanceDashboard() {
 export async function getWallets() {
   const { data, error } = await supabase
     .from("driver_wallets")
-    .select(`
-      *,
-      profiles(
-        id,
-        full_name,
-        email,
-        role
-      )
-    `)
+    .select("*")
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
 
-  return data ?? [];
+  return attachProfiles(
+    (data ?? []) as FinanceRow[],
+    "driver_id"
+  );
 }
 
-export async function getFinanceTransactions(limit = 100) {
+export async function getFinanceTransactions(
+  limit = 100
+) {
   const { data, error } = await supabase
     .from("finance_transactions_view")
     .select("*")
@@ -44,59 +133,50 @@ export async function getFinanceTransactions(limit = 100) {
 export async function getPendingWithdrawals() {
   const { data, error } = await supabase
     .from("withdraw_requests")
-    .select(`
-      *,
-      profiles(
-        full_name,
-        email
-      )
-    `)
+    .select("*")
     .eq("status", "pending")
     .order("created_at");
 
   if (error) throw error;
 
-  return data ?? [];
+  return attachProfiles(
+    (data ?? []) as FinanceRow[],
+    "driver_id"
+  );
 }
 
 export async function getPendingBonuses() {
   const { data, error } = await supabase
     .from("driver_bonus_requests")
-    .select(`
-      *,
-      profiles(
-        full_name,
-        email
-      )
-    `)
+    .select("*")
     .eq("status", "pending")
     .order("created_at");
 
   if (error) throw error;
 
-  return data ?? [];
+  return attachProfiles(
+    (data ?? []) as FinanceRow[],
+    "driver_id"
+  );
 }
 
 export async function getPendingIncentives() {
   const { data, error } = await supabase
     .from("driver_incentives")
-    .select(`
-      *,
-      profiles(
-        full_name,
-        email
-      )
-    `)
+    .select("*")
     .eq("status", "pending")
     .order("created_at");
 
   if (error) throw error;
 
-  return data ?? [];
+  return attachProfiles(
+    (data ?? []) as FinanceRow[],
+    "driver_id"
+  );
 }
 
 export async function getPendingRefunds() {
-  const { data: refunds, error } = await supabase
+  const { data, error } = await supabase
     .from("refund_requests")
     .select(`
       *,
@@ -111,51 +191,17 @@ export async function getPendingRefunds() {
 
   if (error) throw error;
 
-  const passengerIds = [
-    ...new Set(
-      (refunds ?? [])
-        .map((refund) => refund.passenger_id)
-        .filter(Boolean)
-    ),
-  ];
-
-  if (passengerIds.length === 0) {
-    return refunds ?? [];
-  }
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, full_name, email")
-    .in("id", passengerIds);
-
-  if (profilesError) throw profilesError;
-
-  const profilesById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile])
+  return attachProfiles(
+    (data ?? []) as FinanceRow[],
+    "passenger_id"
   );
-
-  return (refunds ?? []).map((refund) => ({
-    ...refund,
-    profiles: profilesById.get(refund.passenger_id) ?? null,
-  }));
 }
 
 export async function getDrivers() {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(`
-      id,
-      full_name,
-      email
-    `)
-    .eq("role", "driver")
-    .order("full_name");
-
-  if (error) throw error;
-
-  return data ?? [];
+  return getFinanceUserDirectory({
+    role: "driver",
+  });
 }
-
 
 export async function getFinanceAuditLogs() {
   const { data, error } = await supabase
@@ -168,7 +214,6 @@ export async function getFinanceAuditLogs() {
 
   return data ?? [];
 }
-
 
 export async function getCashDebts() {
   const { data, error } = await supabase
