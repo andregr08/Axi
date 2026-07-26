@@ -119,10 +119,10 @@ function formatCurrency(
     {
       style: "currency",
       currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }
-  ).format(Math.round(value));
+  ).format(value);
 }
 
 function formatDate(
@@ -135,6 +135,8 @@ function formatDate(
       dateStyle: "long",
       timeStyle: "short",
     }
+
+
   ).format(new Date(value));
 }
 
@@ -220,7 +222,9 @@ export default function ActiveTripPage({
   const [locationConnected, setLocationConnected] =
     useState(false);
 
-  
+
+
+
   const autoArrivalProcessingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] =
@@ -236,8 +240,10 @@ export default function ActiveTripPage({
       .from("trips")
       .select(`
         id,
+
         trip_number,
         trip_code,
+
         passenger_id,
         driver_id,
         vehicle_id,
@@ -460,7 +466,9 @@ export default function ActiveTripPage({
             filter: `id=eq.${id}`,
           },
           () => {
+
             void loadTrip(role ?? undefined);
+
           }
         )
         .subscribe();
@@ -475,6 +483,62 @@ return () => {
   }, [id, loadTrip, router, t]);
 
   useEffect(() => {
+
+    if (
+      role !== "passenger" ||
+      !trip?.id ||
+      !trip.driver_id ||
+      trip.status === "completed" ||
+      trip.status === "cancelled"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    const currentTripId = trip.id;
+
+    async function refreshPassengerPin() {
+      const { data, error } = await supabase.rpc(
+        "get_passenger_trip_pin",
+        {
+          trip_id: currentTripId,
+        }
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(
+          "Error refreshing passenger trip PIN:",
+          error.message
+        );
+        return;
+      }
+
+      setPassengerTripPin(
+        typeof data === "string" ? data : null
+      );
+    }
+
+    void refreshPassengerPin();
+
+    const pinTimer = window.setInterval(() => {
+      void refreshPassengerPin();
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(pinTimer);
+    };
+  }, [
+    role,
+    trip?.id,
+    trip?.driver_id,
+    trip?.status,
+  ]);
+
+  useEffect(() => {
+
     if (!trip?.driver_id) {
       queueMicrotask(() => {
         setDriverLocation(null);
@@ -612,8 +676,8 @@ return () => {
       const { error } = await supabase.rpc(
         "advance_trip_status",
         {
-          trip_id: currentTripId,
-          next_status: "driver_arrived",
+          p_trip_id: currentTripId,
+          p_next_status: "driver_arrived",
         }
       );
 
@@ -658,14 +722,16 @@ return () => {
 
     if (!confirmed) return;
 
+
+
     setProcessing(true);
     setMessage("");
 
     const { error } = await supabase.rpc(
       "advance_trip_status",
       {
-        trip_id: trip.id,
-        next_status: nextStatus,
+        p_trip_id: trip.id,
+        p_next_status: nextStatus,
       }
     );
 
@@ -699,16 +765,14 @@ return () => {
     setPinError("");
     setMessage("");
 
-    const {
-      data: pinVerified,
-      error: verificationError,
-    } = await supabase.rpc(
-      "verify_trip_pin",
-      {
-        trip_id: trip.id,
-        provided_pin: pin,
-      }
-    );
+    const { error: verificationError } =
+      await supabase.rpc(
+        "verify_trip_pin_and_start",
+        {
+          p_trip_id: trip.id,
+          p_security_pin: pin,
+        }
+      );
 
     if (verificationError) {
       console.error(
@@ -716,42 +780,7 @@ return () => {
         verificationError.message
       );
 
-      setPinError(
-        `No fue posible verificar el PIN: ${verificationError.message}`
-      );
-
-      setProcessing(false);
-      return;
-    }
-
-    if (pinVerified !== true) {
-      setPinError(
-        "PIN incorrecto. Verifica el código con el pasajero."
-      );
-
-      setProcessing(false);
-      return;
-    }
-
-    const { error: startError } =
-      await supabase.rpc(
-        "advance_trip_status",
-        {
-          trip_id: trip.id,
-          next_status: "in_progress",
-        }
-      );
-
-    if (startError) {
-      console.error(
-        "Error starting trip after PIN verification:",
-        startError.message
-      );
-
-      setPinError(
-        `El PIN fue correcto, pero no fue posible iniciar el viaje: ${startError.message}`
-      );
-
+      setPinError(verificationError.message);
       setProcessing(false);
       return;
     }
@@ -854,7 +883,9 @@ return (
       <TripDetailHeader
         role={role}
         status={trip.status}
+
         tripCode={trip.trip_code}
+
         requestedAt={formatDate(
           trip.requested_at,
           locale
@@ -878,10 +909,14 @@ return (
         </div>
       )}
 
-      <TripProgress
-        role={role}
-        status={trip.status}
-      />
+
+      {role !== "driver" && (
+        <TripProgress
+          role={role}
+          status={trip.status}
+        />
+      )}
+
 
       {role === "driver" ? (
         <DriverTripView
@@ -931,16 +966,35 @@ return (
         />
       )}
 
+
+      {role === "driver" &&
+        !isCompleted &&
+        !isCancelled && (
+          <TripProgress
+            role={role}
+            status={trip.status}
+          />
+        )}
+
       {trip.driver_id &&
         !isCompleted &&
         !isCancelled && (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <TripPinCard
-              pin={passengerTripPin}
-              visibleToPassenger={
-                role === "passenger"
-              }
-            />
+          <div
+            className={
+              role === "driver"
+                ? "grid gap-6"
+                : "grid gap-6 xl:grid-cols-2"
+            }
+          >
+            {role !== "driver" && (
+              <TripPinCard
+                pin={passengerTripPin}
+                visibleToPassenger={
+                  role === "passenger"
+                }
+              />
+            )}
+
 
             <TripSafetyCard
               tripId={trip.id}

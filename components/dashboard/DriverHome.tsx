@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DriverActiveTripCard } from "@/components/dashboard/DriverActiveTripCard";
 import {
   Activity,
   ArrowRight,
@@ -485,57 +486,7 @@ export function DriverHome({
         </button>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Ganancias semanales"
-          value={formatMoney(
-            stats.earnings_week
-          )}
-          description={`${stats.trips_week} viajes esta semana`}
-          icon={CircleDollarSign}
-          iconClass="bg-emerald-100 text-emerald-700"
-        />
-
-        <MetricCard
-          label="Viajes completados"
-          value={String(
-            stats.completed_trips
-          )}
-          description="Historial total"
-          icon={Route}
-          iconClass="bg-blue-100 text-blue-700"
-        />
-
-        <MetricCard
-          label="Calificación"
-          value={
-            stats.rating_count > 0
-              ? Number(
-                  stats.average_rating
-                ).toFixed(2)
-              : "Nueva"
-          }
-          description={
-            stats.rating_count > 0
-              ? `${stats.rating_count} reseñas`
-              : "Sin reseñas todavía"
-          }
-          icon={Star}
-          iconClass="bg-amber-100 text-amber-700"
-        />
-
-        <MetricCard
-          label="Ofertas activas"
-          value={String(activeOffers)}
-          description={
-            activeOffers > 0
-              ? "Esperando tu respuesta"
-              : "Sin solicitudes pendientes"
-          }
-          icon={Activity}
-          iconClass="bg-violet-100 text-violet-700"
-        />
-      </div>
+      <DriverActiveTripCard />
 
       <div className="grid gap-6 xl:grid-cols-[1.55fr_0.75fr]">
         <div>

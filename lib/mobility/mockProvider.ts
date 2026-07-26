@@ -72,11 +72,9 @@ export function estimateMockRoute(
 
   const estimatedPrice = Math.max(
     MOBILITY_CONFIG.minimumFare,
-    Math.round(
-      MOBILITY_CONFIG.baseFare +
-        distanceFare +
-        MOBILITY_CONFIG.bookingFee
-    )
+    MOBILITY_CONFIG.baseFare +
+      distanceFare +
+      MOBILITY_CONFIG.bookingFee
   );
 
   return {
