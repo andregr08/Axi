@@ -12,6 +12,7 @@ import {
   LogOut,
   Route,
   ShieldCheck,
+  Siren,
   UserRound,
   UsersRound,
   type LucideIcon,
@@ -21,11 +22,12 @@ import { useLanguage } from "@/hooks/useLanguage";
 import {
   canManageDrivers,
   canManagePassengers,
-  canManageVehicles,
   canViewSupport,
   isAdmin,
   isDriver,
+  isFinance,
   isPassenger,
+  isSupport,
 } from "@/lib/auth/roles";
 import type { UserRole } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
@@ -43,10 +45,7 @@ type MenuItem = {
   visible: boolean;
 };
 
-export function Sidebar({
-  role,
-  onLogout,
-}: SidebarProps) {
+export function Sidebar({ role, onLogout }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
 
@@ -57,12 +56,22 @@ export function Sidebar({
       icon: Home,
       visible: true,
     },
+
+    // PASAJERO
     {
       href: "/dashboard/trips",
       labelKey: "navigation.myTrips",
       icon: Route,
-      visible: !isDriver(role),
+      visible: isPassenger(role),
     },
+    {
+      href: "/dashboard/driver-application",
+      labelKey: "navigation.becomeDriver",
+      icon: ClipboardCheck,
+      visible: isPassenger(role),
+    },
+
+    // CONDUCTOR
     {
       href: "/dashboard/driver/status",
       labelKey: "navigation.availability",
@@ -82,29 +91,21 @@ export function Sidebar({
       visible: isDriver(role),
     },
     {
-      href: "/dashboard/driver-application",
-      labelKey: "navigation.becomeDriver",
-      icon: ClipboardCheck,
-      visible: isPassenger(role),
-    },
-    {
       href: "/dashboard/vehicles",
       labelKey: "navigation.myVehicles",
       icon: CarFront,
-      visible: canManageVehicles(role),
+      visible: isDriver(role),
     },
+
+    // PAGOS PERSONALES
     {
       href: "/dashboard/payments",
       labelKey: "navigation.payments",
       icon: CreditCard,
-      visible: true,
+      visible: isPassenger(role) || isDriver(role),
     },
-    {
-      href: "/dashboard/profile",
-      labelKey: "navigation.profile",
-      icon: UserRound,
-      visible: true,
-    },
+
+    // ADMINISTRACIÓN
     {
       href: "/dashboard/admin/driver-applications",
       labelKey: "navigation.applications",
@@ -123,23 +124,47 @@ export function Sidebar({
       icon: UsersRound,
       visible: canManagePassengers(role),
     },
+
+    // ADMINISTRACIÓN Y SOPORTE
+    {
+      href: "/dashboard/admin/trips",
+      labelKey: "navigation.adminTrips",
+      icon: Route,
+      visible: isAdmin(role) || isSupport(role),
+    },
     {
       href: "/dashboard/admin/vehicles",
       labelKey: "navigation.adminVehicles",
       icon: CarFront,
-      visible: isAdmin(role),
-    },
-    {
-      href: "/dashboard/admin/trips",
-      labelKey: "navigation.adminTrips",
-      icon: ShieldCheck,
-      visible: isAdmin(role),
+      visible: isAdmin(role) || isSupport(role),
     },
     {
       href: "/dashboard/admin/support",
-      labelKey: "navigation.support",
+      label: "Centro de soporte",
       icon: Headphones,
       visible: canViewSupport(role),
+    },
+    {
+      href: "/dashboard/admin/sos",
+      label: "Casos urgentes SOS",
+      icon: Siren,
+      visible: isAdmin(role) || isSupport(role),
+    },
+
+    // FINANZAS
+    {
+      href: "/dashboard/admin/finance",
+      label: "Finanzas",
+      icon: CreditCard,
+      visible: isFinance(role),
+    },
+
+    // PERFIL GENERAL
+    {
+      href: "/dashboard/profile",
+      labelKey: "navigation.profile",
+      icon: UserRound,
+      visible: true,
     },
   ];
 
@@ -148,10 +173,7 @@ export function Sidebar({
       return pathname === href;
     }
 
-    return (
-      pathname === href ||
-      pathname.startsWith(`${href}/`)
-    );
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   return (
@@ -181,7 +203,7 @@ export function Sidebar({
                   "group flex items-center gap-4 rounded-2xl px-4 py-3.5 text-sm font-semibold transition-all duration-200",
                   active
                     ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/10"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    : "text-slate-400 hover:bg-white/5 hover:text-white",
                 )}
               >
                 <span
@@ -189,13 +211,10 @@ export function Sidebar({
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition",
                     active
                       ? "bg-black/10"
-                      : "bg-white/5 group-hover:bg-white/10"
+                      : "bg-white/5 group-hover:bg-white/10",
                   )}
                 >
-                  <Icon
-                    size={20}
-                    strokeWidth={2.2}
-                  />
+                  <Icon size={20} strokeWidth={2.2} />
                 </span>
 
                 <span>{item.labelKey ? t(item.labelKey) : item.label}</span>
@@ -205,9 +224,7 @@ export function Sidebar({
       </nav>
 
       <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="text-sm font-bold text-white">
-          AXI Mobility
-        </p>
+        <p className="text-sm font-bold text-white">AXI Mobility</p>
 
         <p className="mt-1 text-xs leading-5 text-slate-500">
           {t("navigation.mobilityDescription")}

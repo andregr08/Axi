@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
@@ -32,17 +27,9 @@ import { supabase } from "@/lib/supabaseClient";
 import { isAdmin } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
-type DriverStatus =
-  | "pending"
-  | "active"
-  | "suspended"
-  | "rejected";
+type DriverStatus = "pending" | "active" | "suspended" | "rejected";
 
-type DriverFilter =
-  | "all"
-  | DriverStatus
-  | "online"
-  | "offline";
+type DriverFilter = "all" | DriverStatus | "online" | "offline";
 
 type Driver = {
   id: string;
@@ -55,19 +42,33 @@ type Driver = {
   profiles:
     | {
         full_name: string | null;
+        email: string | null;
         phone: string | null;
+        avatar_url: string | null;
         rating: number;
         total_trips: number;
         account_active: boolean;
       }
     | {
         full_name: string | null;
+        email: string | null;
         phone: string | null;
+        avatar_url: string | null;
         rating: number;
         total_trips: number;
         account_active: boolean;
       }[]
     | null;
+  vehicles: {
+    id: string;
+    brand: string;
+    model: string;
+    vehicle_year: number | null;
+    color: string | null;
+    plates: string;
+    status: string;
+    verified: boolean;
+  }[];
 };
 
 const statusLabels: Record<DriverStatus, string> = {
@@ -89,14 +90,15 @@ export default function AdminDriversPage() {
   const router = useRouter();
 
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [activeTripDriverIds, setActiveTripDriverIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingId, setProcessingId] =
-    useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [filter, setFilter] =
-    useState<DriverFilter>("all");
+  const [filter, setFilter] = useState<DriverFilter>("all");
 
   const loadDrivers = useCallback(
     async (silent = false) => {
@@ -128,10 +130,10 @@ export default function AdminDriversPage() {
         return;
       }
 
-      const { data: driverRows, error: driversError } =
-        await supabase
-          .from("drivers")
-          .select(`
+      const { data: driverRows, error: driversError } = await supabase
+        .from("drivers")
+        .select(
+          `
             id,
             license_number,
             license_expiration,
@@ -139,29 +141,28 @@ export default function AdminDriversPage() {
             verified,
             online,
             created_at
-          `)
-          .order("created_at", {
-            ascending: false,
-          });
+          `,
+        )
+        .order("created_at", {
+          ascending: false,
+        });
 
       if (driversError) {
-        setMessage(
-          `Error cargando conductores: ${driversError.message}`
-        );
+        setMessage(`Error cargando conductores: ${driversError.message}`);
         setLoading(false);
         setRefreshing(false);
         return;
       }
 
-      const driverIds = (driverRows ?? []).map(
-        (driver) => driver.id
-      );
+      const driverIds = (driverRows ?? []).map((driver) => driver.id);
 
       let profilesById = new Map<
         string,
         {
           full_name: string | null;
+          email: string | null;
           phone: string | null;
+          avatar_url: string | null;
           rating: number;
           total_trips: number;
           account_active: boolean;
@@ -169,52 +170,162 @@ export default function AdminDriversPage() {
       >();
 
       if (driverIds.length > 0) {
-        const { data: profileRows, error: profilesError } =
-          await supabase
+        const [
+          { data: profileRows, error: profilesError },
+          { data: directoryRows, error: directoryError },
+        ] = await Promise.all([
+          supabase
             .from("profiles")
-            .select(`
-              id,
-              full_name,
-              phone,
-              rating,
-              total_trips,
-              account_active
-            `)
-            .in("id", driverIds);
+            .select(
+              `
+                id,
+                full_name,
+                phone,
+                avatar_url,
+                rating,
+                total_trips,
+                account_active
+              `,
+            )
+            .in("id", driverIds),
+
+          supabase.rpc("finance_get_user_directory", {
+            requested_user_ids: driverIds,
+            requested_role: null,
+          }),
+        ]);
 
         if (profilesError) {
           setMessage(
-            `Error cargando perfiles: ${profilesError.message}`
+            `Error cargando perfiles: ${profilesError.message}`,
           );
         } else {
+          const emailsById = new Map<string, string | null>(
+            (directoryRows ?? []).map(
+              (entry: {
+                id: string;
+                email: string | null;
+              }) => [
+                entry.id,
+                entry.email,
+              ],
+            ),
+          );
+
+          if (directoryError) {
+            setMessage(
+              `Perfiles cargados, pero no fue posible consultar algunos correos: ${directoryError.message}`,
+            );
+          }
+
           profilesById = new Map(
             (profileRows ?? []).map((profile) => [
               profile.id,
               {
                 full_name: profile.full_name,
+                email:
+                  emailsById.get(profile.id) ?? null,
                 phone: profile.phone,
+                avatar_url: profile.avatar_url,
                 rating: profile.rating,
                 total_trips: profile.total_trips,
-                account_active: profile.account_active,
+                account_active:
+                  profile.account_active,
               },
-            ])
+            ]),
           );
         }
       }
 
-      const mergedDrivers = (driverRows ?? []).map(
-        (driver) => ({
-          ...driver,
-          profiles: profilesById.get(driver.id) ?? null,
-        })
-      );
+      let vehiclesByDriver = new Map<string, Driver["vehicles"]>();
+
+      if (driverIds.length > 0) {
+        const { data: vehicleRows, error: vehiclesError } = await supabase
+          .from("vehicles")
+          .select(
+            `
+              id,
+              driver_id,
+              brand,
+              model,
+              vehicle_year,
+              color,
+              plates,
+              status,
+              verified
+            `,
+          )
+          .in("driver_id", driverIds)
+          .order("created_at", {
+            ascending: false,
+          });
+
+        if (vehiclesError) {
+          setMessage(
+            `Conductores cargados, pero no fue posible cargar algunos vehículos: ${vehiclesError.message}`,
+          );
+        } else {
+          vehiclesByDriver = new Map();
+
+          for (const vehicle of vehicleRows ?? []) {
+            const current = vehiclesByDriver.get(vehicle.driver_id) ?? [];
+
+            current.push({
+              id: vehicle.id,
+              brand: vehicle.brand,
+              model: vehicle.model,
+              vehicle_year: vehicle.vehicle_year,
+              color: vehicle.color,
+              plates: vehicle.plates,
+              status: vehicle.status,
+              verified: vehicle.verified,
+            });
+
+            vehiclesByDriver.set(vehicle.driver_id, current);
+          }
+        }
+      }
+
+      const mergedDrivers = (driverRows ?? []).map((driver) => ({
+        ...driver,
+        profiles: profilesById.get(driver.id) ?? null,
+        vehicles: vehiclesByDriver.get(driver.id) ?? [],
+      }));
+
+      if (driverIds.length > 0) {
+        const { data: activeTripRows, error: activeTripsError } = await supabase
+          .from("trips")
+          .select("driver_id, status")
+          .in("driver_id", driverIds);
+
+        if (activeTripsError) {
+          setMessage(
+            `Conductores cargados, pero no fue posible revisar los viajes activos: ${activeTripsError.message}`,
+          );
+          setActiveTripDriverIds(new Set());
+        } else {
+          const activeIds = new Set(
+            (activeTripRows ?? [])
+              .filter(
+                (trip) =>
+                  trip.driver_id &&
+                  !["completed", "cancelled"].includes(trip.status),
+              )
+              .map((trip) => trip.driver_id as string),
+          );
+
+          setActiveTripDriverIds(activeIds);
+        }
+      } else {
+        setActiveTripDriverIds(new Set());
+      }
 
       setDrivers(mergedDrivers as Driver[]);
 
       setLoading(false);
       setRefreshing(false);
     },
-    [router]
+    [router],
   );
 
   useEffect(() => {
@@ -222,14 +333,11 @@ export default function AdminDriversPage() {
     void loadDrivers();
   }, [loadDrivers]);
 
-  async function updateStatus(
-    driverId: string,
-    newStatus: DriverStatus
-  ) {
+  async function updateStatus(driverId: string, newStatus: DriverStatus) {
     const confirmed = window.confirm(
       `¿Confirmas cambiar el estado del conductor a ${statusLabels[
         newStatus
-      ].toLowerCase()}?`
+      ].toLowerCase()}?`,
     );
 
     if (!confirmed) return;
@@ -237,23 +345,16 @@ export default function AdminDriversPage() {
     setProcessingId(driverId);
     setMessage("");
 
-    const { error } = await supabase.rpc(
-      "update_driver_status",
-      {
-        driver_user_id: driverId,
-        new_status: newStatus,
-      }
-    );
+    const { error } = await supabase.rpc("update_driver_status", {
+      driver_user_id: driverId,
+      new_status: newStatus,
+    });
 
     if (error) {
-      setMessage(
-        `Error actualizando conductor: ${error.message}`
-      );
+      setMessage(`Error actualizando conductor: ${error.message}`);
     } else {
       setMessage(
-        `Conductor actualizado a ${statusLabels[
-          newStatus
-        ].toLowerCase()}.`
+        `Conductor actualizado a ${statusLabels[newStatus].toLowerCase()}.`,
       );
 
       await loadDrivers(true);
@@ -268,46 +369,57 @@ export default function AdminDriversPage() {
       : driver.profiles;
   }
 
+  function getPrimaryVehicle(driver: Driver) {
+    return (
+      driver.vehicles.find(
+        (vehicle) => vehicle.status === "active" && vehicle.verified,
+      ) ||
+      driver.vehicles.find((vehicle) => vehicle.status === "active") ||
+      driver.vehicles[0] ||
+      null
+    );
+  }
+
   const activeCount = drivers.filter(
-    (driver) => driver.status === "active"
+    (driver) => driver.status === "active",
   ).length;
 
   const suspendedCount = drivers.filter(
-    (driver) => driver.status === "suspended"
+    (driver) => driver.status === "suspended",
   ).length;
 
-  const onlineCount = drivers.filter(
-    (driver) => driver.online
-  ).length;
+  const onlineCount = drivers.filter((driver) => driver.online).length;
 
-  const verifiedCount = drivers.filter(
-    (driver) => driver.verified
-  ).length;
+  const activeTripCount = activeTripDriverIds.size;
 
   const filteredDrivers = useMemo(() => {
-    const normalizedSearch = search
-      .trim()
-      .toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
 
     return drivers.filter((driver) => {
       const profile = Array.isArray(driver.profiles)
         ? driver.profiles[0]
         : driver.profiles;
 
-      const name =
-        profile?.full_name?.toLowerCase() ?? "";
+      const name = profile?.full_name?.toLowerCase() ?? "";
 
-      const license =
-        driver.license_number?.toLowerCase() ?? "";
+      const email = profile?.email?.toLowerCase() ?? "";
 
-      const phone =
-        profile?.phone?.toLowerCase() ?? "";
+      const license = driver.license_number?.toLowerCase() ?? "";
+
+      const phone = profile?.phone?.toLowerCase() ?? "";
+
+      const vehicleSearch = driver.vehicles
+        .map((vehicle) => `${vehicle.brand} ${vehicle.model} ${vehicle.plates}`)
+        .join(" ")
+        .toLowerCase();
 
       const matchesSearch =
         !normalizedSearch ||
         name.includes(normalizedSearch) ||
+        email.includes(normalizedSearch) ||
         license.includes(normalizedSearch) ||
-        phone.includes(normalizedSearch);
+        phone.includes(normalizedSearch) ||
+        vehicleSearch.includes(normalizedSearch);
 
       if (!matchesSearch) return false;
 
@@ -356,25 +468,18 @@ export default function AdminDriversPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta la actividad de los conductores,
-              supervisa su disponibilidad y administra el
-              estado de sus cuentas.
+              Consulta la actividad de los conductores, supervisa su
+              disponibilidad y administra el estado de sus cuentas.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <UsersRound
-                  size={18}
-                  className="text-yellow-400"
-                />
+                <UsersRound size={18} className="text-yellow-400" />
                 {drivers.length} registrados
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <Power
-                  size={18}
-                  className="text-emerald-400"
-                />
+                <Power size={18} className="text-emerald-400" />
                 {onlineCount} en línea
               </span>
             </div>
@@ -386,16 +491,9 @@ export default function AdminDriversPage() {
             disabled={refreshing}
             className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-7 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-60"
           >
-            <RefreshCw
-              size={19}
-              className={
-                refreshing ? "animate-spin" : ""
-              }
-            />
+            <RefreshCw size={19} className={refreshing ? "animate-spin" : ""} />
 
-            {refreshing
-              ? "Actualizando..."
-              : "Actualizar conductores"}
+            {refreshing ? "Actualizando..." : "Actualizar conductores"}
           </button>
         </div>
       </div>
@@ -406,7 +504,7 @@ export default function AdminDriversPage() {
             "rounded-2xl border px-5 py-4 text-sm font-semibold",
             message.toLowerCase().includes("error")
               ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700",
           )}
         >
           {message}
@@ -431,10 +529,10 @@ export default function AdminDriversPage() {
         />
 
         <StatCard
-          label="Verificados"
-          value={verifiedCount}
-          description="Identidad validada"
-          icon={BadgeCheck}
+          label="Con viaje activo"
+          value={activeTripCount}
+          description="Atendiendo un recorrido"
+          icon={Route}
           iconClass="bg-yellow-100 text-yellow-700"
         />
 
@@ -470,10 +568,8 @@ export default function AdminDriversPage() {
                 <input
                   type="search"
                   value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
-                  placeholder="Buscar nombre, licencia o teléfono..."
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar nombre, correo, licencia, teléfono o vehículo..."
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-80"
                 />
               </div>
@@ -490,14 +586,12 @@ export default function AdminDriversPage() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() =>
-                      setFilter(value as DriverFilter)
-                    }
+                    onClick={() => setFilter(value as DriverFilter)}
                     className={cn(
                       "whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black transition",
                       filter === value
                         ? "bg-slate-950 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-950"
+                        : "text-slate-500 hover:text-slate-950",
                     )}
                   >
                     {label}
@@ -515,13 +609,11 @@ export default function AdminDriversPage() {
                 <CarFront size={34} />
               </span>
 
-              <h3 className="mt-6 text-2xl font-black">
-                No hay conductores
-              </h3>
+              <h3 className="mt-6 text-2xl font-black">No hay conductores</h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                No encontramos conductores que coincidan con
-                la búsqueda o el filtro seleccionado.
+                No encontramos conductores que coincidan con la búsqueda o el
+                filtro seleccionado.
               </p>
             </div>
           </div>
@@ -529,8 +621,8 @@ export default function AdminDriversPage() {
           <div className="grid gap-5 p-5 md:grid-cols-2 2xl:grid-cols-3 sm:p-7">
             {filteredDrivers.map((driver) => {
               const profile = getProfile(driver);
-              const processing =
-                processingId === driver.id;
+              const primaryVehicle = getPrimaryVehicle(driver);
+              const processing = processingId === driver.id;
 
               return (
                 <article
@@ -540,33 +632,39 @@ export default function AdminDriversPage() {
                   <div
                     className={cn(
                       "h-1.5",
-                      driver.status === "active" &&
-                        "bg-emerald-500",
-                      driver.status === "pending" &&
-                        "bg-amber-400",
-                      driver.status === "suspended" &&
-                        "bg-red-500",
-                      driver.status === "rejected" &&
-                        "bg-slate-500"
+                      driver.status === "active" && "bg-emerald-500",
+                      driver.status === "pending" && "bg-amber-400",
+                      driver.status === "suspended" && "bg-red-500",
+                      driver.status === "rejected" && "bg-slate-500",
                     )}
                   />
 
                   <div className="p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex min-w-0 items-center gap-4">
-                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-yellow-400">
-                          <UserRound size={25} />
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-950 text-yellow-400">
+                          {profile?.avatar_url ? (
+                            <img
+                              src={profile.avatar_url}
+                              alt={profile.full_name || "Foto del conductor"}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <UserRound size={25} />
+                          )}
                         </span>
 
                         <div className="min-w-0">
                           <h3 className="truncate text-lg font-black text-slate-950">
-                            {profile?.full_name ||
-                              "Conductor sin nombre"}
+                            {profile?.full_name || "Conductor sin nombre"}
                           </h3>
 
                           <p className="mt-1 truncate text-sm text-slate-500">
-                            {profile?.phone ||
-                              "Sin teléfono registrado"}
+                            {profile?.email || "Sin correo registrado"}
+                          </p>
+
+                          <p className="mt-1 truncate text-xs text-slate-400">
+                            {profile?.phone || "Sin teléfono registrado"}
                           </p>
                         </div>
                       </div>
@@ -576,13 +674,9 @@ export default function AdminDriversPage() {
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
                           driver.online
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
+                            : "bg-slate-100 text-slate-500",
                         )}
-                        title={
-                          driver.online
-                            ? "En línea"
-                            : "Fuera de línea"
-                        }
+                        title={driver.online ? "En línea" : "Fuera de línea"}
                       >
                         {driver.online ? (
                           <Power size={19} />
@@ -593,16 +687,21 @@ export default function AdminDriversPage() {
                     </div>
 
                     <div className="mt-5 flex flex-wrap gap-2">
-                      <DriverStatusBadge
-                        status={driver.status}
-                      />
+                      <DriverStatusBadge status={driver.status} />
+
+                      {activeTripDriverIds.has(driver.id) && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
+                          <Route size={14} />
+                          En viaje
+                        </span>
+                      )}
 
                       <span
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black",
                           driver.verified
                             ? "bg-blue-100 text-blue-700"
-                            : "bg-slate-100 text-slate-600"
+                            : "bg-slate-100 text-slate-600",
                         )}
                       >
                         {driver.verified ? (
@@ -611,9 +710,7 @@ export default function AdminDriversPage() {
                           <ShieldAlert size={14} />
                         )}
 
-                        {driver.verified
-                          ? "Verificado"
-                          : "Sin verificar"}
+                        {driver.verified ? "Verificado" : "Sin verificar"}
                       </span>
 
                       <span
@@ -621,7 +718,7 @@ export default function AdminDriversPage() {
                           "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black",
                           profile?.account_active !== false
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-red-100 text-red-700"
+                            : "bg-red-100 text-red-700",
                         )}
                       >
                         Cuenta{" "}
@@ -634,18 +731,14 @@ export default function AdminDriversPage() {
                     <div className="mt-6 grid grid-cols-2 gap-3">
                       <InfoBox
                         label="Calificación"
-                        value={Number(
-                          profile?.rating ?? 5
-                        ).toFixed(1)}
+                        value={Number(profile?.rating ?? 5).toFixed(1)}
                         icon={Star}
                         iconClass="text-yellow-600"
                       />
 
                       <InfoBox
                         label="Viajes"
-                        value={String(
-                          profile?.total_trips ?? 0
-                        )}
+                        value={String(profile?.total_trips ?? 0)}
                         icon={Route}
                         iconClass="text-blue-600"
                       />
@@ -653,38 +746,90 @@ export default function AdminDriversPage() {
 
                     <div className="mt-5 space-y-3 rounded-2xl bg-slate-50 p-4">
                       <InfoRow
+                        icon={UserRound}
+                        label="Correo"
+                        value={profile?.email || "No registrado"}
+                      />
+
+                      <InfoRow
                         icon={IdCard}
                         label="Licencia"
-                        value={
-                          driver.license_number ||
-                          "No registrada"
-                        }
+                        value={driver.license_number || "No registrada"}
                       />
 
                       <InfoRow
                         icon={CalendarDays}
                         label="Vencimiento"
-                        value={formatDate(
-                          driver.license_expiration
-                        )}
+                        value={formatDate(driver.license_expiration)}
                       />
 
                       <InfoRow
                         icon={Phone}
                         label="Teléfono"
-                        value={
-                          profile?.phone ||
-                          "No registrado"
-                        }
+                        value={profile?.phone || "No registrado"}
                       />
 
                       <InfoRow
                         icon={Clock3}
                         label="Registro"
-                        value={formatDate(
-                          driver.created_at
-                        )}
+                        value={formatDate(driver.created_at)}
                       />
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <CarFront size={18} className="text-blue-600" />
+
+                          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                            Vehículo asignado
+                          </p>
+                        </div>
+
+                        {driver.vehicles.length > 1 && (
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
+                            {driver.vehicles.length} vehículos
+                          </span>
+                        )}
+                      </div>
+
+                      {primaryVehicle ? (
+                        <div className="mt-4">
+                          <p className="font-black text-slate-950">
+                            {primaryVehicle.brand} {primaryVehicle.model}
+                            {primaryVehicle.vehicle_year
+                              ? ` ${primaryVehicle.vehicle_year}`
+                              : ""}
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-700">
+                              {primaryVehicle.plates}
+                            </span>
+
+                            <span
+                              className={cn(
+                                "rounded-full px-3 py-1 text-xs font-black",
+                                primaryVehicle.verified
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-amber-100 text-amber-700",
+                              )}
+                            >
+                              {primaryVehicle.verified
+                                ? "Vehículo verificado"
+                                : "Vehículo sin verificar"}
+                            </span>
+
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                              {primaryVehicle.status}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm font-semibold text-red-600">
+                          Conductor sin vehículo registrado
+                        </p>
+                      )}
                     </div>
 
                     <div className="mt-6">
@@ -695,73 +840,36 @@ export default function AdminDriversPage() {
                       <div className="grid grid-cols-2 gap-2">
                         <StatusButton
                           label="Activar"
-                          onClick={() =>
-                            updateStatus(
-                              driver.id,
-                              "active"
-                            )
-                          }
-                          disabled={
-                            processing ||
-                            driver.status === "active"
-                          }
+                          onClick={() => updateStatus(driver.id, "active")}
+                          disabled={processing || driver.status === "active"}
                           className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
                         />
 
                         <StatusButton
                           label="Suspender"
-                          onClick={() =>
-                            updateStatus(
-                              driver.id,
-                              "suspended"
-                            )
-                          }
-                          disabled={
-                            processing ||
-                            driver.status ===
-                              "suspended"
-                          }
+                          onClick={() => updateStatus(driver.id, "suspended")}
+                          disabled={processing || driver.status === "suspended"}
                           className="bg-red-100 text-red-700 hover:bg-red-200"
                         />
 
                         <StatusButton
                           label="Pendiente"
-                          onClick={() =>
-                            updateStatus(
-                              driver.id,
-                              "pending"
-                            )
-                          }
-                          disabled={
-                            processing ||
-                            driver.status === "pending"
-                          }
+                          onClick={() => updateStatus(driver.id, "pending")}
+                          disabled={processing || driver.status === "pending"}
                           className="bg-amber-100 text-amber-800 hover:bg-amber-200"
                         />
 
                         <StatusButton
                           label="Rechazar"
-                          onClick={() =>
-                            updateStatus(
-                              driver.id,
-                              "rejected"
-                            )
-                          }
-                          disabled={
-                            processing ||
-                            driver.status ===
-                              "rejected"
-                          }
+                          onClick={() => updateStatus(driver.id, "rejected")}
+                          disabled={processing || driver.status === "rejected"}
                           className="bg-slate-200 text-slate-700 hover:bg-slate-300"
                         />
                       </div>
 
                       {processing && (
                         <div className="mt-3 flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
-                          <LoaderCircle
-                            size={15}
-                            className="animate-spin"
-                          />
+                          <LoaderCircle size={15} className="animate-spin" />
                           Actualizando conductor...
                         </div>
                       )}
@@ -796,45 +904,31 @@ function StatCard({
         <span
           className={cn(
             "flex h-12 w-12 items-center justify-center rounded-2xl",
-            iconClass
+            iconClass,
           )}
         >
           <Icon size={23} />
         </span>
 
-        <p className="text-4xl font-black">
-          {value}
-        </p>
+        <p className="text-4xl font-black">{value}</p>
       </div>
 
-      <p className="mt-5 font-black">
-        {label}
-      </p>
+      <p className="mt-5 font-black">{label}</p>
 
-      <p className="mt-1 text-sm text-slate-500">
-        {description}
-      </p>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
     </Card>
   );
 }
 
-function DriverStatusBadge({
-  status,
-}: {
-  status: DriverStatus;
-}) {
+function DriverStatusBadge({ status }: { status: DriverStatus }) {
   return (
     <span
       className={cn(
         "inline-flex rounded-full px-3 py-1 text-xs font-black",
-        status === "active" &&
-          "bg-emerald-100 text-emerald-700",
-        status === "pending" &&
-          "bg-amber-100 text-amber-800",
-        status === "suspended" &&
-          "bg-red-100 text-red-700",
-        status === "rejected" &&
-          "bg-slate-200 text-slate-700"
+        status === "active" && "bg-emerald-100 text-emerald-700",
+        status === "pending" && "bg-amber-100 text-amber-800",
+        status === "suspended" && "bg-red-100 text-red-700",
+        status === "rejected" && "bg-slate-200 text-slate-700",
       )}
     >
       {statusLabels[status]}
@@ -855,18 +949,13 @@ function InfoBox({
 }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
-      <Icon
-        size={19}
-        className={iconClass}
-      />
+      <Icon size={19} className={iconClass} />
 
       <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
         {label}
       </p>
 
-      <p className="mt-1 text-xl font-black text-slate-950">
-        {value}
-      </p>
+      <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
     </div>
   );
 }
@@ -882,10 +971,7 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon
-        size={16}
-        className="mt-0.5 shrink-0 text-slate-400"
-      />
+      <Icon size={16} className="mt-0.5 shrink-0 text-slate-400" />
 
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -918,7 +1004,7 @@ function StatusButton({
       disabled={disabled}
       className={cn(
         "h-11 rounded-xl px-3 text-xs font-black transition disabled:pointer-events-none disabled:opacity-35",
-        className
+        className,
       )}
     >
       {label}

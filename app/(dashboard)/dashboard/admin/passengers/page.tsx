@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -29,15 +24,12 @@ import { isAdmin } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type PassengerFilter =
-  | "all"
-  | "active"
-  | "inactive"
-  | "with-trips"
-  | "without-trips";
+  "all" | "active" | "inactive" | "with-trips" | "without-trips";
 
 type Passenger = {
   id: string;
   full_name: string | null;
+  email: string | null;
   phone: string | null;
   avatar_url: string | null;
   rating: number;
@@ -58,12 +50,10 @@ export default function AdminPassengersPage() {
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingId, setProcessingId] =
-    useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [filter, setFilter] =
-    useState<PassengerFilter>("all");
+  const [filter, setFilter] = useState<PassengerFilter>("all");
 
   const loadPassengers = useCallback(
     async (silent = false) => {
@@ -84,17 +74,13 @@ export default function AdminPassengersPage() {
         return;
       }
 
-      const { data: currentProfile, error: profileError } =
-        await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
+      const { data: currentProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
 
-      if (
-        profileError ||
-        !isAdmin(currentProfile?.role)
-      ) {
+      if (profileError || !isAdmin(currentProfile?.role)) {
         router.replace("/dashboard");
         return;
       }
@@ -102,7 +88,7 @@ export default function AdminPassengersPage() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "id, full_name, phone, avatar_url, rating, total_trips, account_active, created_at"
+          "id, full_name, phone, avatar_url, rating, total_trips, account_active, created_at",
         )
         .eq("role", "passenger")
         .order("created_at", {
@@ -110,17 +96,49 @@ export default function AdminPassengersPage() {
         });
 
       if (error) {
-        setMessage(
-          `Error cargando pasajeros: ${error.message}`
-        );
+        setMessage(`Error cargando pasajeros: ${error.message}`);
       } else {
-        setPassengers((data ?? []) as Passenger[]);
+        const profileRows = data ?? [];
+        const profileIds = profileRows.map((profile) => profile.id);
+
+        let emailMap = new Map<string, string | null>();
+
+        if (profileIds.length > 0) {
+          const { data: emailRows, error: emailsError } = await supabase.rpc(
+            "admin_get_profile_emails",
+            {
+              requested_user_ids: profileIds,
+            },
+          );
+
+          if (emailsError) {
+            setMessage(
+              `Pasajeros cargados, pero no fue posible cargar algunos correos: ${emailsError.message}`,
+            );
+          } else {
+            emailMap = new Map(
+              (emailRows ?? []).map(
+                (row: { id: string; email: string | null }) => [
+                  row.id,
+                  row.email,
+                ],
+              ),
+            );
+          }
+        }
+
+        setPassengers(
+          profileRows.map((profile) => ({
+            ...profile,
+            email: emailMap.get(profile.id) ?? null,
+          })) as Passenger[],
+        );
       }
 
       setLoading(false);
       setRefreshing(false);
     },
-    [router]
+    [router],
   );
 
   useEffect(() => {
@@ -130,14 +148,12 @@ export default function AdminPassengersPage() {
 
   async function updatePassengerStatus(
     passengerId: string,
-    newActiveStatus: boolean
+    newActiveStatus: boolean,
   ) {
-    const action = newActiveStatus
-      ? "activar"
-      : "suspender";
+    const action = newActiveStatus ? "activar" : "suspender";
 
     const confirmed = window.confirm(
-      `¿Seguro que quieres ${action} esta cuenta?`
+      `¿Seguro que quieres ${action} esta cuenta?`,
     );
 
     if (!confirmed) return;
@@ -145,23 +161,18 @@ export default function AdminPassengersPage() {
     setProcessingId(passengerId);
     setMessage("");
 
-    const { error } = await supabase.rpc(
-      "update_passenger_status",
-      {
-        passenger_user_id: passengerId,
-        new_active_status: newActiveStatus,
-      }
-    );
+    const { error } = await supabase.rpc("update_passenger_status", {
+      passenger_user_id: passengerId,
+      new_active_status: newActiveStatus,
+    });
 
     if (error) {
-      setMessage(
-        `Error actualizando pasajero: ${error.message}`
-      );
+      setMessage(`Error actualizando pasajero: ${error.message}`);
     } else {
       setMessage(
         newActiveStatus
           ? "Cuenta activada correctamente."
-          : "Cuenta suspendida correctamente."
+          : "Cuenta suspendida correctamente.",
       );
 
       await loadPassengers(true);
@@ -171,43 +182,40 @@ export default function AdminPassengersPage() {
   }
 
   const activeCount = passengers.filter(
-    (passenger) => passenger.account_active
+    (passenger) => passenger.account_active,
   ).length;
 
   const inactiveCount = passengers.filter(
-    (passenger) => !passenger.account_active
+    (passenger) => !passenger.account_active,
   ).length;
 
   const totalTrips = passengers.reduce(
-    (total, passenger) =>
-      total + Number(passenger.total_trips ?? 0),
-    0
+    (total, passenger) => total + Number(passenger.total_trips ?? 0),
+    0,
   );
 
   const averageRating =
     passengers.length > 0
       ? passengers.reduce(
-          (total, passenger) =>
-            total + Number(passenger.rating ?? 5),
-          0
+          (total, passenger) => total + Number(passenger.rating ?? 5),
+          0,
         ) / passengers.length
       : 0;
 
   const filteredPassengers = useMemo(() => {
-    const normalizedSearch = search
-      .trim()
-      .toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
 
     return passengers.filter((passenger) => {
-      const name =
-        passenger.full_name?.toLowerCase() ?? "";
+      const name = passenger.full_name?.toLowerCase() ?? "";
 
-      const phone =
-        passenger.phone?.toLowerCase() ?? "";
+      const email = passenger.email?.toLowerCase() ?? "";
+
+      const phone = passenger.phone?.toLowerCase() ?? "";
 
       const matchesSearch =
         !normalizedSearch ||
         name.includes(normalizedSearch) ||
+        email.includes(normalizedSearch) ||
         phone.includes(normalizedSearch);
 
       if (!matchesSearch) return false;
@@ -267,25 +275,18 @@ export default function AdminPassengersPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Consulta las cuentas registradas, revisa su
-              actividad y administra el acceso de los
-              pasajeros a la plataforma.
+              Consulta las cuentas registradas, revisa su actividad y administra
+              el acceso de los pasajeros a la plataforma.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <UserRound
-                  size={18}
-                  className="text-yellow-400"
-                />
+                <UserRound size={18} className="text-yellow-400" />
                 {passengers.length} registrados
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <Route
-                  size={18}
-                  className="text-emerald-400"
-                />
+                <Route size={18} className="text-emerald-400" />
                 {totalTrips} viajes acumulados
               </span>
             </div>
@@ -297,16 +298,9 @@ export default function AdminPassengersPage() {
             disabled={refreshing}
             className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-7 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-60"
           >
-            <RefreshCw
-              size={19}
-              className={
-                refreshing ? "animate-spin" : ""
-              }
-            />
+            <RefreshCw size={19} className={refreshing ? "animate-spin" : ""} />
 
-            {refreshing
-              ? "Actualizando..."
-              : "Actualizar pasajeros"}
+            {refreshing ? "Actualizando..." : "Actualizar pasajeros"}
           </button>
         </div>
       </div>
@@ -317,7 +311,7 @@ export default function AdminPassengersPage() {
             "rounded-2xl border px-5 py-4 text-sm font-semibold",
             message.toLowerCase().includes("error")
               ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700",
           )}
         >
           {message}
@@ -351,9 +345,7 @@ export default function AdminPassengersPage() {
 
         <StatCard
           label="Calificación promedio"
-          value={Number(
-            averageRating.toFixed(1)
-          )}
+          value={Number(averageRating.toFixed(1))}
           description="Promedio de usuarios"
           icon={Star}
           iconClass="bg-yellow-100 text-yellow-700"
@@ -383,10 +375,8 @@ export default function AdminPassengersPage() {
                 <input
                   type="search"
                   value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
-                  placeholder="Buscar nombre o teléfono..."
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar nombre, correo o teléfono..."
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-72"
                 />
               </div>
@@ -402,16 +392,12 @@ export default function AdminPassengersPage() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() =>
-                      setFilter(
-                        value as PassengerFilter
-                      )
-                    }
+                    onClick={() => setFilter(value as PassengerFilter)}
                     className={cn(
                       "whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black transition",
                       filter === value
                         ? "bg-slate-950 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-950"
+                        : "text-slate-500 hover:text-slate-950",
                     )}
                   >
                     {label}
@@ -429,21 +415,18 @@ export default function AdminPassengersPage() {
                 <UsersRound size={34} />
               </span>
 
-              <h3 className="mt-6 text-2xl font-black">
-                No hay pasajeros
-              </h3>
+              <h3 className="mt-6 text-2xl font-black">No hay pasajeros</h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                No encontramos usuarios que coincidan con la
-                búsqueda o el filtro seleccionado.
+                No encontramos usuarios que coincidan con la búsqueda o el
+                filtro seleccionado.
               </p>
             </div>
           </div>
         ) : (
           <div className="grid gap-5 p-5 md:grid-cols-2 2xl:grid-cols-3 sm:p-7">
             {filteredPassengers.map((passenger) => {
-              const processing =
-                processingId === passenger.id;
+              const processing = processingId === passenger.id;
 
               return (
                 <article
@@ -455,7 +438,7 @@ export default function AdminPassengersPage() {
                       "h-1.5",
                       passenger.account_active
                         ? "bg-emerald-500"
-                        : "bg-red-500"
+                        : "bg-red-500",
                     )}
                   />
 
@@ -467,28 +450,25 @@ export default function AdminPassengersPage() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={passenger.avatar_url}
-                              alt={
-                                passenger.full_name ||
-                                "Pasajero"
-                              }
+                              alt={passenger.full_name || "Pasajero"}
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            passenger.full_name
-                              ?.charAt(0)
-                              .toUpperCase() || "U"
+                            passenger.full_name?.charAt(0).toUpperCase() || "U"
                           )}
                         </div>
 
                         <div className="min-w-0">
                           <h3 className="truncate text-lg font-black text-slate-950">
-                            {passenger.full_name ||
-                              "Usuario sin nombre"}
+                            {passenger.full_name || "Usuario sin nombre"}
                           </h3>
 
                           <p className="mt-1 truncate text-sm text-slate-500">
-                            {passenger.phone ||
-                              "Sin teléfono registrado"}
+                            {passenger.email || "Sin correo registrado"}
+                          </p>
+
+                          <p className="mt-1 truncate text-xs text-slate-400">
+                            {passenger.phone || "Sin teléfono registrado"}
                           </p>
                         </div>
                       </div>
@@ -498,7 +478,7 @@ export default function AdminPassengersPage() {
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
                           passenger.account_active
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-red-100 text-red-700"
+                            : "bg-red-100 text-red-700",
                         )}
                       >
                         {passenger.account_active ? (
@@ -515,7 +495,7 @@ export default function AdminPassengersPage() {
                           "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black",
                           passenger.account_active
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-red-100 text-red-700"
+                            : "bg-red-100 text-red-700",
                         )}
                       >
                         {passenger.account_active ? (
@@ -533,18 +513,14 @@ export default function AdminPassengersPage() {
                     <div className="mt-6 grid grid-cols-2 gap-3">
                       <InfoBox
                         label="Calificación"
-                        value={Number(
-                          passenger.rating ?? 5
-                        ).toFixed(1)}
+                        value={Number(passenger.rating ?? 5).toFixed(1)}
                         icon={Star}
                         iconClass="text-yellow-600"
                       />
 
                       <InfoBox
                         label="Viajes"
-                        value={String(
-                          passenger.total_trips ?? 0
-                        )}
+                        value={String(passenger.total_trips ?? 0)}
                         icon={Route}
                         iconClass="text-blue-600"
                       />
@@ -552,29 +528,28 @@ export default function AdminPassengersPage() {
 
                     <div className="mt-5 space-y-3 rounded-2xl bg-slate-50 p-4">
                       <InfoRow
+                        icon={UserRound}
+                        label="Correo"
+                        value={passenger.email || "No registrado"}
+                      />
+
+                      <InfoRow
                         icon={Phone}
                         label="Teléfono"
-                        value={
-                          passenger.phone ||
-                          "No registrado"
-                        }
+                        value={passenger.phone || "No registrado"}
                       />
 
                       <InfoRow
                         icon={CalendarDays}
                         label="Registro"
-                        value={formatDate(
-                          passenger.created_at
-                        )}
+                        value={formatDate(passenger.created_at)}
                       />
 
                       <InfoRow
                         icon={Clock3}
                         label="Actividad"
                         value={
-                          Number(
-                            passenger.total_trips ?? 0
-                          ) > 0
+                          Number(passenger.total_trips ?? 0) > 0
                             ? `${passenger.total_trips} viajes realizados`
                             : "Sin viajes registrados"
                         }
@@ -586,7 +561,7 @@ export default function AdminPassengersPage() {
                       onClick={() =>
                         updatePassengerStatus(
                           passenger.id,
-                          !passenger.account_active
+                          !passenger.account_active,
                         )
                       }
                       disabled={processing}
@@ -594,15 +569,12 @@ export default function AdminPassengersPage() {
                         "mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl px-5 text-sm font-black transition disabled:pointer-events-none disabled:opacity-50",
                         passenger.account_active
                           ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                          : "bg-emerald-600 text-white hover:bg-emerald-700"
+                          : "bg-emerald-600 text-white hover:bg-emerald-700",
                       )}
                     >
                       {processing ? (
                         <>
-                          <LoaderCircle
-                            size={17}
-                            className="animate-spin"
-                          />
+                          <LoaderCircle size={17} className="animate-spin" />
                           Procesando...
                         </>
                       ) : passenger.account_active ? (
@@ -647,24 +619,18 @@ function StatCard({
         <span
           className={cn(
             "flex h-12 w-12 items-center justify-center rounded-2xl",
-            iconClass
+            iconClass,
           )}
         >
           <Icon size={23} />
         </span>
 
-        <p className="text-4xl font-black">
-          {value}
-        </p>
+        <p className="text-4xl font-black">{value}</p>
       </div>
 
-      <p className="mt-5 font-black">
-        {label}
-      </p>
+      <p className="mt-5 font-black">{label}</p>
 
-      <p className="mt-1 text-sm text-slate-500">
-        {description}
-      </p>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
     </Card>
   );
 }
@@ -682,18 +648,13 @@ function InfoBox({
 }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
-      <Icon
-        size={19}
-        className={iconClass}
-      />
+      <Icon size={19} className={iconClass} />
 
       <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
         {label}
       </p>
 
-      <p className="mt-1 text-xl font-black text-slate-950">
-        {value}
-      </p>
+      <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
     </div>
   );
 }
@@ -709,10 +670,7 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon
-        size={16}
-        className="mt-0.5 shrink-0 text-slate-400"
-      />
+      <Icon size={16} className="mt-0.5 shrink-0 text-slate-400" />
 
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">

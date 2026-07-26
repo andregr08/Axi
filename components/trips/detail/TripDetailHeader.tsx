@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   CircleDollarSign,
+  Copy,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -17,6 +20,7 @@ import type {
 type TripDetailHeaderProps = {
   role: TripDetailRole;
   status: TripDetailStatus;
+  tripCode: string;
   requestedAt: string;
   displayPrice: string;
   statusLabel: string;
@@ -44,6 +48,7 @@ function getStatusVariant(
 export function TripDetailHeader({
   role,
   status,
+  tripCode,
   requestedAt,
   displayPrice,
   statusLabel,
@@ -51,6 +56,20 @@ export function TripDetailHeader({
   description,
 }: TripDetailHeaderProps) {
   const { locale } = useLanguage();
+  const [copied, setCopied] = useState(false);
+
+  async function copyTripCode() {
+    try {
+      await navigator.clipboard.writeText(tripCode);
+      setCopied(true);
+
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   const passengerEnglish =
     role === "passenger" &&
@@ -108,12 +127,24 @@ export function TripDetailHeader({
 
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <Badge
-              variant={getStatusVariant(status)}
-              className="border border-white/10"
-            >
-              {statusLabel}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge
+                variant={getStatusVariant(status)}
+                className="border border-white/10"
+              >
+                {statusLabel}
+              </Badge>
+
+              <button
+                type="button"
+                onClick={copyTripCode}
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-black tracking-[0.12em] text-white transition hover:bg-white/20"
+                title={passengerEnglish ? "Copy ride code" : "Copiar folio"}
+              >
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+                {tripCode}
+              </button>
+            </div>
 
             <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
               {title}

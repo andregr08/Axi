@@ -1,10 +1,5 @@
 ﻿export type TripDetailRole =
-  | "director_general"
-  | "admin"
-  | "support"
-  | "finance"
-  | "driver"
-  | "passenger";
+  "admin" | "support" | "finance" | "driver" | "passenger";
 
 export type TripDetailStatus =
   | "requested"
@@ -18,6 +13,8 @@ export type TripDetailStatus =
 
 export type TripDetailData = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   vehicle_id: string | null;
@@ -31,7 +28,8 @@ export type TripDetailData = {
   estimated_price: number | null;
   final_price: number | null;
   requested_at: string;
-  accepted_at: string | null;
+  accepted_at: string | null;
+
   trip_pin_verified_at: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -90,9 +88,5 @@ export type TripViewSharedProps = {
   locationConnected: boolean;
   processing: boolean;
   message: string;
-  onAdvanceStatus: (
-    nextStatus: TripDetailStatus
-  ) => Promise<void>;
+  onAdvanceStatus: (nextStatus: TripDetailStatus) => Promise<void>;
 };
-
-

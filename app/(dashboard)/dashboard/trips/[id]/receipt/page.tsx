@@ -9,6 +9,8 @@ type UserRole = "admin" | "driver" | "passenger";
 
 type TripReceipt = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   origin_address: string;
@@ -67,6 +69,8 @@ export default function TripReceiptPage() {
         .from("trips")
         .select(`
           id,
+          trip_number,
+          trip_code,
           passenger_id,
           driver_id,
           origin_address,
@@ -199,8 +203,8 @@ export default function TripReceiptPage() {
 
             <div className="text-right">
               <p className="text-sm text-gray-500">Folio</p>
-              <p className="mt-1 font-mono text-sm">
-                {trip.id.slice(0, 8).toUpperCase()}
+              <p className="mt-1 font-mono text-sm font-bold">
+                {trip.trip_code}
               </p>
             </div>
           </div>

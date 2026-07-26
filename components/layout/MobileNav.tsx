@@ -8,12 +8,14 @@ import {
   ClipboardCheck,
   CreditCard,
   Gauge,
+  Headphones,
   Home,
   LogOut,
   Menu,
   Route,
   Settings,
   ShieldCheck,
+  Siren,
   SlidersHorizontal,
   UserRound,
   UsersRound,
@@ -46,10 +48,7 @@ type NavigationItem = {
   visible: boolean;
 };
 
-export function MobileNav({
-  role,
-  onLogout,
-}: MobileNavProps) {
+export function MobileNav({ role, onLogout }: MobileNavProps) {
   const pathname = usePathname();
   const { t, locale } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,13 +70,13 @@ export function MobileNav({
           ? "navigation.availableTrips"
           : "navigation.myTrips",
       icon: Route,
-      visible: true,
+      visible: role === "driver" || role === "passenger",
     },
     {
       href: "/dashboard/payments",
       labelKey: "navigation.payments",
       icon: CreditCard,
-      visible: true,
+      visible: role === "driver" || role === "passenger",
     },
     {
       href: "/dashboard/profile",
@@ -88,13 +87,10 @@ export function MobileNav({
   ];
 
   const secondaryItems: NavigationItem[] = [
-
+    // PASAJERO
     {
       href: "/dashboard/passenger/profile",
-      label:
-        locale === "en"
-          ? "Settings"
-          : "Configuración",
+      label: locale === "en" ? "Settings" : "Configuración",
       description:
         locale === "en"
           ? "Profile, security and saved places"
@@ -105,24 +101,23 @@ export function MobileNav({
     {
       href: "/dashboard/driver-application",
       labelKey: "navigation.becomeDriver",
-      descriptionKey:
-        "navigation.sendDriverApplication",
+      descriptionKey: "navigation.sendDriverApplication",
       icon: ClipboardCheck,
       visible: role === "passenger",
     },
+
+    // CONDUCTOR
     {
       href: "/dashboard/driver/status",
       labelKey: "navigation.availability",
-      descriptionKey:
-        "navigation.manageAvailability",
+      descriptionKey: "navigation.manageAvailability",
       icon: Gauge,
       visible: role === "driver",
     },
     {
       href: "/dashboard/driver/available-trips",
       labelKey: "navigation.availableTrips",
-      descriptionKey:
-        "navigation.nearbyRequests",
+      descriptionKey: "navigation.nearbyRequests",
       icon: Route,
       visible: role === "driver",
     },
@@ -138,91 +133,89 @@ export function MobileNav({
       labelKey: "navigation.myVehicles",
       descriptionKey: "navigation.manageFleet",
       icon: CarFront,
-
-      visible: role === "driver" || isAdmin(role),
-
+      visible: role === "driver",
     },
+
+    // ADMINISTRACIÓN
     {
-      href:
-        "/dashboard/admin/driver-applications",
+      href: "/dashboard/admin/driver-applications",
       labelKey: "navigation.applications",
-      descriptionKey:
-        "navigation.reviewDrivers",
+      descriptionKey: "navigation.reviewDrivers",
       icon: ClipboardCheck,
       visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/drivers",
       labelKey: "navigation.drivers",
-      descriptionKey:
-        "navigation.manageDrivers",
+      descriptionKey: "navigation.manageDrivers",
       icon: CarFront,
       visible: isAdmin(role),
     },
     {
       href: "/dashboard/admin/passengers",
       labelKey: "navigation.passengers",
-      descriptionKey:
-        "navigation.registeredUsers",
+      descriptionKey: "navigation.registeredUsers",
       icon: UsersRound,
       visible: isAdmin(role),
+    },
+
+    // ADMINISTRACIÓN Y SOPORTE
+    {
+      href: "/dashboard/admin/trips",
+      labelKey: "navigation.adminTrips",
+      descriptionKey: "navigation.superviseTrips",
+      icon: Route,
+      visible: isAdmin(role) || isSupport(role),
     },
     {
       href: "/dashboard/admin/vehicles",
       labelKey: "navigation.adminVehicles",
-      descriptionKey:
-        "navigation.superviseFleet",
+      descriptionKey: "navigation.superviseFleet",
       icon: CarFront,
-      visible: isAdmin(role),
-    },
-    {
-      href: "/dashboard/admin/trips",
-      labelKey: "navigation.adminTrips",
-      descriptionKey:
-        "navigation.superviseTrips",
-      icon: ShieldCheck,
-      visible: isAdmin(role),
+      visible: isAdmin(role) || isSupport(role),
     },
     {
       href: "/dashboard/admin/support",
-      label: "Soporte",
-      description: "Gestiona tickets, reportes e incidentes",
-      icon: ShieldCheck,
+      label: "Centro de soporte",
+      description: "Gestiona conversaciones, tickets e incidentes",
+      icon: Headphones,
       visible: isSupport(role),
     },
     {
+      href: "/dashboard/admin/sos",
+      label: "Casos urgentes SOS",
+      description: "Atiende alertas y emergencias prioritarias",
+      icon: Siren,
+      visible: isAdmin(role) || isSupport(role),
+    },
+
+    // FINANZAS
+    {
       href: "/dashboard/admin/finance",
       label: "Finanzas",
-      description: "Pagos, retiros, comisiones e incentivos",
+      description: "Pagos, comisiones, retiros y conciliaciones",
       icon: CreditCard,
       visible: isFinance(role),
     },
   ];
 
-  const visiblePrimaryItems =
-    primaryItems.filter((item) => item.visible);
+  const visiblePrimaryItems = primaryItems.filter((item) => item.visible);
 
-  const visibleSecondaryItems =
-    secondaryItems.filter((item) => item.visible);
+  const visibleSecondaryItems = secondaryItems.filter((item) => item.visible);
 
   function isActive(href: string) {
     if (href === "/dashboard") {
       return pathname === href;
     }
 
-    return (
-      pathname === href ||
-      pathname.startsWith(`${href}/`)
-    );
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   function closeMenu() {
     setMenuOpen(false);
   }
 
-  const roleName = role
-    ? t(`roles.${role}`)
-    : t("navigation.userFallback");
+  const roleName = role ? t(`roles.${role}`) : t("navigation.userFallback");
 
   return (
     <>
@@ -230,9 +223,7 @@ export function MobileNav({
         <div className="fixed inset-0 z-[60] lg:hidden">
           <button
             type="button"
-            aria-label={t(
-              "navigation.closeMenu"
-            )}
+            aria-label={t("navigation.closeMenu")}
             onClick={closeMenu}
             className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
           />
@@ -245,9 +236,7 @@ export function MobileNav({
                 <button
                   type="button"
                   onClick={closeMenu}
-                  aria-label={t(
-                    "navigation.closeMenu"
-                  )}
+                  aria-label={t("navigation.closeMenu")}
                   className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition active:scale-95"
                 >
                   <X size={21} />
@@ -265,16 +254,10 @@ export function MobileNav({
                   </span>
 
                   <div>
-                    <p className="font-black">
-
-                      {getRoleLabel(role)}
-
-                    </p>
+                    <p className="font-black">{getRoleLabel(role)}</p>
 
                     <p className="mt-1 text-xs text-slate-400">
-                      {t(
-                        "navigation.safeSmartMobility"
-                      )}
+                      {t("navigation.safeSmartMobility")}
                     </p>
                   </div>
                 </div>
@@ -287,53 +270,47 @@ export function MobileNav({
               </p>
 
               <div className="space-y-2">
-                {visibleSecondaryItems.map(
-                  (item) => {
-                    const Icon = item.icon;
-                    const active = isActive(
-                      item.href
-                    );
+                {visibleSecondaryItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={closeMenu}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={closeMenu}
+                      className={cn(
+                        "flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99]",
+                        active
+                          ? "border-yellow-400 bg-yellow-50"
+                          : "border-slate-100 bg-white hover:border-slate-300 hover:bg-slate-50",
+                      )}
+                    >
+                      <span
                         className={cn(
-                          "flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99]",
+                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
                           active
-                            ? "border-yellow-400 bg-yellow-50"
-                            : "border-slate-100 bg-white hover:border-slate-300 hover:bg-slate-50"
+                            ? "bg-yellow-400 text-black"
+                            : "bg-slate-100 text-slate-700",
                         )}
                       >
-                        <span
-                          className={cn(
-                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
-                            active
-                              ? "bg-yellow-400 text-black"
-                              : "bg-slate-100 text-slate-700"
-                          )}
-                        >
-                          <Icon size={21} />
+                        <Icon size={21} />
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-black text-slate-950">
+                          {item.labelKey ? t(item.labelKey) : item.label}
                         </span>
 
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-black text-slate-950">
-                            {item.labelKey ? t(item.labelKey) : item.label}
+                        {item.descriptionKey && (
+                          <span className="mt-1 block truncate text-xs text-slate-500">
+                            {t(item.descriptionKey)}
                           </span>
-
-                          {item.descriptionKey && (
-                            <span className="mt-1 block truncate text-xs text-slate-500">
-                              {t(
-                                item.descriptionKey
-                              )}
-                            </span>
-                          )}
-                        </span>
-                      </Link>
-                    );
-                  }
-                )}
+                        )}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
 
               <button
@@ -364,22 +341,16 @@ export function MobileNav({
                 href={item.href}
                 className={cn(
                   "flex min-w-0 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-bold transition",
-                  active
-                    ? "text-slate-950"
-                    : "text-slate-400"
+                  active ? "text-slate-950" : "text-slate-400",
                 )}
               >
                 <span
                   className={cn(
                     "flex h-9 w-12 items-center justify-center rounded-xl transition",
-                    active &&
-                      "bg-yellow-400 text-black"
+                    active && "bg-yellow-400 text-black",
                   )}
                 >
-                  <Icon
-                    size={19}
-                    strokeWidth={2.2}
-                  />
+                  <Icon size={19} strokeWidth={2.2} />
                 </span>
 
                 <span className="truncate">
@@ -395,10 +366,7 @@ export function MobileNav({
             className="flex min-w-0 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-bold text-slate-400 transition"
           >
             <span className="flex h-9 w-12 items-center justify-center rounded-xl">
-              <Menu
-                size={20}
-                strokeWidth={2.2}
-              />
+              <Menu size={20} strokeWidth={2.2} />
             </span>
 
             <span>{t("navigation.more")}</span>

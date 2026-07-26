@@ -135,6 +135,8 @@ function formatDate(
       dateStyle: "long",
       timeStyle: "short",
     }
+
+
   ).format(new Date(value));
 }
 
@@ -221,6 +223,8 @@ export default function ActiveTripPage({
     useState(false);
 
 
+
+
   const autoArrivalProcessingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] =
@@ -236,6 +240,10 @@ export default function ActiveTripPage({
       .from("trips")
       .select(`
         id,
+
+        trip_number,
+        trip_code,
+
         passenger_id,
         driver_id,
         vehicle_id,
@@ -458,7 +466,9 @@ export default function ActiveTripPage({
             filter: `id=eq.${id}`,
           },
           () => {
-            void loadTrip(profile.role as TripDetailRole);
+
+            void loadTrip(role ?? undefined);
+
           }
         )
         .subscribe();
@@ -473,6 +483,7 @@ return () => {
   }, [id, loadTrip, router, t]);
 
   useEffect(() => {
+
     if (
       role !== "passenger" ||
       !trip?.id ||
@@ -527,6 +538,7 @@ return () => {
   ]);
 
   useEffect(() => {
+
     if (!trip?.driver_id) {
       queueMicrotask(() => {
         setDriverLocation(null);
@@ -710,6 +722,8 @@ return () => {
 
     if (!confirmed) return;
 
+
+
     setProcessing(true);
     setMessage("");
 
@@ -869,6 +883,9 @@ return (
       <TripDetailHeader
         role={role}
         status={trip.status}
+
+        tripCode={trip.trip_code}
+
         requestedAt={formatDate(
           trip.requested_at,
           locale
@@ -892,12 +909,14 @@ return (
         </div>
       )}
 
+
       {role !== "driver" && (
         <TripProgress
           role={role}
           status={trip.status}
         />
       )}
+
 
       {role === "driver" ? (
         <DriverTripView
@@ -947,6 +966,7 @@ return (
         />
       )}
 
+
       {role === "driver" &&
         !isCompleted &&
         !isCancelled && (
@@ -974,6 +994,7 @@ return (
                 }
               />
             )}
+
 
             <TripSafetyCard
               tripId={trip.id}

@@ -25,16 +25,6 @@ const content: Record<
     secondaryHref: string;
   }
 > = {
-  director_general: {
-    eyebrow: "Dirección general",
-    title: "Control estratégico de AXI",
-    description:
-      "Supervisa la operación, las finanzas, el soporte y el crecimiento de toda la plataforma.",
-    primaryLabel: "Centro administrativo",
-    primaryHref: "/dashboard/admin",
-    secondaryLabel: "Ver finanzas",
-    secondaryHref: "/dashboard/admin/finance",
-  },
   admin: {
     eyebrow: "Centro de operaciones",
     title: "Control operativo de AXI",
@@ -87,10 +77,7 @@ const content: Record<
   },
 };
 
-export function Hero({
-  name = "Usuario",
-  role = "passenger",
-}: HeroProps) {
+export function Hero({ name = "Usuario", role = "passenger" }: HeroProps) {
   const data = content[role];
 
   return (
@@ -161,16 +148,12 @@ export function Hero({
               <div className="mt-7 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-black/10 p-3">
                   <MapPin size={18} />
-                  <p className="mt-2 text-xs font-bold">
-                    Rutas más rápidas
-                  </p>
+                  <p className="mt-2 text-xs font-bold">Rutas más rápidas</p>
                 </div>
 
                 <div className="rounded-2xl bg-black/10 p-3">
                   <ShieldCheck size={18} />
-                  <p className="mt-2 text-xs font-bold">
-                    Viajes seguros
-                  </p>
+                  <p className="mt-2 text-xs font-bold">Viajes seguros</p>
                 </div>
               </div>
             </div>

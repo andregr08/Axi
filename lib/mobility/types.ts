@@ -10,9 +10,10 @@ export type MobilityRouteEstimate = {
   distanceFare: number;
   bookingFee: number;
   estimatedPrice: number;
-  provider: "mock" | "google";
+  provider: "mock" | "google" | "osrm";
 };
 
 export type MobilityProviderName =
   | "mock"
-  | "google";
+  | "google"
+  | "osrm";

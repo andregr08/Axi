@@ -1,12 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -26,7 +21,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin, isSupport } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type TripStatus =
@@ -39,15 +34,12 @@ type TripStatus =
   | "completed"
   | "cancelled";
 
-type TripFilter =
-  | "all"
-  | "active"
-  | "completed"
-  | "cancelled"
-  | TripStatus;
+type TripFilter = "all" | "active" | "completed" | "cancelled" | TripStatus;
 
 type Trip = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   passenger_id: string;
   driver_id: string | null;
   origin_address: string;
@@ -97,6 +89,7 @@ export default function AdminTripsPage() {
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [emails, setEmails] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState("");
@@ -122,26 +115,27 @@ export default function AdminTripsPage() {
         return;
       }
 
-      const { data: currentProfile, error: profileError } =
-        await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
+      const { data: currentProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
 
       if (
         profileError ||
-        !isAdmin(currentProfile?.role)
+        (!isAdmin(currentProfile?.role) && !isSupport(currentProfile?.role))
       ) {
         router.replace("/dashboard");
         return;
       }
 
-      const { data: tripsData, error: tripsError } =
-        await supabase
-          .from("trips")
-          .select(`
+      const { data: tripsData, error: tripsError } = await supabase
+        .from("trips")
+        .select(
+          `
             id,
+            trip_number,
+            trip_code,
             passenger_id,
             driver_id,
             origin_address,
@@ -150,15 +144,14 @@ export default function AdminTripsPage() {
             estimated_price,
             final_price,
             requested_at
-          `)
-          .order("requested_at", {
-            ascending: false,
-          });
+          `,
+        )
+        .order("requested_at", {
+          ascending: false,
+        });
 
       if (tripsError) {
-        setMessage(
-          `Error cargando viajes: ${tripsError.message}`
-        );
+        setMessage(`Error cargando viajes: ${tripsError.message}`);
         setLoading(false);
         setRefreshing(false);
         return;
@@ -172,45 +165,70 @@ export default function AdminTripsPage() {
           loadedTrips.flatMap((trip) =>
             trip.driver_id
               ? [trip.passenger_id, trip.driver_id]
-              : [trip.passenger_id]
-          )
-        )
+              : [trip.passenger_id],
+          ),
+        ),
       );
 
       if (userIds.length > 0) {
-        const { data: profilesData, error: profilesError } =
-          await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", userIds);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
 
         if (profilesError) {
           setMessage(
-            `Viajes cargados, pero no fue posible cargar algunos nombres: ${profilesError.message}`
+            `Viajes cargados, pero no fue posible cargar algunos nombres: ${profilesError.message}`,
           );
         } else {
-          const nameMap = (
-            (profilesData ?? []) as ProfileName[]
-          ).reduce(
-            (result, profile) => {
-              result[profile.id] =
-                profile.full_name || "Usuario sin nombre";
+          const profileRows = (profilesData ?? []) as ProfileName[];
 
+          const nameMap = profileRows.reduce(
+            (result, profile) => {
+              result[profile.id] = profile.full_name || "Usuario sin nombre";
               return result;
             },
-            {} as Record<string, string>
+            {} as Record<string, string>,
+          );
+
+          const { data: emailRows, error: emailsError } = await supabase.rpc(
+            "admin_get_profile_emails",
+            {
+              requested_user_ids: userIds,
+            },
+          );
+
+          if (emailsError) {
+            setMessage(
+              `Viajes cargados, pero no fue posible cargar algunos correos: ${emailsError.message}`,
+            );
+          }
+
+          const emailMap = (
+            (emailRows ?? []) as Array<{
+              id: string;
+              email: string | null;
+            }>
+          ).reduce(
+            (result, row) => {
+              result[row.id] = row.email || "Correo no registrado";
+              return result;
+            },
+            {} as Record<string, string>,
           );
 
           setNames(nameMap);
+          setEmails(emailMap);
         }
       } else {
         setNames({});
+        setEmails({});
       }
 
       setLoading(false);
       setRefreshing(false);
     },
-    [router]
+    [router],
   );
 
   useEffect(() => {
@@ -218,16 +236,14 @@ export default function AdminTripsPage() {
     void loadTrips();
   }, [loadTrips]);
 
-  const activeCount = trips.filter((trip) =>
-    isActiveTrip(trip.status)
-  ).length;
+  const activeCount = trips.filter((trip) => isActiveTrip(trip.status)).length;
 
   const completedCount = trips.filter(
-    (trip) => trip.status === "completed"
+    (trip) => trip.status === "completed",
   ).length;
 
   const cancelledCount = trips.filter(
-    (trip) => trip.status === "cancelled"
+    (trip) => trip.status === "cancelled",
   ).length;
 
   const totalRevenue = trips.reduce(
@@ -235,38 +251,37 @@ export default function AdminTripsPage() {
       total +
       Number(
         trip.final_price ??
-          (trip.status === "completed"
-            ? trip.estimated_price
-            : 0) ??
-          0
+          (trip.status === "completed" ? trip.estimated_price : 0) ??
+          0,
       ),
-    0
+    0,
   );
 
   const filteredTrips = useMemo(() => {
-    const normalizedSearch = search
-      .trim()
-      .toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
 
     return trips.filter((trip) => {
-      const passengerName =
-        names[trip.passenger_id]?.toLowerCase() ?? "";
+      const passengerName = names[trip.passenger_id]?.toLowerCase() ?? "";
+      const passengerEmail = emails[trip.passenger_id]?.toLowerCase() ?? "";
 
       const driverName = trip.driver_id
-        ? names[trip.driver_id]?.toLowerCase() ?? ""
+        ? (names[trip.driver_id]?.toLowerCase() ?? "")
+        : "";
+
+      const driverEmail = trip.driver_id
+        ? (emails[trip.driver_id]?.toLowerCase() ?? "")
         : "";
 
       const matchesSearch =
         !normalizedSearch ||
-        trip.origin_address
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        trip.destination_address
-          .toLowerCase()
-          .includes(normalizedSearch) ||
+        trip.origin_address.toLowerCase().includes(normalizedSearch) ||
+        trip.destination_address.toLowerCase().includes(normalizedSearch) ||
         passengerName.includes(normalizedSearch) ||
+        passengerEmail.includes(normalizedSearch) ||
         driverName.includes(normalizedSearch) ||
-        trip.id.toLowerCase().includes(normalizedSearch);
+        driverEmail.includes(normalizedSearch) ||
+        trip.trip_code.toLowerCase().includes(normalizedSearch) ||
+        String(trip.trip_number).includes(normalizedSearch);
 
       if (!matchesSearch) return false;
 
@@ -286,7 +301,7 @@ export default function AdminTripsPage() {
 
       return trip.status === filter;
     });
-  }, [filter, names, search, trips]);
+  }, [emails, filter, names, search, trips]);
 
   if (loading) {
     return (
@@ -325,25 +340,18 @@ export default function AdminTripsPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Supervisa todos los viajes, consulta pasajeros,
-              conductores, rutas, precios y estados desde un
-              solo panel.
+              Supervisa todos los viajes, consulta pasajeros, conductores,
+              rutas, precios y estados desde un solo panel.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <Activity
-                  size={18}
-                  className="text-yellow-400"
-                />
+                <Activity size={18} className="text-yellow-400" />
                 {trips.length} viajes registrados
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200">
-                <CarFront
-                  size={18}
-                  className="text-emerald-400"
-                />
+                <CarFront size={18} className="text-emerald-400" />
                 {activeCount} activos
               </span>
             </div>
@@ -355,14 +363,9 @@ export default function AdminTripsPage() {
             disabled={refreshing}
             className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-7 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-60"
           >
-            <RefreshCw
-              size={19}
-              className={refreshing ? "animate-spin" : ""}
-            />
+            <RefreshCw size={19} className={refreshing ? "animate-spin" : ""} />
 
-            {refreshing
-              ? "Actualizando..."
-              : "Actualizar viajes"}
+            {refreshing ? "Actualizando..." : "Actualizar viajes"}
           </button>
         </div>
       </div>
@@ -374,7 +377,7 @@ export default function AdminTripsPage() {
             message.toLowerCase().includes("error") ||
               message.toLowerCase().includes("no fue posible")
               ? "border-red-200 bg-red-50 text-red-700"
-              : "border-amber-200 bg-amber-50 text-amber-800"
+              : "border-amber-200 bg-amber-50 text-amber-800",
           )}
         >
           {message}
@@ -417,9 +420,7 @@ export default function AdminTripsPage() {
                 Historial operativo
               </p>
 
-              <h2 className="mt-1 text-2xl font-black">
-                Todos los viajes
-              </h2>
+              <h2 className="mt-1 text-2xl font-black">Todos los viajes</h2>
             </div>
 
             <div className="flex flex-col gap-3 lg:flex-row">
@@ -432,10 +433,8 @@ export default function AdminTripsPage() {
                 <input
                   type="search"
                   value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
-                  placeholder="Buscar ruta, usuario o viaje..."
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar folio, ruta, nombre o correo..."
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-950/5 sm:w-80"
                 />
               </div>
@@ -453,14 +452,12 @@ export default function AdminTripsPage() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() =>
-                      setFilter(value as TripFilter)
-                    }
+                    onClick={() => setFilter(value as TripFilter)}
                     className={cn(
                       "whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black transition",
                       filter === value
                         ? "bg-slate-950 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-950"
+                        : "text-slate-500 hover:text-slate-950",
                     )}
                   >
                     {label}
@@ -478,13 +475,11 @@ export default function AdminTripsPage() {
                 <Route size={34} />
               </span>
 
-              <h3 className="mt-6 text-2xl font-black">
-                No hay viajes
-              </h3>
+              <h3 className="mt-6 text-2xl font-black">No hay viajes</h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                No encontramos viajes que coincidan con la
-                búsqueda o el filtro seleccionado.
+                No encontramos viajes que coincidan con la búsqueda o el filtro
+                seleccionado.
               </p>
             </div>
           </div>
@@ -495,13 +490,14 @@ export default function AdminTripsPage() {
                 key={trip.id}
                 trip={trip}
                 passengerName={
-                  names[trip.passenger_id] ||
-                  "Pasajero sin identificar"
+                  names[trip.passenger_id] || "Pasajero sin identificar"
+                }
+                passengerEmail={
+                  emails[trip.passenger_id] || "Correo no registrado"
                 }
                 driverName={
                   trip.driver_id
-                    ? names[trip.driver_id] ||
-                      "Conductor sin identificar"
+                    ? names[trip.driver_id] || "Conductor sin identificar"
                     : "Sin asignar"
                 }
               />
@@ -516,14 +512,15 @@ export default function AdminTripsPage() {
 function TripRow({
   trip,
   passengerName,
+  passengerEmail,
   driverName,
 }: {
   trip: Trip;
   passengerName: string;
+  passengerEmail: string;
   driverName: string;
 }) {
-  const price =
-    trip.final_price ?? trip.estimated_price;
+  const price = trip.final_price ?? trip.estimated_price;
 
   return (
     <article className="p-5 transition hover:bg-slate-50/70 sm:p-7">
@@ -533,7 +530,7 @@ function TripRow({
             <TripStatusBadge status={trip.status} />
 
             <span className="text-xs font-semibold text-slate-400">
-              #{trip.id.slice(0, 8)}
+              Folio {trip.trip_code}
             </span>
           </div>
 
@@ -577,15 +574,11 @@ function TripRow({
         <div className="grid gap-3 sm:grid-cols-3 xl:w-[520px]">
           <InfoBox
             label="Pasajero"
-            value={passengerName}
+            value={`${passengerName} · ${passengerEmail}`}
             icon={UserRound}
           />
 
-          <InfoBox
-            label="Conductor"
-            value={driverName}
-            icon={CarFront}
-          />
+          <InfoBox label="Conductor" value={driverName} icon={CarFront} />
 
           <InfoBox
             label="Solicitado"
@@ -605,9 +598,7 @@ function TripRow({
             </p>
 
             <p className="mt-1 text-xs text-slate-400">
-              {trip.final_price !== null
-                ? "Precio final"
-                : "Precio estimado"}
+              {trip.final_price !== null ? "Precio final" : "Precio estimado"}
             </p>
           </div>
 
@@ -624,19 +615,13 @@ function TripRow({
   );
 }
 
-function TripStatusBadge({
-  status,
-}: {
-  status: TripStatus;
-}) {
+function TripStatusBadge({ status }: { status: TripStatus }) {
   return (
     <span
       className={cn(
         "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black",
-        status === "completed" &&
-          "bg-emerald-100 text-emerald-700",
-        status === "cancelled" &&
-          "bg-red-100 text-red-700",
+        status === "completed" && "bg-emerald-100 text-emerald-700",
+        status === "cancelled" && "bg-red-100 text-red-700",
         ["requested", "searching"].includes(status) &&
           "bg-amber-100 text-amber-800",
         [
@@ -644,8 +629,7 @@ function TripStatusBadge({
           "driver_arriving",
           "driver_arrived",
           "in_progress",
-        ].includes(status) &&
-          "bg-blue-100 text-blue-700"
+        ].includes(status) && "bg-blue-100 text-blue-700",
       )}
     >
       <span
@@ -653,14 +637,13 @@ function TripStatusBadge({
           "h-2 w-2 rounded-full",
           status === "completed" && "bg-emerald-500",
           status === "cancelled" && "bg-red-500",
-          ["requested", "searching"].includes(status) &&
-            "bg-amber-500",
+          ["requested", "searching"].includes(status) && "bg-amber-500",
           [
             "accepted",
             "driver_arriving",
             "driver_arrived",
             "in_progress",
-          ].includes(status) && "bg-blue-500"
+          ].includes(status) && "bg-blue-500",
         )}
       />
 
@@ -688,33 +671,23 @@ function StatCard({
         <span
           className={cn(
             "flex h-12 w-12 items-center justify-center rounded-2xl",
-            iconClass
+            iconClass,
           )}
         >
           <Icon size={23} />
         </span>
 
-        <p className="text-4xl font-black">
-          {value}
-        </p>
+        <p className="text-4xl font-black">{value}</p>
       </div>
 
-      <p className="mt-5 font-black">
-        {label}
-      </p>
+      <p className="mt-5 font-black">{label}</p>
 
-      <p className="mt-1 text-sm text-slate-500">
-        {description}
-      </p>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
     </Card>
   );
 }
 
-function RevenueCard({
-  value,
-}: {
-  value: number;
-}) {
+function RevenueCard({ value }: { value: number }) {
   return (
     <Card className="bg-[#0B0F19] text-white">
       <div className="flex items-start justify-between">
@@ -727,9 +700,7 @@ function RevenueCard({
         Ingresos registrados
       </p>
 
-      <p className="mt-2 text-3xl font-black">
-        {formatCurrency(value)}
-      </p>
+      <p className="mt-2 text-3xl font-black">{formatCurrency(value)}</p>
 
       <p className="mt-1 text-xs text-slate-500">
         Basado en viajes completados
@@ -749,10 +720,7 @@ function InfoBox({
 }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
-      <Icon
-        size={18}
-        className="text-slate-400"
-      />
+      <Icon size={18} className="text-slate-400" />
 
       <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-slate-400">
         {label}

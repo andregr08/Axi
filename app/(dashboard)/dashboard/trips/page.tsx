@@ -35,6 +35,8 @@ type TripStatus =
 
 type Trip = {
   id: string;
+  trip_number: number;
+  trip_code: string;
   origin_address: string;
   destination_address: string;
   status: TripStatus;
@@ -137,7 +139,7 @@ export default function TripsPage() {
     const { data, error } = await supabase
       .from("trips")
       .select(
-        "id, origin_address, destination_address, status, estimated_price, final_price, requested_at"
+        "id, trip_number, trip_code, origin_address, destination_address, status, estimated_price, final_price, requested_at"
       )
       .order("requested_at", { ascending: false });
 
@@ -253,9 +255,12 @@ export default function TripsPage() {
   );
 
   const filteredTrips = trips.filter((trip) => {
+    const normalizedSearch = search.trim().toLowerCase();
+
     const matchesSearch =
-      trip.origin_address.toLowerCase().includes(search.toLowerCase()) ||
-      trip.destination_address.toLowerCase().includes(search.toLowerCase());
+      trip.trip_code.toLowerCase().includes(normalizedSearch) ||
+      trip.origin_address.toLowerCase().includes(normalizedSearch) ||
+      trip.destination_address.toLowerCase().includes(normalizedSearch);
 
     if (!matchesSearch) return false;
 
@@ -523,6 +528,10 @@ export default function TripsPage() {
                           <Badge variant={getStatusVariant(trip.status)}>
                             {t(statusKeys[trip.status])}
                           </Badge>
+
+                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-black text-slate-700">
+                            {trip.trip_code}
+                          </span>
 
                           <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
                             <CalendarDays size={14} />

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin, isSupport } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type SosStatus =
@@ -39,6 +39,12 @@ type SosAlert = {
   id: string;
   user_id: string;
   trip_id: string | null;
+  trip:
+    | {
+        trip_number: number;
+        trip_code: string;
+      }
+    | null;
   latitude: number | null;
   longitude: number | null;
   status: SosStatus;
@@ -98,7 +104,7 @@ export default function AdminSOSPage() {
         .eq("id", session.user.id)
         .single();
 
-      if (!isAdmin(profile?.role)) {
+      if (!isAdmin(profile?.role) && !isSupport(profile?.role)) {
         router.replace("/dashboard");
         return;
       }
@@ -117,6 +123,10 @@ export default function AdminSOSPage() {
           profiles:user_id (
             full_name,
             phone
+          ),
+          trip:trips (
+            trip_number,
+            trip_code
           )
         `)
         .order("created_at", {
@@ -128,7 +138,14 @@ export default function AdminSOSPage() {
           `No fue posible cargar las alertas: ${error.message}`
         );
       } else {
-        setAlerts((data ?? []) as SosAlert[]);
+        const normalizedAlerts = (data ?? []).map((alert) => ({
+          ...alert,
+          trip: Array.isArray(alert.trip)
+            ? (alert.trip[0] ?? null)
+            : (alert.trip ?? null),
+        })) as SosAlert[];
+
+        setAlerts(normalizedAlerts);
       }
 
       setLoading(false);
@@ -598,6 +615,12 @@ export default function AdminSOSPage() {
                           <XCircle size={18} />
                           Falsa alarma
                         </button>
+                      )}
+
+                      {alert.trip && (
+                        <p className="text-center text-xs font-mono font-bold text-slate-500">
+                          Viaje {alert.trip.trip_code}
+                        </p>
                       )}
 
                       {alert.trip_id && (

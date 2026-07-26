@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -24,10 +20,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  isAdmin,
-  type UserRole,
-} from "@/lib/auth/roles";
+import { isAdmin, type UserRole } from "@/lib/auth/roles";
 import { cn } from "@/utils/cn";
 
 type AdminHomeProps = {
@@ -123,77 +116,62 @@ const tripStatusLabels: Record<string, string> = {
   cancelled: "Cancelado",
 };
 
-export function AdminHome({
-  name,
-  email,
-}: AdminHomeProps) {
-  const [data, setData] =
-    useState<AdminData>(EMPTY_DATA);
+export function AdminHome({ name, email }: AdminHomeProps) {
+  const [data, setData] = useState<AdminData>(EMPTY_DATA);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [refreshing, setRefreshing] =
-    useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [message, setMessage] =
-    useState("");
+  const [message, setMessage] = useState("");
 
-  const loadAdminDashboard = useCallback(
-    async (silent = false) => {
-      if (silent) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+  const loadAdminDashboard = useCallback(async (silent = false) => {
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
-      setMessage("");
+    setMessage("");
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      if (!session) {
-        setMessage(
-          "Tu sesión ya no está disponible."
-        );
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
+    if (!session) {
+      setMessage("Tu sesión ya no está disponible.");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
-      const [
-        profileResult,
-        driversResult,
-        passengersResult,
-        tripsResult,
+    const [
+      profileResult,
+      driversResult,
+      passengersResult,
+      tripsResult,
 
-        applicationsResult,
-        vehiclesResult,
-        alertsResult,
-      ] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single(),
+      applicationsResult,
+      vehiclesResult,
+      alertsResult,
+    ] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single(),
 
-        supabase
-          .from("drivers")
-          .select(
-            "id, status, online, verified"
-          ),
+      supabase.from("drivers").select("id, status, online, verified"),
 
-        supabase
-          .from("profiles")
-          .select(
-            "id, full_name, account_active"
-          )
-          .eq("role", "passenger"),
+      supabase
+        .from("profiles")
+        .select("id, full_name, account_active")
+        .eq("role", "passenger"),
 
-        supabase
-          .from("trips")
-          .select(`
+      supabase
+        .from("trips")
+        .select(
+          `
             id,
             passenger_id,
             driver_id,
@@ -208,111 +186,77 @@ export function AdminHome({
             requested_at,
             completed_at,
             paid_at
-          `)
-          .order("requested_at", {
-            ascending: false,
-          }),
+          `,
+        )
+        .order("requested_at", {
+          ascending: false,
+        }),
 
-        supabase
-          .from("driver_applications")
-          .select(
-            "id, status, created_at"
-          )
-          .order("created_at", {
-            ascending: false,
-          }),
+      supabase
+        .from("driver_applications")
+        .select("id, status, created_at")
+        .order("created_at", {
+          ascending: false,
+        }),
 
-        supabase
-          .from("vehicles")
-          .select(
-            "id, status, verified"
-          ),
+      supabase.from("vehicles").select("id, status, verified"),
 
-        supabase
-          .from("sos_alerts")
-          .select(
-            "id, status, created_at"
-          )
-          .order("created_at", {
-            ascending: false,
-          }),
-      ]);
+      supabase
+        .from("sos_alerts")
+        .select("id, status, created_at")
+        .order("created_at", {
+          ascending: false,
+        }),
+    ]);
 
-      const currentRole =
-        profileResult.data?.role as
-          | UserRole
-          | undefined;
+    const currentRole = profileResult.data?.role as UserRole | undefined;
 
-      if (
-        profileResult.error ||
-        !isAdmin(currentRole)
-      ) {
-        setMessage(
-          "No tienes permisos para consultar este panel."
-        );
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
-      const results = [
-        driversResult,
-        passengersResult,
-        tripsResult,
-
-        applicationsResult,
-        vehiclesResult,
-        alertsResult,
-      ];
-
-      const hasErrors = results.some(
-        (result) => Boolean(result.error)
-      );
-
-      setData({
-        drivers:
-          (driversResult.data ?? []) as Driver[],
-        passengers:
-          (passengersResult.data ??
-            []) as Passenger[],
-        trips:
-          (tripsResult.data ?? []) as Trip[],
-        payments:
-          (tripsResult.data ??
-            []) as Trip[],
-        applications:
-          (applicationsResult.data ??
-            []) as DriverApplication[],
-        vehicles:
-          (vehiclesResult.data ??
-            []) as Vehicle[],
-        alerts:
-          (alertsResult.data ??
-            []) as SosAlert[],
-      });
-
-      if (hasErrors) {
-        setMessage(
-          "Algunos módulos no pudieron actualizarse. El resto del panel continúa disponible."
-        );
-      }
-
+    if (profileResult.error || !isAdmin(currentRole)) {
+      setMessage("No tienes permisos para consultar este panel.");
       setLoading(false);
       setRefreshing(false);
-    },
-    []
-  );
+      return;
+    }
+
+    const results = [
+      driversResult,
+      passengersResult,
+      tripsResult,
+
+      applicationsResult,
+      vehiclesResult,
+      alertsResult,
+    ];
+
+    const hasErrors = results.some((result) => Boolean(result.error));
+
+    setData({
+      drivers: (driversResult.data ?? []) as Driver[],
+      passengers: (passengersResult.data ?? []) as Passenger[],
+      trips: (tripsResult.data ?? []) as Trip[],
+      payments: (tripsResult.data ?? []) as Trip[],
+      applications: (applicationsResult.data ?? []) as DriverApplication[],
+      vehicles: (vehiclesResult.data ?? []) as Vehicle[],
+      alerts: (alertsResult.data ?? []) as SosAlert[],
+    });
+
+    if (hasErrors) {
+      setMessage(
+        "Algunos módulos no pudieron actualizarse. El resto del panel continúa disponible.",
+      );
+    }
+
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
 
   useEffect(() => {
-    const initialTimer =
-      window.setTimeout(() => {
-        void loadAdminDashboard();
-      }, 0);
+    const initialTimer = window.setTimeout(() => {
+      void loadAdminDashboard();
+    }, 0);
 
     const channel = supabase
-      .channel(
-        `admin-home-${crypto.randomUUID()}`
-      )
+      .channel(`admin-home-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -322,7 +266,7 @@ export function AdminHome({
         },
         () => {
           void loadAdminDashboard(true);
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -333,7 +277,7 @@ export function AdminHome({
         },
         () => {
           void loadAdminDashboard(true);
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -344,7 +288,7 @@ export function AdminHome({
         },
         () => {
           void loadAdminDashboard(true);
-        }
+        },
       )
       .subscribe();
 
@@ -355,23 +299,17 @@ export function AdminHome({
   }, [loadAdminDashboard]);
 
   function formatMoney(value: number) {
-    return new Intl.NumberFormat(
-      "es-MX",
-      {
-        style: "currency",
-        currency: "MXN",
-      }
-    ).format(Number(value ?? 0));
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+    }).format(Number(value ?? 0));
   }
 
   function formatDate(value: string) {
-    return new Intl.DateTimeFormat(
-      "es-MX",
-      {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }
-    ).format(new Date(value));
+    return new Intl.DateTimeFormat("es-MX", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
   }
 
   if (loading) {
@@ -393,99 +331,135 @@ export function AdminHome({
     );
   }
 
-  const activeDrivers =
-    data.drivers.filter(
-      (driver) =>
-        driver.status === "active"
-    ).length;
+  const activeDrivers = data.drivers.filter(
+    (driver) => driver.status === "active",
+  ).length;
 
-  const onlineDrivers =
-    data.drivers.filter(
-      (driver) => driver.online
-    ).length;
+  const onlineDrivers = data.drivers.filter((driver) => driver.online).length;
 
-  const verifiedDrivers =
-    data.drivers.filter(
-      (driver) => driver.verified
-    ).length;
+  const verifiedDrivers = data.drivers.filter(
+    (driver) => driver.verified,
+  ).length;
 
-  const activePassengers =
-    data.passengers.filter(
-      (passenger) =>
-        passenger.account_active !== false
-    ).length;
+  const activePassengers = data.passengers.filter(
+    (passenger) => passenger.account_active !== false,
+  ).length;
 
-  const activeTrips =
-    data.trips.filter((trip) =>
-      activeTripStatuses.includes(
-        trip.status
-      )
+  const activeTrips = data.trips.filter((trip) =>
+    activeTripStatuses.includes(trip.status),
+  );
+
+  const completedTrips = data.trips.filter(
+    (trip) => trip.status === "completed",
+  );
+
+  const pendingApplications = data.applications.filter(
+    (application) => application.status === "pending",
+  ).length;
+
+  const pendingVehicles = data.vehicles.filter(
+    (vehicle) => vehicle.status === "pending",
+  ).length;
+
+  const activeAlerts = data.alerts.filter(
+    (alert) => alert.status === "active" || alert.status === "acknowledged",
+  ).length;
+
+  const paidTrips = data.payments.filter(
+    (trip) => trip.payment_status === "paid",
+  );
+
+  const processedVolume = paidTrips.reduce(
+    (total, trip) => total + Number(trip.final_price ?? 0),
+    0,
+  );
+
+  const platformRevenue = paidTrips.reduce(
+    (total, trip) => total + Number(trip.platform_commission ?? 0),
+    0,
+  );
+
+  const driverRevenue = paidTrips.reduce(
+    (total, trip) => total + Number(trip.driver_earnings ?? 0),
+    0,
+  );
+
+  function getLocalDateKey(value: string | Date) {
+    const date = value instanceof Date ? value : new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  const todayKey = getLocalDateKey(new Date());
+
+  const tripsToday = data.trips.filter(
+    (trip) => getLocalDateKey(trip.requested_at) === todayKey,
+  );
+
+  const completedTripsToday = tripsToday.filter(
+    (trip) => trip.status === "completed",
+  );
+
+  const cancelledTrips = data.trips.filter(
+    (trip) => trip.status === "cancelled",
+  );
+
+  const requestedTrips = data.trips.filter(
+    (trip) => trip.status === "requested" || trip.status === "searching",
+  );
+
+  const revenueToday = tripsToday
+    .filter((trip) => trip.payment_status === "paid")
+    .reduce((total, trip) => total + Number(trip.final_price ?? 0), 0);
+
+  const commissionToday = tripsToday
+    .filter((trip) => trip.payment_status === "paid")
+    .reduce((total, trip) => total + Number(trip.platform_commission ?? 0), 0);
+
+  const averageTicket =
+    paidTrips.length > 0 ? processedVolume / paidTrips.length : 0;
+
+  const dailySeries = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+
+    const key = getLocalDateKey(date);
+
+    const dayTrips = data.trips.filter(
+      (trip) => getLocalDateKey(trip.requested_at) === key,
     );
 
-  const completedTrips =
-    data.trips.filter(
-      (trip) =>
-        trip.status === "completed"
+    const paidDayTrips = dayTrips.filter(
+      (trip) => trip.payment_status === "paid",
     );
 
-  const pendingApplications =
-    data.applications.filter(
-      (application) =>
-        application.status === "pending"
-    ).length;
+    return {
+      key,
+      label: new Intl.DateTimeFormat("es-MX", {
+        weekday: "short",
+      })
+        .format(date)
+        .replace(".", ""),
+      trips: dayTrips.length,
+      revenue: paidDayTrips.reduce(
+        (total, trip) => total + Number(trip.final_price ?? 0),
+        0,
+      ),
+    };
+  });
 
-  const pendingVehicles =
-    data.vehicles.filter(
-      (vehicle) =>
-        vehicle.status === "pending"
-    ).length;
+  const maxDailyTrips = Math.max(1, ...dailySeries.map((day) => day.trips));
 
-  const activeAlerts =
-    data.alerts.filter(
-      (alert) =>
-        alert.status === "active" ||
-        alert.status === "acknowledged"
-    ).length;
-
-  const paidTrips =
-    data.payments.filter(
-      (trip) =>
-        trip.payment_status === "paid"
-    );
-
-  const processedVolume =
-    paidTrips.reduce(
-      (total, trip) =>
-        total +
-        Number(trip.final_price ?? 0),
-      0
-    );
-
-  const platformRevenue =
-    paidTrips.reduce(
-      (total, trip) =>
-        total +
-        Number(trip.platform_commission ?? 0),
-      0
-    );
-
-  const driverRevenue =
-    paidTrips.reduce(
-      (total, trip) =>
-        total +
-        Number(trip.driver_earnings ?? 0),
-      0
-    );
-
-  const today = new Date().toISOString().slice(0,10);
-
-  const tripsToday =
-    data.trips.filter(
-      trip =>
-        trip.requested_at?.startsWith(today)
-    );
-
-
+  const maxDailyRevenue = Math.max(1, ...dailySeries.map((day) => day.revenue));
 
   return (
     <section className="space-y-8">
@@ -509,10 +483,8 @@ export function AdminHome({
             </h1>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Supervisa viajes, conductores,
-              pasajeros, pagos, vehículos y
-              alertas de seguridad desde un solo
-              panel.
+              Supervisa viajes, conductores, pasajeros, pagos, vehículos y
+              alertas de seguridad desde un solo panel.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -541,13 +513,9 @@ export function AdminHome({
                   Operación actual
                 </p>
 
-                <p className="mt-3 text-4xl font-black">
-                  {activeTrips.length}
-                </p>
+                <p className="mt-3 text-4xl font-black">{activeTrips.length}</p>
 
-                <p className="mt-1 text-sm text-slate-400">
-                  Viajes activos
-                </p>
+                <p className="mt-1 text-sm text-slate-400">Viajes activos</p>
               </div>
 
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black">
@@ -557,9 +525,7 @@ export function AdminHome({
 
             <div className="mt-6 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-2xl font-black">
-                  {onlineDrivers}
-                </p>
+                <p className="text-2xl font-black">{onlineDrivers}</p>
 
                 <p className="mt-1 text-xs text-slate-400">
                   Conductores en línea
@@ -567,13 +533,9 @@ export function AdminHome({
               </div>
 
               <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-2xl font-black">
-                  {activeAlerts}
-                </p>
+                <p className="text-2xl font-black">{activeAlerts}</p>
 
-                <p className="mt-1 text-xs text-slate-400">
-                  Alertas abiertas
-                </p>
+                <p className="mt-1 text-xs text-slate-400">Alertas abiertas</p>
               </div>
             </div>
           </div>
@@ -589,24 +551,13 @@ export function AdminHome({
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={() =>
-            loadAdminDashboard(true)
-          }
+          onClick={() => loadAdminDashboard(true)}
           disabled={refreshing}
           className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:border-slate-950 disabled:opacity-50"
         >
-          <RefreshCw
-            size={17}
-            className={
-              refreshing
-                ? "animate-spin"
-                : ""
-            }
-          />
+          <RefreshCw size={17} className={refreshing ? "animate-spin" : ""} />
 
-          {refreshing
-            ? "Actualizando..."
-            : "Actualizar panel"}
+          {refreshing ? "Actualizando..." : "Actualizar panel"}
         </button>
       </div>
 
@@ -621,9 +572,7 @@ export function AdminHome({
 
         <MetricCard
           label="Pasajeros"
-          value={String(
-            data.passengers.length
-          )}
+          value={String(data.passengers.length)}
           description={`${activePassengers} cuentas activas`}
           icon={UsersRound}
           iconClass="bg-blue-100 text-blue-700"
@@ -632,7 +581,7 @@ export function AdminHome({
         <MetricCard
           label="Viajes hoy"
           value={String(tripsToday.length)}
-          description={`${activeTrips.length} activos · ${completedTrips.length} completados`}
+          description={`${activeTrips.length} activos · ${completedTripsToday.length} completados hoy`}
           icon={Route}
           iconClass="bg-violet-100 text-violet-700"
         />
@@ -646,6 +595,156 @@ export function AdminHome({
         />
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Volumen cobrado"
+          value={formatMoney(processedVolume)}
+          description={`${paidTrips.length} viajes pagados`}
+          icon={CircleDollarSign}
+          iconClass="bg-emerald-100 text-emerald-700"
+        />
+
+        <MetricCard
+          label="Ganancia conductores"
+          value={formatMoney(driverRevenue)}
+          description="Ingresos generados para conductores"
+          icon={CarFront}
+          iconClass="bg-blue-100 text-blue-700"
+        />
+
+        <MetricCard
+          label="Viajes cancelados"
+          value={String(cancelledTrips.length)}
+          description={`${requestedTrips.length} solicitudes esperando atención`}
+          icon={AlertTriangle}
+          iconClass="bg-red-100 text-red-700"
+        />
+
+        <MetricCard
+          label="Ticket promedio"
+          value={formatMoney(averageTicket)}
+          description={`${formatMoney(revenueToday)} cobrados hoy`}
+          icon={CircleDollarSign}
+          iconClass="bg-violet-100 text-violet-700"
+        />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card className="overflow-hidden">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                Últimos 7 días
+              </p>
+
+              <h2 className="mt-1 text-2xl font-black">Viajes por día</h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Solicitudes registradas diariamente.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-100 px-4 py-3 text-right">
+              <p className="text-xs font-bold text-slate-500">Hoy</p>
+
+              <p className="text-xl font-black text-slate-950">
+                {tripsToday.length}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 flex h-56 items-end gap-2 sm:gap-4">
+            {dailySeries.map((day) => {
+              const height =
+                day.trips === 0
+                  ? 5
+                  : Math.max(12, (day.trips / maxDailyTrips) * 100);
+
+              return (
+                <div
+                  key={day.key}
+                  className="flex h-full min-w-0 flex-1 flex-col justify-end"
+                >
+                  <p className="mb-2 text-center text-xs font-black text-slate-700">
+                    {day.trips}
+                  </p>
+
+                  <div className="flex h-40 items-end rounded-2xl bg-slate-100 p-1.5">
+                    <div
+                      className="w-full rounded-xl bg-yellow-400 transition-all"
+                      style={{
+                        height: `${height}%`,
+                      }}
+                    />
+                  </div>
+
+                  <p className="mt-3 truncate text-center text-xs font-bold capitalize text-slate-500">
+                    {day.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                Rendimiento financiero
+              </p>
+
+              <h2 className="mt-1 text-2xl font-black">Ingresos por día</h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Volumen de viajes con pago confirmado.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
+              <p className="text-xs font-bold text-emerald-700">Comisión hoy</p>
+
+              <p className="text-xl font-black text-emerald-700">
+                {formatMoney(commissionToday)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 flex h-56 items-end gap-2 sm:gap-4">
+            {dailySeries.map((day) => {
+              const height =
+                day.revenue === 0
+                  ? 5
+                  : Math.max(12, (day.revenue / maxDailyRevenue) * 100);
+
+              return (
+                <div
+                  key={day.key}
+                  className="flex h-full min-w-0 flex-1 flex-col justify-end"
+                >
+                  <p className="mb-2 truncate text-center text-[10px] font-black text-slate-700 sm:text-xs">
+                    {formatMoney(day.revenue)}
+                  </p>
+
+                  <div className="flex h-40 items-end rounded-2xl bg-slate-100 p-1.5">
+                    <div
+                      className="w-full rounded-xl bg-emerald-500 transition-all"
+                      style={{
+                        height: `${height}%`,
+                      }}
+                    />
+                  </div>
+
+                  <p className="mt-3 truncate text-center text-xs font-bold capitalize text-slate-500">
+                    {day.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[1.45fr_0.75fr]">
         <Card className="overflow-hidden p-0">
           <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
@@ -654,13 +753,10 @@ export function AdminHome({
                 Operación reciente
               </p>
 
-              <h2 className="mt-1 text-2xl font-black">
-                Últimos viajes
-              </h2>
+              <h2 className="mt-1 text-2xl font-black">Últimos viajes</h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Movimientos recientes registrados
-                en la plataforma.
+                Movimientos recientes registrados en la plataforma.
               </p>
             </div>
 
@@ -685,14 +781,13 @@ export function AdminHome({
                 </h3>
 
                 <p className="mt-3 text-sm leading-7 text-slate-500">
-                  Los viajes solicitados aparecerán
-                  aquí automáticamente.
+                  Los viajes solicitados aparecerán aquí automáticamente.
                 </p>
               </div>
             </div>
           ) : (
             <div className="grid gap-4 p-5 sm:p-7">
-              {data.trips.map((trip) => (
+              {data.trips.slice(0, 8).map((trip) => (
                 <article
                   key={trip.id}
                   className="rounded-[1.6rem] border border-slate-200 p-5 transition hover:border-slate-400"
@@ -710,16 +805,11 @@ export function AdminHome({
                           </h3>
 
                           <p className="mt-1 truncate text-sm text-slate-500">
-                            hacia{" "}
-                            {
-                              trip.destination_address
-                            }
+                            hacia {trip.destination_address}
                           </p>
 
                           <p className="mt-2 text-xs font-semibold text-slate-400">
-                            {formatDate(
-                              trip.requested_at
-                            )}
+                            {formatDate(trip.requested_at)}
                           </p>
                         </div>
                       </div>
@@ -729,30 +819,20 @@ export function AdminHome({
                       <span
                         className={cn(
                           "rounded-full px-3 py-1.5 text-xs font-black",
-                          trip.status ===
-                            "completed" &&
+                          trip.status === "completed" &&
                             "bg-emerald-100 text-emerald-700",
-                          trip.status ===
-                            "cancelled" &&
+                          trip.status === "cancelled" &&
                             "bg-red-100 text-red-700",
-                          activeTripStatuses.includes(
-                            trip.status
-                          ) &&
-                            "bg-blue-100 text-blue-700"
+                          activeTripStatuses.includes(trip.status) &&
+                            "bg-blue-100 text-blue-700",
                         )}
                       >
-                        {tripStatusLabels[
-                          trip.status
-                        ] ?? trip.status}
+                        {tripStatusLabels[trip.status] ?? trip.status}
                       </span>
 
                       <p className="min-w-28 text-right text-lg font-black text-slate-950">
                         {formatMoney(
-                          Number(
-                            trip.final_price ??
-                              trip.estimated_price ??
-                              0
-                          )
+                          Number(trip.final_price ?? trip.estimated_price ?? 0),
                         )}
                       </p>
 
@@ -778,15 +858,10 @@ export function AdminHome({
                   Pendientes
                 </p>
 
-                <h2 className="mt-1 text-xl font-black">
-                  Revisiones
-                </h2>
+                <h2 className="mt-1 text-xl font-black">Revisiones</h2>
               </div>
 
-              <CheckCircle2
-                size={25}
-                className="text-yellow-600"
-              />
+              <CheckCircle2 size={25} className="text-yellow-600" />
             </div>
 
             <div className="mt-6 space-y-3">
@@ -820,23 +895,15 @@ export function AdminHome({
                 <ShieldCheck size={23} />
               </span>
 
-              <Badge className="bg-white/10 text-white">
-                Administrador
-              </Badge>
+              <Badge className="bg-white/10 text-white">Administrador</Badge>
             </div>
 
-            <h2 className="mt-6 text-2xl font-black">
-              {name}
-            </h2>
+            <h2 className="mt-6 text-2xl font-black">{name}</h2>
 
-            <p className="mt-1 text-sm text-slate-400">
-              {email}
-            </p>
+            <p className="mt-1 text-sm text-slate-400">{email}</p>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-sm font-black">
-                Estado de la plataforma
-              </p>
+              <p className="text-sm font-black">Estado de la plataforma</p>
 
               <p className="mt-2 text-xs leading-6 text-slate-400">
                 {activeAlerts > 0
@@ -860,10 +927,7 @@ export function AdminHome({
             </h2>
           </div>
 
-          <ShieldCheck
-            size={26}
-            className="text-emerald-600"
-          />
+          <ShieldCheck size={26} className="text-emerald-600" />
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -884,7 +948,7 @@ export function AdminHome({
           <QuickLink
             href="/dashboard/admin/payments"
             label="Pagos"
-            description={`${data.payments.length} transacciones`}
+            description={`${paidTrips.length} pagos confirmados`}
             icon={CircleDollarSign}
           />
 
@@ -892,11 +956,7 @@ export function AdminHome({
             href="/dashboard/admin/sos"
             label="Seguridad SOS"
             description={`${activeAlerts} alertas abiertas`}
-            icon={
-              activeAlerts > 0
-                ? AlertTriangle
-                : ShieldCheck
-            }
+            icon={activeAlerts > 0 ? AlertTriangle : ShieldCheck}
           />
         </div>
       </Card>
@@ -922,23 +982,19 @@ function MetricCard({
       <span
         className={cn(
           "flex h-12 w-12 items-center justify-center rounded-2xl",
-          iconClass
+          iconClass,
         )}
       >
         <Icon size={22} />
       </span>
 
-      <p className="mt-6 text-sm font-semibold text-slate-500">
-        {label}
-      </p>
+      <p className="mt-6 text-sm font-semibold text-slate-500">{label}</p>
 
       <p className="mt-1 break-words text-3xl font-black tracking-tight text-slate-950">
         {value}
       </p>
 
-      <p className="mt-3 text-sm text-slate-400">
-        {description}
-      </p>
+      <p className="mt-3 text-sm text-slate-400">{description}</p>
     </Card>
   );
 }
@@ -964,18 +1020,14 @@ function StatusLink({
       <span
         className={cn(
           "flex h-11 w-11 items-center justify-center rounded-xl",
-          danger
-            ? "bg-red-100 text-red-700"
-            : "bg-yellow-100 text-yellow-700"
+          danger ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700",
         )}
       >
         <Icon size={20} />
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block font-black text-slate-950">
-          {label}
-        </span>
+        <span className="block font-black text-slate-950">{label}</span>
 
         <span className="block text-xs text-slate-500">
           Pendientes de atención
@@ -985,9 +1037,7 @@ function StatusLink({
       <span
         className={cn(
           "flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-black",
-          danger
-            ? "bg-red-100 text-red-700"
-            : "bg-slate-100 text-slate-700"
+          danger ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700",
         )}
       >
         {value}
