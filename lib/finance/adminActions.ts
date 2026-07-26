@@ -13,6 +13,40 @@ export async function approveWithdrawal(id: string) {
   return data;
 }
 
+export async function completeWithdrawal(
+  id: string,
+  providerReference: string
+) {
+  const { data, error } = await supabase.rpc(
+    "complete_withdrawal",
+    {
+      p_request_id: id,
+      p_provider_reference: providerReference,
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function failWithdrawal(
+  id: string,
+  failureReason: string
+) {
+  const { data, error } = await supabase.rpc(
+    "fail_withdrawal",
+    {
+      p_request_id: id,
+      p_failure_reason: failureReason,
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
 export async function rejectWithdrawal(
   id: string,
   reason: string
@@ -20,7 +54,7 @@ export async function rejectWithdrawal(
   const { error } = await supabase.rpc(
     "reject_withdrawal",
     {
-      p_request_id: id,
+      p_withdraw_request_id: id,
       p_reason: reason,
     }
   );

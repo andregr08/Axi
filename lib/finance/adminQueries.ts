@@ -134,8 +134,8 @@ export async function getPendingWithdrawals() {
   const { data, error } = await supabase
     .from("withdraw_requests")
     .select("*")
-    .eq("status", "pending")
-    .order("created_at");
+    .in("status", ["pending", "approved", "processing"])
+    .order("requested_at", { ascending: true });
 
   if (error) throw error;
 

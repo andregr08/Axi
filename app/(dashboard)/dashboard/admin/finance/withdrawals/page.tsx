@@ -3,23 +3,47 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   approveWithdrawal,
+  completeWithdrawal,
+  failWithdrawal,
   rejectWithdrawal,
 } from "@/lib/finance/adminActions";
 import { getPendingWithdrawals } from "@/lib/finance/adminQueries";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
+const moneyFormatter = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  minimumFractionDigits: 2,
+});
+
+const statusLabels: Record<string, string> = {
+  pending: "Pendiente",
+  approved: "Aprobado",
+  processing: "En transferencia",
+};
+
 export default function WithdrawalsPage() {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(
+    null
+  );
+  const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
+    setMessage("");
 
     try {
       const data = await getPendingWithdrawals();
       setWithdrawals(data ?? []);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron cargar los retiros."
+      );
     } finally {
       setLoading(false);
     }
@@ -29,45 +53,96 @@ export default function WithdrawalsPage() {
     void load();
   }, [load]);
 
-  async function handleApprove(id: string) {
+  async function runAction(
+    id: string,
+    action: () => Promise<unknown>,
+    errorMessage: string
+  ) {
     try {
       setProcessingId(id);
+      setMessage("");
 
-      await approveWithdrawal(id);
-
+      await action();
       await load();
     } catch (error) {
-      console.error(error);
-      alert("No se pudo aprobar el retiro.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : errorMessage
+      );
     } finally {
       setProcessingId(null);
     }
   }
 
-  async function handleReject(id: string) {
-    const reason =
-      window.prompt("Motivo del rechazo")?.trim() || "Rechazado por administrador";
+  function handleSendToProvider(id: string) {
+    void runAction(
+      id,
+      () => approveWithdrawal(id),
+      "No se pudo enviar el retiro a procesamiento."
+    );
+  }
 
-    try {
-      setProcessingId(id);
+  function handleReject(id: string) {
+    const reason = window
+      .prompt("Motivo del rechazo")
+      ?.trim();
 
-      await rejectWithdrawal(id, reason);
+    if (!reason) return;
 
-      await load();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo rechazar el retiro.");
-    } finally {
-      setProcessingId(null);
-    }
+    void runAction(
+      id,
+      () => rejectWithdrawal(id, reason),
+      "No se pudo rechazar el retiro."
+    );
+  }
+
+  function handleComplete(id: string) {
+    const reference = window
+      .prompt("Referencia de la transferencia SPEI")
+      ?.trim();
+
+    if (!reference) return;
+
+    void runAction(
+      id,
+      () => completeWithdrawal(id, reference),
+      "No se pudo confirmar la transferencia."
+    );
+  }
+
+  function handleFail(id: string) {
+    const reason = window
+      .prompt("Motivo del fallo de la transferencia")
+      ?.trim();
+
+    if (!reason) return;
+
+    void runAction(
+      id,
+      () => failWithdrawal(id, reason),
+      "No se pudo marcar la transferencia como fallida."
+    );
   }
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">
+          Retiros de conductores
+        </h1>
 
-      <h1 className="text-3xl font-bold">
-        Retiros pendientes
-      </h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Control de solicitudes, transferencias en proceso y
+          confirmaciones del proveedor.
+        </p>
+      </div>
+
+      {message && (
+        <Card className="border-red-200 bg-red-50 p-4 text-red-700">
+          {message}
+        </Card>
+      )}
 
       {loading && (
         <Card className="p-8 text-center">
@@ -76,64 +151,132 @@ export default function WithdrawalsPage() {
       )}
 
       {!loading &&
-        withdrawals.map((withdrawal) => (
-          <Card
-            key={withdrawal.id}
-            className="flex items-center justify-between p-6"
-          >
-            <div>
-              <p className="font-semibold">
-                {withdrawal.profiles?.full_name ??
-                  "Conductor"}
-              </p>
+        withdrawals.map((withdrawal) => {
+          const isProcessing =
+            processingId === withdrawal.id;
 
-              <p className="text-sm text-gray-500">
-                {withdrawal.profiles?.email}
-              </p>
+          const canReject =
+            withdrawal.status === "pending";
 
-              <p className="mt-2 text-lg font-bold">
-                $
-                {Number(withdrawal.amount).toLocaleString(
-                  "es-MX",
-                  {
-                    minimumFractionDigits: 2,
-                  }
+          const canSend =
+            withdrawal.status === "pending";
+
+          const canResolve =
+            withdrawal.status === "approved" ||
+            withdrawal.status === "processing";
+
+          return (
+            <Card
+              key={withdrawal.id}
+              className="space-y-5 p-6"
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="font-semibold">
+                    {withdrawal.profiles?.full_name ??
+                      "Conductor"}
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    {withdrawal.profiles?.email ||
+                      "Sin correo registrado"}
+                  </p>
+
+                  <p className="mt-3 text-2xl font-black">
+                    {moneyFormatter.format(
+                      Number(withdrawal.amount)
+                    )}
+                  </p>
+                </div>
+
+                <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                  {statusLabels[withdrawal.status] ??
+                    withdrawal.status}
+                </span>
+              </div>
+
+              <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm md:grid-cols-3">
+                <div>
+                  <p className="text-gray-500">Banco</p>
+                  <p className="font-semibold">
+                    {withdrawal.bank_name || "No registrado"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500">
+                    Titular
+                  </p>
+                  <p className="font-semibold">
+                    {withdrawal.account_holder ||
+                      "No registrado"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500">CLABE</p>
+                  <p className="font-mono font-semibold">
+                    {withdrawal.clabe || "No registrada"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {canSend && (
+                  <Button
+                    disabled={isProcessing}
+                    onClick={() =>
+                      handleSendToProvider(withdrawal.id)
+                    }
+                  >
+                    Enviar a transferencia
+                  </Button>
                 )}
-              </p>
-            </div>
 
-            <div className="flex gap-2">
+                {canReject && (
+                  <Button
+                    variant="outline"
+                    disabled={isProcessing}
+                    onClick={() =>
+                      handleReject(withdrawal.id)
+                    }
+                  >
+                    Rechazar
+                  </Button>
+                )}
 
-              <Button
-                disabled={processingId === withdrawal.id}
-                onClick={() =>
-                  handleApprove(withdrawal.id)
-                }
-              >
-                Aprobar
-              </Button>
+                {canResolve && (
+                  <>
+                    <Button
+                      disabled={isProcessing}
+                      onClick={() =>
+                        handleComplete(withdrawal.id)
+                      }
+                    >
+                      Confirmar pago
+                    </Button>
 
-              <Button
-                variant="outline"
-                disabled={processingId === withdrawal.id}
-                onClick={() =>
-                  handleReject(withdrawal.id)
-                }
-              >
-                Rechazar
-              </Button>
-
-            </div>
-
-          </Card>
-        ))}
+                    <Button
+                      variant="outline"
+                      disabled={isProcessing}
+                      onClick={() =>
+                        handleFail(withdrawal.id)
+                      }
+                    >
+                      Marcar fallido
+                    </Button>
+                  </>
+                )}
+              </div>
+            </Card>
+          );
+        })}
 
       {!loading && withdrawals.length === 0 && (
         <Card className="p-8 text-center">
-          No hay retiros pendientes.
+          No hay retiros pendientes ni transferencias en proceso.
         </Card>
       )}
-
     </div>
   );
 }
