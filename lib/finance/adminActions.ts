@@ -28,62 +28,6 @@ export async function rejectWithdrawal(
   if (error) throw error;
 }
 
-export async function approveBonus(id: string) {
-  const { data, error } = await supabase.rpc(
-    "approve_bonus_request",
-    {
-      p_request_id: id,
-    }
-  );
-
-  if (error) throw error;
-
-  return data;
-}
-
-export async function rejectBonus(
-  id: string,
-  reason: string
-) {
-  const { error } = await supabase.rpc(
-    "reject_bonus_request",
-    {
-      p_request_id: id,
-      p_reason: reason,
-    }
-  );
-
-  if (error) throw error;
-}
-
-export async function approveIncentive(id: string) {
-  const { data, error } = await supabase.rpc(
-    "approve_incentive",
-    {
-      p_incentive_id: id,
-    }
-  );
-
-  if (error) throw error;
-
-  return data;
-}
-
-export async function rejectIncentive(
-  id: string,
-  reason: string
-) {
-  const { error } = await supabase.rpc(
-    "reject_incentive",
-    {
-      p_incentive_id: id,
-      p_reason: reason,
-    }
-  );
-
-  if (error) throw error;
-}
-
 export async function createManualAdjustment(payload: {
   driver_id: string;
   amount: number;
@@ -151,21 +95,6 @@ export async function registerCashDebtPayment(payload: {
       p_payment_method: payload.paymentMethod ?? "cash",
       p_reference: payload.reference ?? null,
       p_notes: payload.notes ?? null,
-    }
-  );
-
-  if (error) throw error;
-
-  return data;
-}
-
-export async function markCommissionPaid(
-  commissionId: string
-) {
-  const { data, error } = await supabase.rpc(
-    "mark_commission_paid",
-    {
-      p_commission_id: commissionId,
     }
   );
 
