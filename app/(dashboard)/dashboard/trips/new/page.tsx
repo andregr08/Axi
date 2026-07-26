@@ -3,7 +3,6 @@
 import {
   FormEvent,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -29,12 +28,12 @@ import {
 import {
   MOBILITY_CONFIG,
   createPricedTrip,
-  estimateRouteSync,
+  estimateRoute,
   getDynamicFareEstimate,
   getPricingPeriodLabel,
-  isMockMobilityMode,
   type DynamicFareEstimate,
   type MobilityCoordinates,
+  type MobilityRouteEstimate,
 } from "@/lib/mobility";
 import { supabase } from "@/lib/supabaseClient";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -88,14 +87,11 @@ export default function NewTripPage() {
   const { locale } = useLanguage();
   const english = locale === "en";
 
-  const mockMobilityMode =
-    isMockMobilityMode();
-
-  const placesConfigured =
-    !mockMobilityMode &&
-    Boolean(
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-    );
+  /*
+   * AXI usa Nominatim para buscar direcciones y OSRM para
+   * calcular rutas reales. No requiere modo demo.
+   */
+  const placesConfigured = true;
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -118,6 +114,15 @@ export default function NewTripPage() {
   const [resolvedTrip, setResolvedTrip] =
     useState<ResolvedTripData | null>(null);
   const [message, setMessage] = useState("");
+
+  const [estimate, setEstimate] =
+    useState<MobilityRouteEstimate | null>(null);
+
+  const [routeLoading, setRouteLoading] =
+    useState(false);
+
+  const [routeFallback, setRouteFallback] =
+    useState(false);
 
   const [economyFare, setEconomyFare] =
     useState<DynamicFareEstimate | null>(null);
@@ -283,7 +288,7 @@ export default function NewTripPage() {
     setMessage("");
 
     const routeEstimate =
-      estimateRouteSync(
+      await estimateRoute(
         resolvedTrip.originCoordinates,
         {
           latitude:
@@ -401,45 +406,40 @@ export default function NewTripPage() {
     destinationPlace !== null ||
     (!placesConfigured && destination.trim().length > 2);
 
-  const estimate = useMemo(() => {
-    const previewOrigin =
-      originCoordinates ??
-      (!placesConfigured && originReady
-        ? {
-            ...MOBILITY_CONFIG.defaultOrigin,
-          }
-        : null);
+  useEffect(() => {
+    let cancelled = false;
 
-    const previewDestination =
-      destinationPlace ??
-      (!placesConfigured && destinationReady
-        ? {
-            placeId: "demo-preview",
-            name: destination,
-            address: destination,
-            ...MOBILITY_CONFIG.defaultDestination,
-          }
-        : null);
+    async function loadRouteEstimate() {
+      if (!originCoordinates || !destinationPlace) {
+        setEstimate(null);
+        setRouteFallback(false);
+        setRouteLoading(false);
+        return;
+      }
 
-    if (!previewOrigin || !previewDestination) {
-      return null;
+      setRouteLoading(true);
+
+      const route = await estimateRoute(
+        originCoordinates,
+        {
+          latitude: destinationPlace.latitude,
+          longitude: destinationPlace.longitude,
+        }
+      );
+
+      if (!cancelled) {
+        setEstimate(route);
+        setRouteFallback(route.provider === "mock");
+        setRouteLoading(false);
+      }
     }
 
-    return estimateRouteSync(
-      previewOrigin,
-      {
-        latitude: previewDestination.latitude,
-        longitude: previewDestination.longitude,
-      }
-    );
-  }, [
-    destination,
-    destinationPlace,
-    destinationReady,
-    originCoordinates,
-    originReady,
-    placesConfigured,
-  ]);
+    void loadRouteEstimate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [destinationPlace, originCoordinates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -531,11 +531,19 @@ export default function NewTripPage() {
           </p>
         </div>
 
-        {!placesConfigured && (
+        {routeLoading && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-800">
+            {english
+              ? "Calculating the real road route..."
+              : "Calculando la ruta real por carretera..."}
+          </div>
+        )}
+
+        {routeFallback && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
             {english
-              ? "Demo mode is active: addresses and estimates are provisional until Google Places and Routes are configured."
-              : "Modo demo activo: las direcciones y estimaciones son provisionales hasta configurar Google Places y Routes."}
+              ? "The route service is temporarily unavailable. AXI is showing a local backup estimate."
+              : "El servicio de rutas no está disponible temporalmente. AXI muestra una estimación local de respaldo."}
           </div>
         )}
 
