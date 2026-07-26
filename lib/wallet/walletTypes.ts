@@ -4,6 +4,7 @@ export type DriverWallet = {
 
   available_balance: number;
   pending_balance: number;
+  reserved_balance: number;
   cash_debt: number;
 
   lifetime_earnings: number;
@@ -41,6 +42,7 @@ export type WalletTransaction = {
 export type WalletSummary = {
   available: number;
   pending: number;
+  reserved: number;
   debt: number;
   lifetime: number;
   withdrawn: number;

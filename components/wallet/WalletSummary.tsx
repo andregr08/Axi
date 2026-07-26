@@ -5,6 +5,7 @@ import WalletBalanceCard from "./WalletBalanceCard";
 type Props = {
   available: number;
   pending: number;
+  reserved: number;
   debt: number;
   lifetime: number;
 };
@@ -12,12 +13,12 @@ type Props = {
 export default function WalletSummary({
   available,
   pending,
+  reserved,
   debt,
   lifetime,
 }: Props) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <WalletBalanceCard
         title="Saldo disponible"
         amount={available}
@@ -29,6 +30,11 @@ export default function WalletSummary({
       />
 
       <WalletBalanceCard
+        title="Saldo reservado"
+        amount={reserved}
+      />
+
+      <WalletBalanceCard
         title="Deuda por efectivo"
         amount={debt}
       />
@@ -37,7 +43,6 @@ export default function WalletSummary({
         title="Ganancias históricas"
         amount={lifetime}
       />
-
     </div>
   );
 }

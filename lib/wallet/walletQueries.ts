@@ -40,3 +40,24 @@ export async function getWalletTransactions(
 
   return (data ?? []) as WalletTransaction[];
 }
+
+export async function requestDriverWithdrawal(payload: {
+  amount: number;
+  bankName: string;
+  accountHolder: string;
+  clabe: string;
+}) {
+  const { data, error } = await supabase.rpc(
+    "request_withdrawal",
+    {
+      p_amount: payload.amount,
+      p_bank_name: payload.bankName,
+      p_account_holder: payload.accountHolder,
+      p_clabe: payload.clabe,
+    }
+  );
+
+  if (error) throw error;
+
+  return data as string;
+}
