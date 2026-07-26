@@ -7,6 +7,7 @@ import {
   Banknote,
   CircleDollarSign,
   Clock3,
+  Landmark,
   LoaderCircle,
   RefreshCw,
   ReceiptText,
@@ -178,6 +179,13 @@ export default function FinanceAdminPage() {
           value={formatMoney(stats.pendingBalance)}
           subtitle="Pagos digitales por confirmar"
           icon={Wallet}
+        />
+
+        <FinanceCard
+          title="Saldo reservado"
+          value={formatMoney(stats.reservedBalance)}
+          subtitle="Apartado para retiros en proceso"
+          icon={Landmark}
         />
 
         <FinanceCard
