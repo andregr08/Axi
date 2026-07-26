@@ -1134,8 +1134,8 @@ export default function NewTripPage() {
 
               <p className="mt-5 text-center text-xs leading-5 text-slate-400">
                 {english
-                  ? "The price may change when Google Routes calculates the exact route."
-                  : "El precio podrá ajustarse cuando Google Routes calcule la ruta exacta."}
+                  ? "The final price may change if the route or travel conditions change."
+                  : "El precio final puede ajustarse si cambia la ruta o las condiciones del viaje."}
               </p>
             </div>
           </div>
