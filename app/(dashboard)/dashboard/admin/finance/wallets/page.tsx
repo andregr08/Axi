@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Banknote,
   CircleDollarSign,
+  Landmark,
   RefreshCw,
   Search,
   UsersRound,
@@ -21,6 +23,8 @@ type WalletRow = {
   driver_id: string;
   available_balance: number | string | null;
   pending_balance: number | string | null;
+  reserved_balance: number | string | null;
+  cash_debt: number | string | null;
   lifetime_earnings: number | string | null;
   total_withdrawn: number | string | null;
   updated_at: string | null;
@@ -87,12 +91,16 @@ export default function WalletsPage() {
       (summary, wallet) => {
         summary.available += Number(wallet.available_balance ?? 0);
         summary.pending += Number(wallet.pending_balance ?? 0);
+        summary.reserved += Number(wallet.reserved_balance ?? 0);
+        summary.debt += Number(wallet.cash_debt ?? 0);
         summary.earnings += Number(wallet.lifetime_earnings ?? 0);
         return summary;
       },
       {
         available: 0,
         pending: 0,
+        reserved: 0,
+        debt: 0,
         earnings: 0,
       }
     );
@@ -128,7 +136,8 @@ export default function WalletsPage() {
           </h1>
 
           <p className="mt-1 text-sm text-neutral-500">
-            Consulta saldos, ganancias y retiros acumulados.
+            Consulta saldos disponibles, pendientes, reservados,
+            deudas y retiros acumulados.
           </p>
         </div>
 
@@ -145,7 +154,7 @@ export default function WalletsPage() {
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <SummaryCard
           title="Wallets activas"
           value={String(wallets.length)}
@@ -162,6 +171,18 @@ export default function WalletsPage() {
           title="Saldo pendiente"
           value={money(totals.pending)}
           icon={CircleDollarSign}
+        />
+
+        <SummaryCard
+          title="Saldo reservado"
+          value={money(totals.reserved)}
+          icon={Landmark}
+        />
+
+        <SummaryCard
+          title="Deuda en efectivo"
+          value={money(totals.debt)}
+          icon={Banknote}
         />
 
         <SummaryCard
@@ -230,6 +251,8 @@ export default function WalletsPage() {
                   <TableHeader>Conductor</TableHeader>
                   <TableHeader>Disponible</TableHeader>
                   <TableHeader>Pendiente</TableHeader>
+                  <TableHeader>Reservado</TableHeader>
+                  <TableHeader>Deuda</TableHeader>
                   <TableHeader>Ganancias</TableHeader>
                   <TableHeader>Retirado</TableHeader>
                   <TableHeader>Actualización</TableHeader>
@@ -263,6 +286,22 @@ export default function WalletsPage() {
 
                       <TableValue>
                         {money(wallet.pending_balance)}
+                      </TableValue>
+
+                      <TableValue>
+                        {money(wallet.reserved_balance)}
+                      </TableValue>
+
+                      <TableValue>
+                        <span
+                          className={
+                            Number(wallet.cash_debt ?? 0) > 0
+                              ? "font-semibold text-amber-700"
+                              : ""
+                          }
+                        >
+                          {money(wallet.cash_debt)}
+                        </span>
                       </TableValue>
 
                       <TableValue>
