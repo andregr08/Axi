@@ -95,7 +95,7 @@ export default function RefundsPage() {
 
   async function handleApprove(refund: RefundRow) {
     const confirmed = window.confirm(
-      `¿Aprobar el reembolso de ${money(refund.amount)}?`
+      `¿Abonar ${money(refund.amount)} como saldo AXI al pasajero? Este saldo no se puede retirar y se utilizará en viajes futuros.`
     );
 
     if (!confirmed) return;
@@ -110,7 +110,7 @@ export default function RefundsPage() {
       alert(
         actionError instanceof Error
           ? actionError.message
-          : "No se pudo aprobar el reembolso."
+          : "No se pudo abonar el saldo AXI."
       );
     } finally {
       setProcessingId(null);
@@ -155,11 +155,11 @@ export default function RefundsPage() {
           </p>
 
           <h1 className="text-3xl font-bold tracking-tight text-neutral-950">
-            Reembolsos
+            Créditos por reembolso
           </h1>
 
           <p className="mt-1 text-sm text-neutral-500">
-            Revisa y procesa las solicitudes pendientes.
+            Autoriza saldo AXI para pasajeros por incidencias vinculadas a viajes reales.
           </p>
         </div>
 
@@ -177,12 +177,24 @@ export default function RefundsPage() {
         </Button>
       </div>
 
+      <Card className="border-blue-200 bg-blue-50 p-5">
+        <p className="font-semibold text-blue-950">
+          El crédito se entrega como saldo AXI
+        </p>
+
+        <p className="mt-1 text-sm leading-6 text-blue-800">
+          No se devuelve dinero al banco ni a la tarjeta. El pasajero recibe
+          saldo interno no retirable para utilizar en viajes futuros. Este
+          movimiento no reduce la ganancia ya asignada al conductor.
+        </p>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-5">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-neutral-500">
-                Solicitudes pendientes
+                Créditos pendientes
               </p>
 
               <p className="mt-2 text-3xl font-bold text-neutral-950">
@@ -200,7 +212,7 @@ export default function RefundsPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-neutral-500">
-                Monto pendiente
+                Saldo por autorizar
               </p>
 
               <p className="mt-2 text-3xl font-bold text-neutral-950">
@@ -234,11 +246,11 @@ export default function RefundsPage() {
           <CheckCircle2 className="mb-3 h-10 w-10 text-neutral-300" />
 
           <p className="font-semibold text-neutral-900">
-            No hay reembolsos pendientes
+            No hay créditos pendientes
           </p>
 
           <p className="mt-1 text-sm text-neutral-500">
-            Todas las solicitudes han sido procesadas.
+            Todas las solicitudes de saldo AXI han sido procesadas.
           </p>
         </Card>
       ) : (
@@ -311,7 +323,7 @@ export default function RefundsPage() {
                   <div className="flex shrink-0 flex-col gap-4 xl:items-end">
                     <div>
                       <p className="text-sm font-medium text-neutral-500 xl:text-right">
-                        Monto solicitado
+                        Saldo solicitado
                       </p>
 
                       <p className="text-2xl font-bold text-neutral-950">
@@ -339,7 +351,7 @@ export default function RefundsPage() {
                           <CheckCircle2 className="mr-2 h-4 w-4" />
                         )}
 
-                        Aprobar
+                        Abonar saldo AXI
                       </Button>
                     </div>
                   </div>
