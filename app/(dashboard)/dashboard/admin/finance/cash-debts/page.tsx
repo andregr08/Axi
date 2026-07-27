@@ -82,14 +82,32 @@ export default function CashDebtsPage() {
     );
   }, [rows, search]);
 
+  const selectedDebt = useMemo(() => {
+    return Number(
+      rows.find((row) => row.driver_id === driverId)
+        ?.cash_debt ?? 0
+    );
+  }, [driverId, rows]);
+
   async function submit() {
     if (!driverId) {
       alert("Selecciona un conductor.");
       return;
     }
 
-    if (Number(amount) <= 0) {
+    const parsedAmount = Number(amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       alert("Monto inválido.");
+      return;
+    }
+
+    if (parsedAmount > selectedDebt) {
+      alert(
+        `El pago no puede superar la deuda actual de ${money(
+          selectedDebt
+        )}.`
+      );
       return;
     }
 
@@ -98,7 +116,7 @@ export default function CashDebtsPage() {
 
       await registerCashDebtPayment({
         driverId,
-        amount: Number(amount),
+        amount: parsedAmount,
         paymentMethod: "cash",
         reference,
         notes,
@@ -137,7 +155,8 @@ export default function CashDebtsPage() {
           </h1>
 
           <p className="text-sm text-neutral-500">
-            Administra los pagos de efectivo de los conductores.
+            Supervisa la participación de AXI pendiente por viajes
+            cobrados en efectivo.
           </p>
 
         </div>
@@ -151,6 +170,24 @@ export default function CashDebtsPage() {
         </Button>
 
       </div>
+
+      <Card className="border-blue-200 bg-blue-50 p-5">
+        <p className="font-semibold text-blue-900">
+          Recuperación automática activa
+        </p>
+
+        <p className="mt-2 text-sm leading-6 text-blue-800">
+          Cuando el conductor recibe un viaje en efectivo, la
+          participación de AXI se registra como deuda. Sus próximas
+          ganancias digitales pagan esa deuda automáticamente antes
+          de aumentar su saldo disponible.
+        </p>
+
+        <p className="mt-2 text-xs text-blue-700">
+          El registro manual únicamente debe usarse cuando el
+          conductor entregue efectivo o realice un pago externo.
+        </p>
+      </Card>
 
       <Card className="p-5">
 
@@ -281,11 +318,12 @@ export default function CashDebtsPage() {
 
           <div>
             <h2 className="text-xl font-semibold">
-              Registrar pago de deuda
+              Registrar pago externo
             </h2>
 
             <p className="text-sm text-neutral-500">
-              Selecciona un conductor y registra el efectivo entregado.
+              Úsalo únicamente cuando el conductor entregue dinero
+              fuera del flujo automático de AXI.
             </p>
           </div>
 
@@ -328,8 +366,9 @@ export default function CashDebtsPage() {
 
             <input
               type="number"
-              min="0"
+              min="0.01"
               step="0.01"
+              max={selectedDebt || undefined}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
@@ -377,7 +416,9 @@ export default function CashDebtsPage() {
             disabled={saving}
           >
             <CircleDollarSign className="mr-2 h-4 w-4" />
-            {saving ? "Registrando..." : "Registrar pago"}
+            {saving
+              ? "Registrando..."
+              : "Registrar pago externo"}
           </Button>
 
         </div>
