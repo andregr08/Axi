@@ -22,6 +22,7 @@ type DocumentFiles = {
   licenseBack: File | null;
   identification: File | null;
   concessionDocument: File | null;
+  taxCertificate: File | null;
   vehicleFrontPhoto: File | null;
   vehicleRearPhoto: File | null;
   vehicleLeftPhoto: File | null;
@@ -35,6 +36,7 @@ const emptyFiles: DocumentFiles = {
   licenseBack: null,
   identification: null,
   concessionDocument: null,
+  taxCertificate: null,
   vehicleFrontPhoto: null,
   vehicleRearPhoto: null,
   vehicleLeftPhoto: null,
@@ -85,6 +87,27 @@ export default function DriverApplicationPage() {
   const [vehicleVin, setVehicleVin] =
     useState("");
 
+  const [rfc, setRfc] =
+    useState("");
+
+  const [fiscalName, setFiscalName] =
+    useState("");
+
+  const [
+    fiscalPostalCode,
+    setFiscalPostalCode,
+  ] = useState("");
+
+  const [
+    taxRegimeCode,
+    setTaxRegimeCode,
+  ] = useState("");
+
+  const [
+    existingTaxCertificateUrl,
+    setExistingTaxCertificateUrl,
+  ] = useState<string | null>(null);
+
   const [status, setStatus] =
     useState<Status>("none");
 
@@ -123,6 +146,11 @@ export default function DriverApplicationPage() {
         concession_holder_name,
         concession_expiration,
         vehicle_vin,
+        rfc,
+        fiscal_name,
+        fiscal_postal_code,
+        tax_regime_code,
+        tax_certificate_url,
         status
       `)
       .eq("user_id", session.user.id)
@@ -171,6 +199,26 @@ export default function DriverApplicationPage() {
 
       setVehicleVin(
         data.vehicle_vin ?? ""
+      );
+
+      setRfc(
+        data.rfc ?? ""
+      );
+
+      setFiscalName(
+        data.fiscal_name ?? ""
+      );
+
+      setFiscalPostalCode(
+        data.fiscal_postal_code ?? ""
+      );
+
+      setTaxRegimeCode(
+        data.tax_regime_code ?? ""
+      );
+
+      setExistingTaxCertificateUrl(
+        data.tax_certificate_url ?? null
       );
 
       setStatus(
@@ -232,6 +280,13 @@ export default function DriverApplicationPage() {
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function normalizeRfc(value: string) {
+    return value
+      .toUpperCase()
+      .replace(/[^A-Z0-9Ñ&]/g, "")
+      .slice(0, 13);
+  }
+
   function updateFile(
     field: keyof DocumentFiles,
     file: File | null
@@ -267,12 +322,55 @@ export default function DriverApplicationPage() {
     const cleanVin =
       normalizeVin(vehicleVin);
 
+    const cleanRfc =
+      normalizeRfc(rfc);
+
     if (
       !licenseNumber.trim() ||
       !licenseExpiration
     ) {
       setMessage(
         t("driverApplication.licenseRequired")
+      );
+      return;
+    }
+
+    if (
+      !/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/.test(
+        cleanRfc
+      )
+    ) {
+      setMessage(
+        t("driverApplication.rfcInvalid")
+      );
+      return;
+    }
+
+    if (fiscalName.trim().length < 3) {
+      setMessage(
+        t("driverApplication.fiscalNameRequired")
+      );
+      return;
+    }
+
+    if (
+      !/^[0-9]{5}$/.test(
+        fiscalPostalCode.trim()
+      )
+    ) {
+      setMessage(
+        t("driverApplication.fiscalPostalCodeInvalid")
+      );
+      return;
+    }
+
+    if (
+      !/^[0-9]{3}$/.test(
+        taxRegimeCode.trim()
+      )
+    ) {
+      setMessage(
+        t("driverApplication.taxRegimeInvalid")
       );
       return;
     }
@@ -423,6 +521,17 @@ export default function DriverApplicationPage() {
           "vehicle-right"
         );
 
+      const uploadedTaxCertificatePath =
+        await uploadOptionalDocument(
+          userId,
+          files.taxCertificate,
+          "tax-certificate"
+        );
+
+      const taxCertificatePath =
+        uploadedTaxCertificatePath ??
+        existingTaxCertificateUrl;
+
       const { error } = await supabase
         .from("driver_applications")
         .upsert(
@@ -458,6 +567,21 @@ export default function DriverApplicationPage() {
 
             vehicle_vin:
               cleanVin,
+
+            rfc:
+              cleanRfc,
+
+            fiscal_name:
+              fiscalName.trim(),
+
+            fiscal_postal_code:
+              fiscalPostalCode.trim(),
+
+            tax_regime_code:
+              taxRegimeCode.trim(),
+
+            tax_certificate_url:
+              taxCertificatePath,
 
             concession_document_url:
               concessionDocumentPath,
@@ -573,6 +697,83 @@ export default function DriverApplicationPage() {
               onChange={setLicenseExpiration}
               required
             />
+          </div>
+        </section>
+
+        <section className="border-t pt-8">
+          <h2 className="mb-1 text-xl font-bold">
+            {t("driverApplication.fiscalInformation")}
+          </h2>
+
+          <p className="mb-5 text-sm text-gray-500">
+            {t("driverApplication.fiscalDescription")}
+          </p>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <TextInput
+              label={t("driverApplication.rfc")}
+              value={rfc}
+              onChange={(value) =>
+                setRfc(normalizeRfc(value))
+              }
+              placeholder={t("driverApplication.rfcPlaceholder")}
+              required
+            />
+
+            <TextInput
+              label={t("driverApplication.fiscalName")}
+              value={fiscalName}
+              onChange={setFiscalName}
+              placeholder={t("driverApplication.fiscalNamePlaceholder")}
+              required
+            />
+
+            <TextInput
+              label={t("driverApplication.fiscalPostalCode")}
+              value={fiscalPostalCode}
+              onChange={(value) =>
+                setFiscalPostalCode(
+                  value
+                    .replace(/[^0-9]/g, "")
+                    .slice(0, 5)
+                )
+              }
+              placeholder={t("driverApplication.fiscalPostalCodePlaceholder")}
+              required
+            />
+
+            <TextInput
+              label={t("driverApplication.taxRegimeCode")}
+              value={taxRegimeCode}
+              onChange={(value) =>
+                setTaxRegimeCode(
+                  value
+                    .replace(/[^0-9]/g, "")
+                    .slice(0, 3)
+                )
+              }
+              placeholder={t("driverApplication.taxRegimePlaceholder")}
+              required
+            />
+
+            <div className="md:col-span-2">
+              <DocumentInput
+                label={t("driverApplication.taxCertificateOptional")}
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={(file) =>
+                  updateFile(
+                    "taxCertificate",
+                    file
+                  )
+                }
+              />
+
+              {existingTaxCertificateUrl && (
+                <p className="mt-2 text-xs font-medium text-green-700">
+                  {t("driverApplication.existingTaxCertificate")}
+                </p>
+              )}
+            </div>
           </div>
         </section>
 
