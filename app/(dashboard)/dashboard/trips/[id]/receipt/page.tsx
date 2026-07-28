@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { isFinance } from "@/lib/auth/roles";
@@ -183,12 +184,23 @@ export default function TripReceiptPage() {
           Volver al viaje
         </button>
 
-        <button
-          onClick={() => window.print()}
-          className="rounded-xl bg-black px-5 py-3 font-semibold text-white"
-        >
-          Imprimir recibo
-        </button>
+        <div className="flex flex-wrap gap-3">
+          {role === "passenger" && (
+            <Link
+              href={`/dashboard/trips/${trip.id}/invoice`}
+              className="rounded-xl bg-yellow-400 px-5 py-3 font-bold text-black hover:bg-yellow-300"
+            >
+              Solicitar factura
+            </Link>
+          )}
+
+          <button
+            onClick={() => window.print()}
+            className="rounded-xl bg-black px-5 py-3 font-semibold text-white"
+          >
+            Imprimir recibo
+          </button>
+        </div>
       </div>
 
       <article className="rounded-2xl bg-white p-8 shadow-sm print:shadow-none">
