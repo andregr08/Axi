@@ -22,6 +22,7 @@ type DocumentFiles = {
   licenseBack: File | null;
   identification: File | null;
   concessionDocument: File | null;
+  taxDocument: File | null;
   vehicleFrontPhoto: File | null;
   vehicleRearPhoto: File | null;
   vehicleLeftPhoto: File | null;
@@ -35,6 +36,7 @@ const emptyFiles: DocumentFiles = {
   licenseBack: null,
   identification: null,
   concessionDocument: null,
+  taxDocument: null,
   vehicleFrontPhoto: null,
   vehicleRearPhoto: null,
   vehicleLeftPhoto: null,
@@ -85,6 +87,20 @@ export default function DriverApplicationPage() {
   const [vehicleVin, setVehicleVin] =
     useState("");
 
+  const [taxpayerName, setTaxpayerName] =
+    useState("");
+
+  const [rfc, setRfc] =
+    useState("");
+
+  const [taxRegime, setTaxRegime] =
+    useState("");
+
+  const [
+    fiscalPostalCode,
+    setFiscalPostalCode,
+  ] = useState("");
+
   const [status, setStatus] =
     useState<Status>("none");
 
@@ -123,6 +139,10 @@ export default function DriverApplicationPage() {
         concession_holder_name,
         concession_expiration,
         vehicle_vin,
+        taxpayer_name,
+        rfc,
+        tax_regime,
+        fiscal_postal_code,
         status
       `)
       .eq("user_id", session.user.id)
@@ -171,6 +191,22 @@ export default function DriverApplicationPage() {
 
       setVehicleVin(
         data.vehicle_vin ?? ""
+      );
+
+      setTaxpayerName(
+        data.taxpayer_name ?? ""
+      );
+
+      setRfc(
+        data.rfc ?? ""
+      );
+
+      setTaxRegime(
+        data.tax_regime ?? ""
+      );
+
+      setFiscalPostalCode(
+        data.fiscal_postal_code ?? ""
       );
 
       setStatus(
@@ -232,6 +268,12 @@ export default function DriverApplicationPage() {
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function normalizeRfc(value: string) {
+    return value
+      .toUpperCase()
+      .replace(/[^A-ZÑ&0-9]/g, "");
+  }
+
   function updateFile(
     field: keyof DocumentFiles,
     file: File | null
@@ -266,6 +308,12 @@ export default function DriverApplicationPage() {
 
     const cleanVin =
       normalizeVin(vehicleVin);
+
+    const cleanRfc =
+      normalizeRfc(rfc);
+
+    const cleanPostalCode =
+      fiscalPostalCode.replace(/\D/g, "");
 
     if (
       !licenseNumber.trim() ||
@@ -324,13 +372,46 @@ export default function DriverApplicationPage() {
       return;
     }
 
+    if (!taxpayerName.trim()) {
+      setMessage(
+        t("driverApplication.taxpayerNameRequired")
+      );
+      return;
+    }
+
+    if (
+      !/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/.test(
+        cleanRfc
+      )
+    ) {
+      setMessage(
+        t("driverApplication.rfcInvalid")
+      );
+      return;
+    }
+
+    if (!taxRegime.trim()) {
+      setMessage(
+        t("driverApplication.taxRegimeRequired")
+      );
+      return;
+    }
+
+    if (!/^[0-9]{5}$/.test(cleanPostalCode)) {
+      setMessage(
+        t("driverApplication.fiscalPostalCodeInvalid")
+      );
+      return;
+    }
+
     const requiredDocumentsSelected =
       files.profilePhoto &&
       files.selfie &&
       files.licenseFront &&
       files.licenseBack &&
       files.identification &&
-      files.concessionDocument;
+      files.concessionDocument &&
+      files.taxDocument;
 
     if (!requiredDocumentsSelected) {
       setMessage(
@@ -393,6 +474,13 @@ export default function DriverApplicationPage() {
           userId,
           files.concessionDocument!,
           "concession-document"
+        );
+
+      const taxDocumentPath =
+        await uploadDocument(
+          userId,
+          files.taxDocument!,
+          "tax-situation-certificate"
         );
 
       const vehicleFrontPhotoPath =
@@ -458,6 +546,36 @@ export default function DriverApplicationPage() {
 
             vehicle_vin:
               cleanVin,
+
+            taxpayer_name:
+              taxpayerName.trim(),
+
+            rfc:
+              cleanRfc,
+
+            tax_regime:
+              taxRegime.trim(),
+
+            fiscal_postal_code:
+              cleanPostalCode,
+
+            tax_document_url:
+              taxDocumentPath,
+
+            tax_document_uploaded_at:
+              new Date().toISOString(),
+
+            tax_validation_status:
+              "pending",
+
+            tax_validated_at:
+              null,
+
+            tax_validated_by:
+              null,
+
+            tax_rejection_reason:
+              null,
 
             concession_document_url:
               concessionDocumentPath,
@@ -667,6 +785,103 @@ export default function DriverApplicationPage() {
 
               <p className="mt-2 text-xs text-gray-500">
                 {normalizeVin(vehicleVin).length}/17 {t("driverApplication.characters")}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t pt-8">
+          <h2 className="mb-1 text-xl font-bold">
+            {t("driverApplication.taxInformation")}
+          </h2>
+
+          <p className="mb-5 text-sm text-gray-500">
+            {t("driverApplication.taxInformationDescription")}
+          </p>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <TextInput
+              label={t("driverApplication.taxpayerName")}
+              value={taxpayerName}
+              onChange={setTaxpayerName}
+              placeholder={t("driverApplication.taxpayerNamePlaceholder")}
+              required
+            />
+
+            <div>
+              <label
+                htmlFor="rfc"
+                className="mb-2 block text-sm font-semibold"
+              >
+                {t("driverApplication.rfc")}
+              </label>
+
+              <input
+                id="rfc"
+                value={rfc}
+                onChange={(event) =>
+                  setRfc(
+                    normalizeRfc(event.target.value)
+                  )
+                }
+                minLength={12}
+                maxLength={13}
+                required
+                placeholder={t("driverApplication.rfcPlaceholder")}
+                className="w-full rounded-xl border px-4 py-3 uppercase"
+              />
+            </div>
+
+            <TextInput
+              label={t("driverApplication.taxRegime")}
+              value={taxRegime}
+              onChange={setTaxRegime}
+              placeholder={t("driverApplication.taxRegimePlaceholder")}
+              required
+            />
+
+            <div>
+              <label
+                htmlFor="fiscalPostalCode"
+                className="mb-2 block text-sm font-semibold"
+              >
+                {t("driverApplication.fiscalPostalCode")}
+              </label>
+
+              <input
+                id="fiscalPostalCode"
+                value={fiscalPostalCode}
+                onChange={(event) =>
+                  setFiscalPostalCode(
+                    event.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 5)
+                  )
+                }
+                inputMode="numeric"
+                minLength={5}
+                maxLength={5}
+                required
+                placeholder={t("driverApplication.fiscalPostalCodePlaceholder")}
+                className="w-full rounded-xl border px-4 py-3"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <DocumentInput
+                label={t("driverApplication.taxDocument")}
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                required
+                onChange={(file) =>
+                  updateFile(
+                    "taxDocument",
+                    file
+                  )
+                }
+              />
+
+              <p className="mt-2 text-xs text-gray-500">
+                {t("driverApplication.taxDocumentHelp")}
               </p>
             </div>
           </div>

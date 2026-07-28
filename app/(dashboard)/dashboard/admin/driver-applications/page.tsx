@@ -10,6 +10,12 @@ type ApplicationStatus = "pending" | "approved" | "rejected";
 
 type FaceStatus = "pending" | "matched" | "not_matched" | "manual_review";
 
+type TaxValidationStatus =
+  | "not_submitted"
+  | "pending"
+  | "verified"
+  | "rejected";
+
 type DriverApplication = {
   id: string;
   user_id: string;
@@ -31,6 +37,17 @@ type DriverApplication = {
   face_match_status: FaceStatus;
   face_match_score: number | null;
   rejection_reason: string | null;
+
+  taxpayer_name: string | null;
+  rfc: string | null;
+  tax_regime: string | null;
+  fiscal_postal_code: string | null;
+  tax_document_url: string | null;
+  tax_document_uploaded_at: string | null;
+  tax_validation_status: TaxValidationStatus;
+  tax_validated_at: string | null;
+  tax_validated_by: string | null;
+  tax_rejection_reason: string | null;
 
   profile_photo_url: string | null;
   selfie_url: string | null;
@@ -67,6 +84,7 @@ type DocumentLinks = {
   licenseBack: string | null;
   identification: string | null;
   concessionDocument: string | null;
+  taxDocument: string | null;
   vehicleFrontPhoto: string | null;
   vehicleRearPhoto: string | null;
   vehicleLeftPhoto: string | null;
@@ -152,6 +170,16 @@ export default function DriverApplicationsAdminPage() {
         face_match_status,
         face_match_score,
         rejection_reason,
+        taxpayer_name,
+        rfc,
+        tax_regime,
+        fiscal_postal_code,
+        tax_document_url,
+        tax_document_uploaded_at,
+        tax_validation_status,
+        tax_validated_at,
+        tax_validated_by,
+        tax_rejection_reason,
         profile_photo_url,
         selfie_url,
         license_front_url,
@@ -225,6 +253,10 @@ export default function DriverApplicationsAdminPage() {
 
         concessionDocument: await createSignedLink(
           application.concession_document_url,
+        ),
+
+        taxDocument: await createSignedLink(
+          application.tax_document_url,
         ),
 
         vehicleFrontPhoto: await createSignedLink(
@@ -306,6 +338,81 @@ export default function DriverApplicationsAdminPage() {
     setProcessingId(null);
   }
 
+  async function reviewTaxInformation(
+    applicationId: string,
+    reviewStatus: "verified" | "rejected",
+  ) {
+    const application = applications.find((item) => item.id === applicationId);
+
+    if (!application) {
+      window.alert(t("driverApplications.applicationUnavailable"));
+      return;
+    }
+
+    if (
+      !application.taxpayer_name ||
+      !application.rfc ||
+      !application.tax_regime ||
+      !application.fiscal_postal_code ||
+      !application.tax_document_url
+    ) {
+      window.alert(t("driverApplications.taxInformationIncomplete"));
+      return;
+    }
+
+    let rejectionReason: string | null = null;
+
+    if (reviewStatus === "rejected") {
+      const reason = window.prompt(
+        t("driverApplications.taxRejectReasonPrompt"),
+      );
+
+      if (!reason?.trim()) {
+        return;
+      }
+
+      rejectionReason = reason.trim();
+    }
+
+    const confirmed = window.confirm(
+      reviewStatus === "verified"
+        ? t("driverApplications.confirmTaxVerification")
+        : t("driverApplications.confirmTaxRejection"),
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setProcessingId(applicationId);
+    setMessage("");
+
+    const { error } = await supabase.rpc(
+      "review_driver_tax_information",
+      {
+        application_id: applicationId,
+        review_status: reviewStatus,
+        rejection_reason: rejectionReason,
+      },
+    );
+
+    if (error) {
+      setMessage(
+        `${t("driverApplications.taxReviewError")} ${error.message}`,
+      );
+    } else {
+      setMessage(
+        reviewStatus === "verified"
+          ? t("driverApplications.taxVerifiedSaved")
+          : t("driverApplications.taxRejectedSaved"),
+      );
+
+      await loadApplications();
+    }
+
+    setProcessingId(null);
+  }
+
   async function approveApplication(applicationId: string) {
     const application = applications.find((item) => item.id === applicationId);
 
@@ -313,6 +420,12 @@ export default function DriverApplicationsAdminPage() {
       window.alert("Esta solicitud ya fue procesada.");
       return;
     }
+
+    if (application.tax_validation_status !== "verified") {
+      window.alert(t("driverApplications.taxVerificationRequired"));
+      return;
+    }
+
     const confirmed = window.confirm(t("driverApplications.confirmApprove"));
 
     if (!confirmed) {
@@ -397,6 +510,17 @@ export default function DriverApplicationsAdminPage() {
     return labels[status];
   }
 
+  function taxStatusLabel(status: TaxValidationStatus) {
+    const labels: Record<TaxValidationStatus, string> = {
+      not_submitted: t("driverApplications.taxNotSubmitted"),
+      pending: t("driverApplications.taxPending"),
+      verified: t("driverApplications.taxVerified"),
+      rejected: t("driverApplications.taxRejected"),
+    };
+
+    return labels[status];
+  }
+
   function applicationStatusLabel(status: ApplicationStatus) {
     const labels: Record<ApplicationStatus, string> = {
       pending: t("driverApplications.pending"),
@@ -430,6 +554,10 @@ export default function DriverApplicationsAdminPage() {
       application.concession_number,
       application.concession_holder_name,
       application.vehicle_vin,
+      application.taxpayer_name,
+      application.rfc,
+      application.tax_regime,
+      application.fiscal_postal_code,
     ]
       .filter(Boolean)
       .join(" ")
@@ -547,7 +675,7 @@ export default function DriverApplicationsAdminPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Nombre, correo, licencia, ciudad, taxi o VIN..."
+            placeholder="Nombre, correo, licencia, taxi, VIN o RFC..."
             className="rounded-xl border px-4 py-3 xl:col-span-2"
           />
 
@@ -741,6 +869,46 @@ export default function DriverApplicationsAdminPage() {
                             : ""
                         }`}
                       />
+
+                      <DataItem
+                        label={t("driverApplications.taxpayerName")}
+                        value={application.taxpayer_name}
+                      />
+
+                      <DataItem
+                        label={t("driverApplications.rfc")}
+                        value={application.rfc}
+                      />
+
+                      <DataItem
+                        label={t("driverApplications.taxRegime")}
+                        value={application.tax_regime}
+                      />
+
+                      <DataItem
+                        label={t("driverApplications.fiscalPostalCode")}
+                        value={application.fiscal_postal_code}
+                      />
+
+                      <DataItem
+                        label={t("driverApplications.taxValidationStatus")}
+                        value={taxStatusLabel(
+                          application.tax_validation_status,
+                        )}
+                      />
+
+                      <DataItem
+                        label={t("driverApplications.taxValidatedAt")}
+                        value={
+                          application.tax_validated_at
+                            ? new Date(
+                                application.tax_validated_at,
+                              ).toLocaleString(
+                                locale === "es" ? "es-MX" : "en-US",
+                              )
+                            : null
+                        }
+                      />
                     </div>
                   </div>
 
@@ -791,12 +959,52 @@ export default function DriverApplicationsAdminPage() {
 
                         <button
                           type="button"
+                          onClick={() =>
+                            reviewTaxInformation(
+                              application.id,
+                              "verified",
+                            )
+                          }
+                          disabled={
+                            processing ||
+                            !application.taxpayer_name ||
+                            !application.rfc ||
+                            !application.tax_regime ||
+                            !application.fiscal_postal_code ||
+                            !application.tax_document_url ||
+                            application.tax_validation_status === "verified"
+                          }
+                          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                        >
+                          {t("driverApplications.verifyTaxInformation")}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            reviewTaxInformation(
+                              application.id,
+                              "rejected",
+                            )
+                          }
+                          disabled={
+                            processing ||
+                            !application.tax_document_url
+                          }
+                          className="rounded-lg border border-orange-200 px-4 py-2 text-sm font-semibold text-orange-700 disabled:opacity-40"
+                        >
+                          {t("driverApplications.rejectTaxInformation")}
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => approveApplication(application.id)}
                           disabled={
                             processing ||
                             application.face_match_status !== "matched" ||
                             !application.documents_complete ||
                             !application.concession_document_url ||
+                            application.tax_validation_status !== "verified" ||
                             !application.vehicle_vin ||
                             !application.taxi_number ||
                             !application.concession_number
@@ -859,6 +1067,18 @@ export default function DriverApplicationsAdminPage() {
                     </div>
 
                     <h3 className="mb-4 mt-8 text-lg font-bold">
+                      {t("driverApplications.taxDocuments")}
+                    </h3>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <DocumentCard
+                        label={t("driverApplications.taxSituationCertificate")}
+                        url={links.taxDocument}
+                        document
+                      />
+                    </div>
+
+                    <h3 className="mb-4 mt-8 text-lg font-bold">
                       {t("driverApplications.optionalTaxiPhotos")}
                     </h3>
 
@@ -884,6 +1104,13 @@ export default function DriverApplicationsAdminPage() {
                       />
                     </div>
                   </div>
+                )}
+
+                {application.tax_rejection_reason && (
+                  <p className="mt-6 rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
+                    {t("driverApplications.taxRejectionReason")}:{" "}
+                    {application.tax_rejection_reason}
+                  </p>
                 )}
 
                 {application.rejection_reason && (
