@@ -5,6 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpenText, RefreshCw, Search } from "lucide-react";
 
 import {
+  createFinancialFilename,
+  exportFinancialCsv,
+} from "@/lib/finance/enterpriseReports";
+
+import {
   getJournalTransactions,
   type JournalTransaction,
 } from "@/lib/finance/journal";
@@ -108,6 +113,87 @@ export default function FinanceJournalPage() {
 
   const reversedCount = rows.filter((row) => row.status === "reversed").length;
 
+  function handleExport() {
+    try {
+      const exportRows = filteredRows.map((row) => ({
+        id: row.id,
+        ledger_folio: row.ledger_folio,
+        effective_at: row.effective_at,
+        transaction_type: row.transaction_type,
+        description: row.description,
+        status: row.status,
+        trip_id: row.trip_id,
+        payment_id: row.payment_id,
+        refund_id: row.refund_id,
+        withdrawal_id: row.withdrawal_id,
+        provider_reference: row.provider_reference,
+        created_at: row.created_at,
+        posted_at: row.posted_at,
+      }));
+
+      exportFinancialCsv({
+        filename: createFinancialFilename("libro-diario", dateFrom, dateTo),
+        rows: exportRows,
+        columns: [
+          {
+            key: "ledger_folio",
+            label: "Folio",
+          },
+          {
+            key: "effective_at",
+            label: "Fecha efectiva",
+          },
+          {
+            key: "transaction_type",
+            label: "Tipo de transacción",
+          },
+          {
+            key: "description",
+            label: "Descripción",
+          },
+          {
+            key: "status",
+            label: "Estado",
+          },
+          {
+            key: "trip_id",
+            label: "Viaje",
+          },
+          {
+            key: "payment_id",
+            label: "Pago",
+          },
+          {
+            key: "refund_id",
+            label: "Reembolso",
+          },
+          {
+            key: "withdrawal_id",
+            label: "Retiro",
+          },
+          {
+            key: "provider_reference",
+            label: "Referencia proveedor",
+          },
+          {
+            key: "created_at",
+            label: "Fecha de creación",
+          },
+          {
+            key: "posted_at",
+            label: "Fecha de contabilización",
+          },
+        ],
+      });
+    } catch (exportError) {
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "No fue posible exportar el libro diario.",
+      );
+    }
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -131,6 +217,15 @@ export default function FinanceJournalPage() {
             className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
           />
           Actualizar
+        </button>
+
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={loading || filteredRows.length === 0}
+          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Exportar CSV
         </button>
       </header>
 

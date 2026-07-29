@@ -1,11 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import EnterpriseReportTable from "@/components/finance/EnterpriseReportTable";
+import FinanceReportToolbar from "@/components/finance/FinanceReportToolbar";
+
 import {
+  createFinancialFilename,
+  exportFinancialCsv,
   formatCurrency,
   formatDate,
   getFinancialView,
+  getMexicoToday,
+  getMexicoYearStart,
+  sumFinancialColumn,
   type FinancialRow,
 } from "@/lib/finance/enterpriseReports";
 
@@ -23,6 +31,8 @@ const initialData: StatementData = {
 
 export default function FinancialStatementsPage() {
   const [data, setData] = useState<StatementData>(initialData);
+  const [dateFrom, setDateFrom] = useState(getMexicoYearStart());
+  const [dateTo, setDateTo] = useState(getMexicoToday());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,14 +44,40 @@ export default function FinancialStatementsPage() {
       const [profitLoss, balanceSheet, cashFlow] = await Promise.all([
         getFinancialView("finance_profit_loss_v1", {
           orderBy: "period_start",
-          limit: 36,
+          limit: 120,
+          filters: [
+            {
+              column: "period_start",
+              operator: "gte",
+              value: dateFrom,
+            },
+            {
+              column: "period_start",
+              operator: "lte",
+              value: dateTo,
+            },
+          ],
         }),
+
         getFinancialView("finance_balance_sheet_v1", {
           limit: 1,
         }),
+
         getFinancialView("finance_cash_flow_v1", {
           orderBy: "finance_date",
-          limit: 90,
+          limit: 5000,
+          filters: [
+            {
+              column: "finance_date",
+              operator: "gte",
+              value: dateFrom,
+            },
+            {
+              column: "finance_date",
+              operator: "lte",
+              value: dateTo,
+            },
+          ],
         }),
       ]);
 
@@ -59,7 +95,7 @@ export default function FinancialStatementsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
     void loadData();
@@ -67,27 +103,129 @@ export default function FinancialStatementsPage() {
 
   const balance = data.balanceSheet[0];
 
+  const periodTotals = useMemo(
+    () => ({
+      income: sumFinancialColumn(data.profitLoss, "total_income"),
+      expenses: sumFinancialColumn(data.profitLoss, "total_expenses"),
+      netIncome: sumFinancialColumn(data.profitLoss, "net_income"),
+      cashFlow: sumFinancialColumn(data.cashFlow, "net_cash_flow"),
+    }),
+    [data.cashFlow, data.profitLoss],
+  );
+
+  function exportProfitLoss() {
+    try {
+      exportFinancialCsv({
+        filename: createFinancialFilename(
+          "estado-de-resultados",
+          dateFrom,
+          dateTo,
+        ),
+        rows: data.profitLoss,
+        columns: [
+          {
+            key: "period_start",
+            label: "Periodo",
+            format: formatDate,
+          },
+          {
+            key: "total_income",
+            label: "Ingresos",
+          },
+          {
+            key: "total_expenses",
+            label: "Gastos",
+          },
+          {
+            key: "net_income",
+            label: "Utilidad neta",
+          },
+          {
+            key: "net_margin_percentage",
+            label: "Margen porcentual",
+          },
+        ],
+      });
+    } catch (exportError) {
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "No fue posible exportar el reporte.",
+      );
+    }
+  }
+
+  function exportCashFlow() {
+    try {
+      exportFinancialCsv({
+        filename: createFinancialFilename(
+          "flujo-de-efectivo",
+          dateFrom,
+          dateTo,
+        ),
+        rows: data.cashFlow,
+        columns: [
+          {
+            key: "finance_date",
+            label: "Fecha",
+            format: formatDate,
+          },
+          {
+            key: "cash_inflows",
+            label: "Entradas",
+          },
+          {
+            key: "cash_outflows",
+            label: "Salidas",
+          },
+          {
+            key: "net_cash_flow",
+            label: "Flujo neto",
+          },
+        ],
+      });
+    } catch (exportError) {
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "No fue posible exportar el flujo de efectivo.",
+      );
+    }
+  }
+
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-blue-600">Finanzas</p>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Estados financieros
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Estado de resultados, balance general y flujo de efectivo.
-          </p>
-        </div>
+      <header>
+        <p className="text-sm font-medium text-blue-600">Finanzas</p>
 
+        <h1 className="text-2xl font-bold text-slate-900">
+          Estados financieros
+        </h1>
+
+        <p className="mt-1 text-sm text-slate-500">
+          Estado de resultados, balance general y flujo de efectivo.
+        </p>
+      </header>
+
+      <FinanceReportToolbar
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        onRefresh={() => void loadData()}
+        onExport={exportProfitLoss}
+        loading={loading}
+        exportDisabled={data.profitLoss.length === 0}
+      >
         <button
           type="button"
-          onClick={() => void loadData()}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          onClick={exportCashFlow}
+          disabled={loading || data.cashFlow.length === 0}
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
-          Actualizar
+          Exportar flujo de efectivo
         </button>
-      </header>
+      </FinanceReportToolbar>
 
       {loading && (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
@@ -113,14 +251,17 @@ export default function FinancialStatementsPage() {
                 label="Activos"
                 value={formatCurrency(balance?.total_assets)}
               />
+
               <MetricCard
                 label="Pasivos"
                 value={formatCurrency(balance?.total_liabilities)}
               />
+
               <MetricCard
                 label="Resultado acumulado"
                 value={formatCurrency(balance?.retained_result)}
               />
+
               <MetricCard
                 label="Diferencia contable"
                 value={formatCurrency(balance?.accounting_difference)}
@@ -129,6 +270,35 @@ export default function FinancialStatementsPage() {
                     ? "Balance cuadrado"
                     : "Requiere revisión"
                 }
+                warning={!Boolean(balance?.is_balanced)}
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="mb-4 text-lg font-bold text-slate-900">
+              Resultado del periodo seleccionado
+            </h2>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <MetricCard
+                label="Ingresos"
+                value={formatCurrency(periodTotals.income)}
+              />
+
+              <MetricCard
+                label="Gastos"
+                value={formatCurrency(periodTotals.expenses)}
+              />
+
+              <MetricCard
+                label="Utilidad neta"
+                value={formatCurrency(periodTotals.netIncome)}
+              />
+
+              <MetricCard
+                label="Flujo neto"
+                value={formatCurrency(periodTotals.cashFlow)}
               />
             </div>
           </section>
@@ -140,6 +310,7 @@ export default function FinancialStatementsPage() {
 
             <EnterpriseReportTable
               rows={data.profitLoss}
+              emptyMessage="No hay resultados para el periodo seleccionado."
               columns={[
                 {
                   key: "period_start",
@@ -181,7 +352,7 @@ export default function FinancialStatementsPage() {
 
             <EnterpriseReportTable
               rows={data.cashFlow}
-              emptyMessage="Todavía no hay movimientos registrados en las cuentas de caja o bancos."
+              emptyMessage="No hay movimientos de caja o bancos para el periodo seleccionado."
               columns={[
                 {
                   key: "finance_date",
@@ -219,16 +390,45 @@ function MetricCard({
   label,
   value,
   detail,
+  warning = false,
 }: {
   label: string;
   value: string;
   detail?: string;
+  warning?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
-      {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
+    <div
+      className={[
+        "rounded-2xl border p-5",
+        warning ? "border-red-200 bg-red-50" : "border-slate-200 bg-white",
+      ].join(" ")}
+    >
+      <p
+        className={warning ? "text-sm text-red-700" : "text-sm text-slate-500"}
+      >
+        {label}
+      </p>
+
+      <p
+        className={[
+          "mt-2 text-2xl font-bold",
+          warning ? "text-red-900" : "text-slate-900",
+        ].join(" ")}
+      >
+        {value}
+      </p>
+
+      {detail && (
+        <p
+          className={[
+            "mt-1 text-xs",
+            warning ? "text-red-700" : "text-slate-500",
+          ].join(" ")}
+        >
+          {detail}
+        </p>
+      )}
     </div>
   );
 }

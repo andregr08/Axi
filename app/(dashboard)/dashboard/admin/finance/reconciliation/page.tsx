@@ -68,12 +68,8 @@ export default function FinanceReconciliationPage() {
       </header>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <p className="text-sm text-slate-500">
-          Operaciones con diferencias
-        </p>
-        <p className="mt-1 text-3xl font-bold text-slate-900">
-          {pendingCount}
-        </p>
+        <p className="text-sm text-slate-500">Operaciones con diferencias</p>
+        <p className="mt-1 text-3xl font-bold text-slate-900">{pendingCount}</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
