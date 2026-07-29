@@ -8,6 +8,7 @@ const sections = [
     title: "Resumen",
     items: [
       ["Dashboard financiero", "/dashboard/admin/finance"],
+      ["Executive Center", "/dashboard/admin/finance/executive"],
       ["Reportes", "/dashboard/admin/finance/reports"],
     ],
   },
