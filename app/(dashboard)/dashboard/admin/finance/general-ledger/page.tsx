@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import EnterpriseReportTable from "@/components/finance/EnterpriseReportTable";
 import FinanceReportToolbar from "@/components/finance/FinanceReportToolbar";
+import {
+  EnterpriseMetricCard,
+  EnterprisePageHeader,
+} from "@/components/enterprise";
 
 import {
   createFinancialFilename,
@@ -147,15 +151,11 @@ export default function GeneralLedgerPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm font-medium text-blue-600">Contabilidad</p>
-
-        <h1 className="text-2xl font-bold text-slate-900">Libro mayor</h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Todos los cargos y abonos registrados en el ledger de AXI.
-        </p>
-      </header>
+      <EnterprisePageHeader
+        eyebrow="Contabilidad"
+        title="Libro mayor"
+        description="Todos los cargos y abonos registrados en el ledger de AXI."
+      />
 
       <FinanceReportToolbar
         search={search}
@@ -172,13 +172,22 @@ export default function GeneralLedgerPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Movimientos" value={String(filteredRows.length)} />
+        <EnterpriseMetricCard
+          label="Movimientos"
+          value={String(filteredRows.length)}
+        />
 
-        <MetricCard label="Total debe" value={formatCurrency(totalDebits)} />
+        <EnterpriseMetricCard
+          label="Total debe"
+          value={formatCurrency(totalDebits)}
+        />
 
-        <MetricCard label="Total haber" value={formatCurrency(totalCredits)} />
+        <EnterpriseMetricCard
+          label="Total haber"
+          value={formatCurrency(totalCredits)}
+        />
 
-        <MetricCard
+        <EnterpriseMetricCard
           label="Diferencia"
           value={formatCurrency(difference)}
           detail={
@@ -186,7 +195,7 @@ export default function GeneralLedgerPage() {
               ? "Movimientos balanceados"
               : "Requiere revisión"
           }
-          warning={Math.abs(difference) >= 0.005}
+          tone={Math.abs(difference) < 0.005 ? "success" : "danger"}
         />
       </div>
 
@@ -240,53 +249,6 @@ export default function GeneralLedgerPage() {
             },
           ]}
         />
-      )}
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  detail,
-  warning = false,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  warning?: boolean;
-}) {
-  return (
-    <div
-      className={[
-        "rounded-2xl border p-5",
-        warning ? "border-red-200 bg-red-50" : "border-slate-200 bg-white",
-      ].join(" ")}
-    >
-      <p
-        className={warning ? "text-sm text-red-700" : "text-sm text-slate-500"}
-      >
-        {label}
-      </p>
-
-      <p
-        className={[
-          "mt-2 text-2xl font-bold",
-          warning ? "text-red-900" : "text-slate-900",
-        ].join(" ")}
-      >
-        {value}
-      </p>
-
-      {detail && (
-        <p
-          className={[
-            "mt-1 text-xs",
-            warning ? "text-red-700" : "text-slate-500",
-          ].join(" ")}
-        >
-          {detail}
-        </p>
       )}
     </div>
   );

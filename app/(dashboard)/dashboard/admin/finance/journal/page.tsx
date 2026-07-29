@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpenText, RefreshCw, Search } from "lucide-react";
+import { BookOpenText, Download, RefreshCw, Search } from "lucide-react";
+
+import {
+  EnterpriseEmptyState,
+  EnterpriseMetricCard,
+  EnterprisePageHeader,
+  EnterpriseStatusBadge,
+} from "@/components/enterprise";
 
 import {
   createFinancialFilename,
@@ -20,16 +27,21 @@ const statusLabels: Record<string, string> = {
   pending: "Pendiente",
 };
 
-const statusClasses: Record<string, string> = {
-  posted: "bg-emerald-50 text-emerald-700",
-  reversed: "bg-red-50 text-red-700",
-  pending: "bg-amber-50 text-amber-700",
-};
+function getStatusTone(
+  status: string,
+): "success" | "danger" | "warning" | "neutral" {
+  if (status === "posted") return "success";
+  if (status === "reversed") return "danger";
+  if (status === "pending") return "warning";
+
+  return "neutral";
+}
 
 function dateTime(value: string) {
   return new Intl.DateTimeFormat("es-MX", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "America/Mexico_City",
   }).format(new Date(value));
 }
 
@@ -196,60 +208,55 @@ export default function FinanceJournalPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-sm font-medium text-blue-600">Contabilidad</p>
+      <EnterprisePageHeader
+        eyebrow="Contabilidad"
+        title="Libro diario"
+        description="Pólizas contables generadas por las operaciones de AXI."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Actualizar
+            </button>
 
-          <h1 className="text-2xl font-bold text-slate-900">Libro diario</h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Pólizas contables generadas por las operaciones de AXI.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
-          />
-          Actualizar
-        </button>
-
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={loading || filteredRows.length === 0}
-          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Exportar CSV
-        </button>
-      </header>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={loading || filteredRows.length === 0}
+              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </button>
+          </>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Pólizas del periodo</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {rows.length}
-          </p>
-        </div>
+        <EnterpriseMetricCard
+          label="Pólizas del periodo"
+          value={String(rows.length)}
+          tone="info"
+        />
 
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <p className="text-sm text-emerald-700">Publicadas</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-900">
-            {postedCount}
-          </p>
-        </div>
+        <EnterpriseMetricCard
+          label="Publicadas"
+          value={String(postedCount)}
+          tone="success"
+        />
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-          <p className="text-sm text-red-700">Revertidas</p>
-          <p className="mt-2 text-3xl font-bold text-red-900">
-            {reversedCount}
-          </p>
-        </div>
+        <EnterpriseMetricCard
+          label="Revertidas"
+          value={String(reversedCount)}
+          tone={reversedCount > 0 ? "danger" : "default"}
+        />
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -305,15 +312,11 @@ export default function FinanceJournalPage() {
           <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
         </div>
       ) : filteredRows.length === 0 ? (
-        <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center">
-          <BookOpenText className="mb-3 h-10 w-10 text-slate-300" />
-          <p className="font-semibold text-slate-900">
-            No hay pólizas en este periodo
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            Cambia las fechas o los filtros de búsqueda.
-          </p>
-        </div>
+        <EnterpriseEmptyState
+          title="No hay pólizas en este periodo"
+          description="Cambia las fechas o los filtros de búsqueda."
+          icon={<BookOpenText className="h-6 w-6" />}
+        />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <div className="overflow-x-auto">
@@ -323,18 +326,23 @@ export default function FinanceJournalPage() {
                   <th className="px-4 py-3 text-left font-semibold text-slate-600">
                     Folio
                   </th>
+
                   <th className="px-4 py-3 text-left font-semibold text-slate-600">
                     Fecha
                   </th>
+
                   <th className="px-4 py-3 text-left font-semibold text-slate-600">
                     Tipo
                   </th>
+
                   <th className="px-4 py-3 text-left font-semibold text-slate-600">
                     Descripción
                   </th>
+
                   <th className="px-4 py-3 text-center font-semibold text-slate-600">
                     Estado
                   </th>
+
                   <th className="px-4 py-3 text-right font-semibold text-slate-600">
                     Acción
                   </th>
@@ -363,15 +371,9 @@ export default function FinanceJournalPage() {
                     </td>
 
                     <td className="whitespace-nowrap px-4 py-3 text-center">
-                      <span
-                        className={[
-                          "rounded-full px-3 py-1 text-xs font-semibold",
-                          statusClasses[row.status] ??
-                            "bg-slate-100 text-slate-700",
-                        ].join(" ")}
-                      >
+                      <EnterpriseStatusBadge tone={getStatusTone(row.status)}>
                         {statusLabels[row.status] ?? row.status}
-                      </span>
+                      </EnterpriseStatusBadge>
                     </td>
 
                     <td className="whitespace-nowrap px-4 py-3 text-right">
