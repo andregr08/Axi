@@ -126,7 +126,7 @@ export async function getPaginatedFinancialView(
 
   let query = supabase
     .from(viewName)
-    .select("*", { count: "exact" })
+    .select("*", { count: "estimated" })
     .range(from, to);
 
   for (const filter of options?.filters ?? []) {
