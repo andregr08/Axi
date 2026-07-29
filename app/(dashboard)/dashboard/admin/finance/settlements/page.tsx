@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   useCallback,
@@ -757,7 +757,7 @@ export default function FinanceSettlementsPage() {
   }
 
   return (
-    <section className="space-y-7">
+    <section className="min-w-0 space-y-7 overflow-x-hidden">
       <div className="overflow-hidden rounded-[2rem] bg-[#020617] px-6 py-8 text-white shadow-xl sm:px-9">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -796,7 +796,7 @@ export default function FinanceSettlementsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
         <SummaryCard
           label="Conductores"
           value={String(summary.drivers)}
@@ -833,7 +833,7 @@ export default function FinanceSettlementsPage() {
       <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex w-fit rounded-2xl bg-slate-100 p-1">
+            <div className="grid w-full grid-cols-1 gap-1 rounded-2xl bg-slate-100 p-1 sm:w-auto sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => {
@@ -841,7 +841,7 @@ export default function FinanceSettlementsPage() {
                   setStatusFilter("all");
                 }}
                 className={cn(
-                  "rounded-xl px-5 py-2.5 text-sm font-black transition",
+                  "w-full rounded-xl px-5 py-2.5 text-sm font-black leading-5 transition",
                   viewMode === "daily"
                     ? "bg-white text-slate-950 shadow-sm"
                     : "text-slate-500",
@@ -857,7 +857,7 @@ export default function FinanceSettlementsPage() {
                   setStatusFilter("all");
                 }}
                 className={cn(
-                  "rounded-xl px-5 py-2.5 text-sm font-black transition",
+                  "w-full rounded-xl px-5 py-2.5 text-sm font-black leading-5 transition",
                   viewMode === "monthly"
                     ? "bg-white text-slate-950 shadow-sm"
                     : "text-slate-500",
@@ -1017,7 +1017,7 @@ export default function FinanceSettlementsPage() {
                       onClick={() =>
                         toggleDaily(settlement.id)
                       }
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-slate-800"
+                      className="inline-flex h-auto min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-center text-sm font-black leading-5 text-white transition hover:bg-slate-800 xl:w-auto"
                     >
                       {expanded ? (
                         <ChevronUp size={17} />
@@ -1031,7 +1031,7 @@ export default function FinanceSettlementsPage() {
                     </button>
                   </div>
 
-                  <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-6">
+                  <div className="grid gap-px bg-slate-100 [grid-template-columns:repeat(auto-fit,minmax(155px,1fr))]">
                     <Metric
                       label="Viajes"
                       value={String(settlement.trip_count)}
@@ -1504,7 +1504,7 @@ export default function FinanceSettlementsPage() {
                         expanded ? null : settlement.id,
                       )
                     }
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-slate-800"
+                    className="inline-flex h-auto min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-center text-sm font-black leading-5 text-white transition hover:bg-slate-800 xl:w-auto"
                   >
                     {expanded ? (
                       <ChevronUp size={17} />
@@ -1518,7 +1518,7 @@ export default function FinanceSettlementsPage() {
                   </button>
                 </div>
 
-                <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-6">
+                <div className="grid gap-px bg-slate-100 [grid-template-columns:repeat(auto-fit,minmax(155px,1fr))]">
                   <Metric
                     label="Días liquidados"
                     value={String(
@@ -1743,7 +1743,7 @@ export default function FinanceSettlementsPage() {
                                 Estado del documento
                               </p>
 
-                              <p className="mt-2 text-2xl font-black">
+                              <p className="mt-2 break-words text-xl font-black leading-tight sm:text-2xl">
                                 {statusLabel(
                                   document.document_status,
                                 )}
@@ -1969,7 +1969,7 @@ function SummaryCard({
   return (
     <article
       className={cn(
-        "rounded-[1.6rem] border p-5 shadow-sm",
+        "min-w-0 rounded-[1.6rem] border p-5 shadow-sm",
         dark
           ? "border-slate-950 bg-slate-950 text-white"
           : warning
@@ -1990,11 +1990,11 @@ function SummaryCard({
         <Icon size={20} />
       </span>
 
-      <p className="mt-5 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+      <p className="mt-5 break-words text-xs font-black uppercase leading-5 tracking-[0.12em] text-slate-500">
         {label}
       </p>
 
-      <p className="mt-2 text-2xl font-black">{value}</p>
+      <p className="mt-2 break-words text-xl font-black leading-tight sm:text-2xl">{value}</p>
     </article>
   );
 }
@@ -2019,14 +2019,14 @@ function Metric({
     >
       <p
         className={cn(
-          "text-xs font-black uppercase tracking-[0.12em]",
+          "break-words text-xs font-black uppercase leading-5 tracking-[0.1em]",
           emphasized ? "text-slate-400" : "text-slate-500",
         )}
       >
         {label}
       </p>
 
-      <p className="mt-2 text-lg font-black">{value}</p>
+      <p className="mt-2 break-words text-base font-black leading-tight sm:text-lg">{value}</p>
     </div>
   );
 }
