@@ -11,6 +11,7 @@ import {
   Home,
   LogOut,
   Route,
+  ReceiptText,
   ShieldCheck,
   Siren,
   UserRound,
@@ -88,6 +89,12 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       href: "/dashboard/driver/profile",
       label: "Mi rendimiento",
       icon: UserRound,
+      visible: isDriver(role),
+    },
+    {
+      href: "/dashboard/driver/settlements",
+      label: "Liquidaciones y CFDI",
+      icon: ReceiptText,
       visible: isDriver(role),
     },
     {

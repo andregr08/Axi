@@ -1011,9 +1011,9 @@ return (
           </h2>
 
           <p className="mt-2 text-sm font-medium leading-6 text-black/65">
-            {t(
-              "tripDetail.completed.description"
-            )}
+            {locale === "es"
+              ? "El recorrido terminó. Revisa la información final y califica tu experiencia cuando estés listo."
+              : t("tripDetail.completed.description")}
           </p>
 
           <div className="mt-6 flex gap-2">
@@ -1022,7 +1022,17 @@ return (
                 <button
                   key={star}
                   type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/10 transition hover:bg-black hover:text-yellow-400"
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/trips/${trip.id}/review?rating=${star}`
+                    )
+                  }
+                  aria-label={
+                    locale === "es"
+                      ? `Calificar con ${star} estrella${star === 1 ? "" : "s"}`
+                      : `Rate with ${star} star${star === 1 ? "" : "s"}`
+                  }
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/10 transition hover:scale-105 hover:bg-black hover:text-yellow-400"
                 >
                   <Star size={20} />
                 </button>

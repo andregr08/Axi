@@ -4,6 +4,7 @@ import Link from "next/link";
 
 const items = [
   ["Resumen", "/dashboard/admin/finance"],
+  ["Liquidaciones y CFDI", "/dashboard/admin/finance/settlements"],
   ["Wallets", "/dashboard/admin/finance/wallets"],
   ["Bonos", "/dashboard/admin/finance/bonuses"],
   ["Incentivos", "/dashboard/admin/finance/incentives"],

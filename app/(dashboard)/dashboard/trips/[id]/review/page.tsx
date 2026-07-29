@@ -116,6 +116,22 @@ export default function TripReviewPage() {
   const [message, setMessage] =
     useState("");
 
+  useEffect(() => {
+    const requestedRating = Number(
+      new URLSearchParams(window.location.search).get(
+        "rating"
+      )
+    );
+
+    if (
+      Number.isInteger(requestedRating) &&
+      requestedRating >= 1 &&
+      requestedRating <= 5
+    ) {
+      setRating(requestedRating);
+    }
+  }, []);
+
   const loadReviewData = useCallback(async () => {
     const {
       data: { session },

@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   Route,
+  ReceiptText,
   Settings,
   ShieldCheck,
   Siren,
@@ -126,6 +127,13 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
       label: "Mi rendimiento",
       description: "Consulta ganancias, viajes y calificación",
       icon: UserRound,
+      visible: role === "driver",
+    },
+    {
+      href: "/dashboard/driver/settlements",
+      label: "Liquidaciones y CFDI",
+      description: "Consulta cierres, retenciones y documentos fiscales",
+      icon: ReceiptText,
       visible: role === "driver",
     },
     {
