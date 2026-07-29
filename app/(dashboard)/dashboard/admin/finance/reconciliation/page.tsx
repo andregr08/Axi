@@ -6,12 +6,14 @@ import {
   EnterpriseMetricCard,
   EnterprisePageHeader,
 } from "@/components/enterprise";
+import EnterprisePagination from "@/components/enterprise/EnterprisePagination";
 import EnterpriseReportTable from "@/components/finance/EnterpriseReportTable";
 
 import {
   formatCurrency,
   formatDateTime,
-  getFinancialView,
+  getPaginatedFinancialView,
+  type FinancialFilter,
   type FinancialRow,
 } from "@/lib/finance/enterpriseReports";
 
@@ -26,21 +28,54 @@ const reconciliationLabels: Record<string, string> = {
 export default function FinanceReconciliationPage() {
   const [rows, setRows] = useState<FinancialRow[]>([]);
   const [status, setStatus] = useState("all");
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalRows, setTotalRows] = useState(0);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const filters = useMemo<FinancialFilter[]>(() => {
+    if (status === "all") {
+      return [];
+    }
+
+    return [
+      {
+        column: "reconciliation_status",
+        operator: "eq",
+        value: status,
+      },
+    ];
+  }, [status]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      setRows(
-        await getFinancialView("finance_payment_reconciliation_v2", {
+      const result = await getPaginatedFinancialView(
+        "finance_payment_reconciliation_v2",
+        {
+          page,
+          pageSize,
           orderBy: "paid_at",
-          limit: 1000,
-        }),
+          ascending: false,
+          filters,
+        },
       );
+
+      if (page > result.totalPages) {
+        setPage(result.totalPages);
+        return;
+      }
+
+      setRows(result.rows);
+      setTotalRows(result.totalRows);
     } catch (loadError) {
+      setRows([]);
+      setTotalRows(0);
       setError(
         loadError instanceof Error
           ? loadError.message
@@ -49,19 +84,11 @@ export default function FinanceReconciliationPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters, page, pageSize]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
-
-  const filteredRows = useMemo(
-    () =>
-      status === "all"
-        ? rows
-        : rows.filter((row) => row.reconciliation_status === status),
-    [rows, status],
-  );
 
   const reconciledCount = rows.filter(
     (row) => row.reconciliation_status === "reconciled",
@@ -77,6 +104,16 @@ export default function FinanceReconciliationPage() {
       row.reconciliation_status !== "not_applicable",
   ).length;
 
+  function handleStatusChange(value: string) {
+    setStatus(value);
+    setPage(1);
+  }
+
+  function handlePageSizeChange(value: number) {
+    setPageSize(value);
+    setPage(1);
+  }
+
   return (
     <div className="space-y-6">
       <EnterprisePageHeader
@@ -87,26 +124,30 @@ export default function FinanceReconciliationPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <EnterpriseMetricCard
-          label="Operaciones"
-          value={String(rows.length)}
+          label="Operaciones encontradas"
+          value={String(totalRows)}
+          detail="Total según el filtro actual"
           tone="info"
         />
 
         <EnterpriseMetricCard
-          label="Conciliadas"
+          label="Conciliadas en página"
           value={String(reconciledCount)}
+          detail={`${rows.length} operaciones visibles`}
           tone="success"
         />
 
         <EnterpriseMetricCard
-          label="Con diferencias"
+          label="Con diferencias en página"
           value={String(pendingCount)}
+          detail={`${rows.length} operaciones visibles`}
           tone={pendingCount > 0 ? "danger" : "success"}
         />
 
         <EnterpriseMetricCard
-          label="No aplican"
+          label="No aplican en página"
           value={String(notApplicableCount)}
+          detail={`${rows.length} operaciones visibles`}
           tone="default"
         />
       </div>
@@ -114,7 +155,7 @@ export default function FinanceReconciliationPage() {
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center">
         <select
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => handleStatusChange(event.target.value)}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm"
           aria-label="Estado de conciliación"
         >
@@ -142,7 +183,7 @@ export default function FinanceReconciliationPage() {
         </button>
 
         <p className="text-sm text-slate-500 sm:ml-auto">
-          {filteredRows.length} operaciones visibles
+          {totalRows} operaciones encontradas
         </p>
       </div>
 
@@ -159,41 +200,52 @@ export default function FinanceReconciliationPage() {
       )}
 
       {!loading && !error && (
-        <EnterpriseReportTable
-          rows={filteredRows}
-          emptyMessage="No hay operaciones que coincidan con el filtro seleccionado."
-          columns={[
-            {
-              key: "paid_at",
-              label: "Fecha",
-              render: formatDateTime,
-            },
-            {
-              key: "payment_transaction_id",
-              label: "Pago",
-            },
-            {
-              key: "method",
-              label: "Método",
-            },
-            {
-              key: "total_amount",
-              label: "Total",
-              align: "right",
-              render: formatCurrency,
-            },
-            {
-              key: "financial_status",
-              label: "Estado contable",
-            },
-            {
-              key: "reconciliation_status",
-              label: "Conciliación",
-              render: (value) =>
-                reconciliationLabels[String(value)] ?? String(value ?? "—"),
-            },
-          ]}
-        />
+        <div className="space-y-4">
+          <EnterpriseReportTable
+            rows={rows}
+            emptyMessage="No hay operaciones que coincidan con el filtro seleccionado."
+            columns={[
+              {
+                key: "paid_at",
+                label: "Fecha",
+                render: formatDateTime,
+              },
+              {
+                key: "payment_transaction_id",
+                label: "Pago",
+              },
+              {
+                key: "method",
+                label: "Método",
+              },
+              {
+                key: "total_amount",
+                label: "Total",
+                align: "right",
+                render: formatCurrency,
+              },
+              {
+                key: "financial_status",
+                label: "Estado contable",
+              },
+              {
+                key: "reconciliation_status",
+                label: "Conciliación",
+                render: (value) =>
+                  reconciliationLabels[String(value)] ?? String(value ?? "—"),
+              },
+            ]}
+          />
+
+          <EnterprisePagination
+            page={page}
+            pageSize={pageSize}
+            totalRows={totalRows}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+            loading={loading}
+          />
+        </div>
       )}
     </div>
   );

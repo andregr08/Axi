@@ -6,6 +6,7 @@ import {
   EnterpriseMetricCard,
   EnterprisePageHeader,
 } from "@/components/enterprise";
+import EnterprisePagination from "@/components/enterprise/EnterprisePagination";
 import EnterpriseReportTable from "@/components/finance/EnterpriseReportTable";
 import FinanceReportToolbar from "@/components/finance/FinanceReportToolbar";
 
@@ -15,10 +16,15 @@ import {
   formatCurrency,
   formatDateTime,
   getFinancialView,
-  normalizeSearchValue,
+  getPaginatedFinancialView,
   sumFinancialColumn,
+  type FinancialFilter,
   type FinancialRow,
 } from "@/lib/finance/enterpriseReports";
+
+const EXPORT_LIMIT = 50000;
+
+const SEARCH_COLUMNS = ["account_code", "account_name", "account_type"];
 
 const accountTypeLabels: Record<string, string> = {
   asset: "Activo",
@@ -32,22 +38,67 @@ export default function FinancialAccountsPage() {
   const [rows, setRows] = useState<FinancialRow[]>([]);
   const [type, setType] = useState("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalRows, setTotalRows] = useState(0);
+
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  const filters = useMemo<FinancialFilter[]>(() => {
+    if (type === "all") {
+      return [];
+    }
+
+    return [
+      {
+        column: "account_type",
+        operator: "eq",
+        value: type,
+      },
+    ];
+  }, [type]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      setRows(
-        await getFinancialView("finance_trial_balance_v1", {
+      const result = await getPaginatedFinancialView(
+        "finance_trial_balance_v1",
+        {
+          page,
+          pageSize,
           orderBy: "account_code",
           ascending: true,
-          limit: 5000,
-        }),
+          filters,
+          search: debouncedSearch,
+          searchColumns: SEARCH_COLUMNS,
+        },
       );
+
+      if (page > result.totalPages) {
+        setPage(result.totalPages);
+        return;
+      }
+
+      setRows(result.rows);
+      setTotalRows(result.totalRows);
     } catch (loadError) {
+      setRows([]);
+      setTotalRows(0);
       setError(
         loadError instanceof Error
           ? loadError.message
@@ -56,38 +107,42 @@ export default function FinancialAccountsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch, filters, page, pageSize]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  const filteredRows = useMemo(() => {
-    const normalized = normalizeSearchValue(search);
-
-    return rows.filter((row) => {
-      const matchesType = type === "all" || row.account_type === type;
-
-      const matchesSearch =
-        !normalized ||
-        [row.account_code, row.account_name, row.account_type].some((value) =>
-          normalizeSearchValue(value).includes(normalized),
-        );
-
-      return matchesType && matchesSearch;
-    });
-  }, [rows, search, type]);
-
-  const totalDebits = sumFinancialColumn(filteredRows, "total_debits");
-  const totalCredits = sumFinancialColumn(filteredRows, "total_credits");
+  const totalDebits = sumFinancialColumn(rows, "total_debits");
+  const totalCredits = sumFinancialColumn(rows, "total_credits");
   const difference = totalDebits - totalCredits;
   const isBalanced = Math.abs(difference) < 0.005;
 
-  function handleExport() {
+  async function handleExport() {
     try {
+      setExporting(true);
+      setError(null);
+
+      if (totalRows > EXPORT_LIMIT) {
+        throw new Error(
+          `La exportación supera el límite de ${EXPORT_LIMIT.toLocaleString(
+            "es-MX",
+          )} cuentas. Aplica un filtro o una búsqueda más específica.`,
+        );
+      }
+
+      const exportRows = await getFinancialView("finance_trial_balance_v1", {
+        orderBy: "account_code",
+        ascending: true,
+        limit: EXPORT_LIMIT,
+        filters,
+        search: debouncedSearch,
+        searchColumns: SEARCH_COLUMNS,
+      });
+
       exportFinancialCsv({
         filename: createFinancialFilename("balanza-de-comprobacion"),
-        rows: filteredRows,
+        rows: exportRows,
         columns: [
           {
             key: "account_code",
@@ -128,7 +183,19 @@ export default function FinancialAccountsPage() {
           ? exportError.message
           : "No fue posible exportar la balanza.",
       );
+    } finally {
+      setExporting(false);
     }
+  }
+
+  function handleTypeChange(value: string) {
+    setType(value);
+    setPage(1);
+  }
+
+  function handlePageSizeChange(value: number) {
+    setPageSize(value);
+    setPage(1);
   }
 
   return (
@@ -144,13 +211,13 @@ export default function FinancialAccountsPage() {
         onSearchChange={setSearch}
         searchPlaceholder="Buscar código o nombre de cuenta"
         onRefresh={() => void loadData()}
-        onExport={handleExport}
-        loading={loading}
-        exportDisabled={filteredRows.length === 0}
+        onExport={() => void handleExport()}
+        loading={loading || exporting}
+        exportDisabled={totalRows === 0}
       >
         <select
           value={type}
-          onChange={(event) => setType(event.target.value)}
+          onChange={(event) => handleTypeChange(event.target.value)}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm"
           aria-label="Tipo de cuenta"
         >
@@ -163,34 +230,37 @@ export default function FinancialAccountsPage() {
         </select>
 
         <p className="self-center text-sm text-slate-500">
-          {filteredRows.length} cuentas visibles
+          {totalRows} cuentas encontradas
         </p>
       </FinanceReportToolbar>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <EnterpriseMetricCard
-          label="Cuentas"
-          value={String(filteredRows.length)}
+          label="Cuentas encontradas"
+          value={String(totalRows)}
+          detail="Total según los filtros actuales"
           tone="info"
         />
 
         <EnterpriseMetricCard
-          label="Total debe"
+          label="Debe en página"
           value={formatCurrency(totalDebits)}
+          detail={`${rows.length} cuentas visibles`}
           tone="default"
         />
 
         <EnterpriseMetricCard
-          label="Total haber"
+          label="Haber en página"
           value={formatCurrency(totalCredits)}
+          detail={`${rows.length} cuentas visibles`}
           tone="default"
         />
 
         <EnterpriseMetricCard
-          label="Diferencia"
+          label="Diferencia en página"
           value={formatCurrency(difference)}
-          detail={isBalanced ? "Balanza cuadrada" : "Requiere revisión"}
-          tone={isBalanced ? "success" : "danger"}
+          detail={isBalanced ? "Página cuadrada" : "Movimientos parciales"}
+          tone={isBalanced ? "success" : "warning"}
         />
       </div>
 
@@ -207,49 +277,60 @@ export default function FinancialAccountsPage() {
       )}
 
       {!loading && !error && (
-        <EnterpriseReportTable
-          rows={filteredRows}
-          emptyMessage="No hay cuentas que coincidan con los filtros."
-          columns={[
-            {
-              key: "account_code",
-              label: "Código",
-            },
-            {
-              key: "account_name",
-              label: "Cuenta",
-            },
-            {
-              key: "account_type",
-              label: "Tipo",
-              render: (value) =>
-                accountTypeLabels[String(value)] ?? String(value ?? "—"),
-            },
-            {
-              key: "total_debits",
-              label: "Debe",
-              align: "right",
-              render: formatCurrency,
-            },
-            {
-              key: "total_credits",
-              label: "Haber",
-              align: "right",
-              render: formatCurrency,
-            },
-            {
-              key: "balance",
-              label: "Saldo",
-              align: "right",
-              render: formatCurrency,
-            },
-            {
-              key: "last_movement_at",
-              label: "Último movimiento",
-              render: formatDateTime,
-            },
-          ]}
-        />
+        <div className="space-y-4">
+          <EnterpriseReportTable
+            rows={rows}
+            emptyMessage="No hay cuentas que coincidan con los filtros."
+            columns={[
+              {
+                key: "account_code",
+                label: "Código",
+              },
+              {
+                key: "account_name",
+                label: "Cuenta",
+              },
+              {
+                key: "account_type",
+                label: "Tipo",
+                render: (value) =>
+                  accountTypeLabels[String(value)] ?? String(value ?? "—"),
+              },
+              {
+                key: "total_debits",
+                label: "Debe",
+                align: "right",
+                render: formatCurrency,
+              },
+              {
+                key: "total_credits",
+                label: "Haber",
+                align: "right",
+                render: formatCurrency,
+              },
+              {
+                key: "balance",
+                label: "Saldo",
+                align: "right",
+                render: formatCurrency,
+              },
+              {
+                key: "last_movement_at",
+                label: "Último movimiento",
+                render: formatDateTime,
+              },
+            ]}
+          />
+
+          <EnterprisePagination
+            page={page}
+            pageSize={pageSize}
+            totalRows={totalRows}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+            loading={loading}
+          />
+        </div>
       )}
     </div>
   );
