@@ -11,6 +11,10 @@ const items = [
   ["Deudas en efectivo", "/dashboard/admin/finance/cash-debts"],
   ["Ajustes manuales", "/dashboard/admin/finance/manual-adjustments"],
   ["Auditoría", "/dashboard/admin/finance/audit"],
+  [
+    "Cierres diarios",
+    "/dashboard/admin/finance/daily-closures",
+  ],
 ];
 
 export default function FinanceSidebar() {
