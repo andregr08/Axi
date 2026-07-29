@@ -35,6 +35,7 @@ import {
 } from "@/components/maps/PlaceAutocomplete";
 import {
   createPricedTrip,
+  estimateRoute,
   getDynamicFareEstimate,
   getPricingPeriodLabel,
   type DynamicFareEstimate,
@@ -65,9 +66,10 @@ type RideOption = {
   pickupMinutes: number;
 };
 
-const BASE_FARE = 35;
-const PRICE_PER_KM = 12;
-const BOOKING_FEE = 8;
+const BASE_FARE = 10;
+const PRICE_PER_KM = 5.8;
+const PRICE_PER_MINUTE = 2.4;
+const BOOKING_FEE = 0;
 
 const rideOptions: RideOption[] = [
   {
@@ -83,7 +85,7 @@ const rideOptions: RideOption[] = [
     name: "AXI 6",
     description: "Hasta 6 pasajeros y equipaje",
     passengers: 6,
-    multiplier: 1.25,
+    multiplier: 1.8,
     pickupMinutes: 6,
   },
 ];
@@ -241,7 +243,7 @@ export default function PasajeroPage() {
   }, [router]);
 
   const [origin, setOrigin] = useState(
-    "Mi ubicación actual"
+    "Mi ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n actual"
   );
 
   const [
@@ -331,48 +333,65 @@ export default function PasajeroPage() {
       [destinationPlace]
     );
 
-  const estimate = useMemo(() => {
-    if (
-      !originCoordinates ||
-      !destinationPlace
-    ) {
-      return null;
+  const [
+    estimate,
+    setEstimate,
+  ] = useState<
+    Awaited<
+      ReturnType<typeof estimateRoute>
+    > | null
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRouteEstimate() {
+      if (
+        !originCoordinates ||
+        !destinationPlace
+      ) {
+        setEstimate(null);
+        return;
+      }
+
+      setEstimate(null);
+
+      try {
+        const route = await estimateRoute(
+          originCoordinates,
+          {
+            latitude:
+              destinationPlace.latitude,
+            longitude:
+              destinationPlace.longitude,
+          }
+        );
+
+        if (!cancelled) {
+          setEstimate(route);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setEstimate(null);
+          setPricingError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo calcular la ruta."
+          );
+        }
+      }
     }
 
-    const distanceKm =
-      calculateDistanceKm(
-        originCoordinates,
-        {
-          latitude:
-            destinationPlace.latitude,
-          longitude:
-            destinationPlace.longitude,
-        }
-      );
+    void loadRouteEstimate();
 
-    const durationMinutes = Math.max(
-      5,
-      Math.round(
-        (distanceKm / 28) * 60
-      )
-    );
-
-    const basePrice = Math.max(
-      55,
-      BASE_FARE +
-        distanceKm * PRICE_PER_KM +
-        BOOKING_FEE
-    );
-
-    return {
-      distanceKm,
-      durationMinutes,
-      basePrice,
+    return () => {
+      cancelled = true;
     };
   }, [
     destinationPlace,
     originCoordinates,
   ]);
+
 
   const selectedFare =
     dynamicFares[rideType];
@@ -380,7 +399,7 @@ export default function PasajeroPage() {
   const selectedPrice =
     getPassengerFareTotal(selectedFare) ??
     (estimate
-      ? estimate.basePrice *
+      ? estimate.estimatedPrice *
           selectedRide.multiplier
       : null);
 
@@ -388,7 +407,17 @@ export default function PasajeroPage() {
     let cancelled = false;
 
     async function loadDynamicFares() {
-      if (!estimate) {
+      const routeOrigin =
+        originCoordinates;
+
+      const routeDestination =
+        destinationPlace;
+
+      if (
+        !estimate ||
+        !routeOrigin ||
+        !routeDestination
+      ) {
         setDynamicFares({});
         setPricingError("");
         return;
@@ -406,7 +435,50 @@ export default function PasajeroPage() {
                   await getDynamicFareEstimate(
                     estimate.distanceKm,
                     estimate.durationMinutes,
-                    option.id
+                    option.id,
+                    {
+                      originAddress:
+                        origin.trim(),
+
+                      originLatitude:
+                        routeOrigin.latitude,
+
+                      originLongitude:
+                        routeOrigin.longitude,
+
+                      destinationAddress:
+                        routeDestination.address,
+
+                      destinationLatitude:
+                        routeDestination.latitude,
+
+                      destinationLongitude:
+                        routeDestination.longitude,
+
+                      trafficRatio:
+                        estimate.trafficRatio,
+
+                      trafficDelayMinutes:
+                        estimate.trafficDelayMinutes,
+
+                      weatherAvailable:
+                        estimate.weatherAvailable,
+
+                      weatherConditionType:
+                        estimate.weatherConditionType,
+
+                      precipitationProbability:
+                        estimate.precipitationProbability,
+
+                      precipitationMm:
+                        estimate.precipitationMm,
+
+                      thunderstormProbability:
+                        estimate.thunderstormProbability,
+
+                      windSpeedKph:
+                        estimate.windSpeedKph,
+                    }
                   );
 
                 return [
@@ -447,14 +519,19 @@ export default function PasajeroPage() {
     return () => {
       cancelled = true;
     };
-  }, [estimate]);
+  }, [
+    destinationPlace,
+    estimate,
+    origin,
+    originCoordinates,
+  ]);
 
   function getCurrentLocation() {
     setMessage("");
 
     if (!navigator.geolocation) {
       setMessage(
-        "Tu navegador no permite obtener tu ubicación."
+        "Tu navegador no permite obtener tu ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n."
       );
       return;
     }
@@ -470,7 +547,7 @@ export default function PasajeroPage() {
             position.coords.longitude,
         });
 
-        setOrigin("Mi ubicación actual");
+        setOrigin("Mi ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n actual");
         setLocating(false);
       },
       (error) => {
@@ -481,13 +558,13 @@ export default function PasajeroPage() {
           error.PERMISSION_DENIED
         ) {
           setMessage(
-            "Permite el acceso a tu ubicación para pedir un viaje."
+            "Permite el acceso a tu ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n para pedir un viaje."
           );
           return;
         }
 
         setMessage(
-          "No pudimos obtener tu ubicación. Intenta nuevamente."
+          "No pudimos obtener tu ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n. Intenta nuevamente."
         );
       },
       {
@@ -553,7 +630,7 @@ export default function PasajeroPage() {
       !selectedPrice
     ) {
       setMessage(
-        "Confirma tu ubicación y selecciona un destino."
+        "Confirma tu ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n y selecciona un destino."
       );
 
       setStep("search");
@@ -608,6 +685,10 @@ export default function PasajeroPage() {
 
     try {
       tripId = await createPricedTrip({
+        quoteId:
+          selectedFare?.quote_id ??
+          undefined,
+
         originAddress: origin.trim(),
         originLatitude:
           originCoordinates.latitude,
@@ -625,6 +706,22 @@ export default function PasajeroPage() {
           estimate.durationMinutes,
         paymentMethod,
         rideType,
+        trafficRatio:
+          estimate.trafficRatio,
+        trafficDelayMinutes:
+          estimate.trafficDelayMinutes,
+        weatherAvailable:
+          estimate.weatherAvailable,
+        weatherConditionType:
+          estimate.weatherConditionType,
+        precipitationProbability:
+          estimate.precipitationProbability,
+        precipitationMm:
+          estimate.precipitationMm,
+        thunderstormProbability:
+          estimate.thunderstormProbability,
+        windSpeedKph:
+          estimate.windSpeedKph,
       });
     } catch (error) {
       setLoading(false);
@@ -653,7 +750,7 @@ export default function PasajeroPage() {
 
     if (dispatchError) {
       setMessage(
-        "El viaje fue creado. AXI continuará buscando conductores."
+        "El viaje fue creado. AXI continuarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ buscando conductores."
       );
     }
 
@@ -708,7 +805,7 @@ export default function PasajeroPage() {
             router.push("/dashboard")
           }
           className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-950 shadow-[0_8px_30px_rgba(15,23,42,0.2)] transition hover:scale-105"
-          aria-label="Abrir menú"
+          aria-label="Abrir menÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âº"
         >
           <Menu size={22} />
         </button>
@@ -744,7 +841,7 @@ export default function PasajeroPage() {
                 ? "500px"
                 : "560px",
         }}
-        aria-label="Usar mi ubicación"
+        aria-label="Usar mi ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n"
       >
         <LocateFixed
           size={22}
@@ -873,14 +970,14 @@ function HomePanel({
   ) => void;
 }) {
   const recentPlaces = [
-    "Universidad de las Américas Puebla",
-    "Angelópolis Lifestyle Center",
+    "Universidad de las AmÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ricas Puebla",
+    "AngelÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³polis Lifestyle Center",
   ];
 
   return (
     <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-7">
       <h1 className="text-2xl font-black tracking-tight text-slate-950">
-        ¿A dónde vamos?
+        ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿A dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³nde vamos?
       </h1>
 
       <button
@@ -1010,7 +1107,7 @@ function SearchPanel({
 
                 <span className="block truncate text-sm font-black text-slate-900">
                   {locating
-                    ? "Obteniendo ubicación..."
+                    ? "Obteniendo ubicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n..."
                     : origin}
                 </span>
               </span>
@@ -1027,7 +1124,7 @@ function SearchPanel({
 
             <PlaceAutocomplete
               label="Destino"
-              placeholder="¿A dónde quieres ir?"
+              placeholder="ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿A dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³nde quieres ir?"
               value={destination}
               onTextChange={
                 onDestinationTextChange
@@ -1042,7 +1139,7 @@ function SearchPanel({
 
       {!placesConfigured && (
         <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
-          Google Places no está configurado. El buscador funcionará en modo demostración.
+          Google Places no estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ configurado. El buscador funcionarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ en modo demostraciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n.
         </p>
       )}
 
@@ -1062,7 +1159,7 @@ function SearchPanel({
             {
               title: "Casa",
               description:
-                "Agrega tu dirección",
+                "Agrega tu direcciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n",
             },
             {
               title: "Trabajo",
@@ -1139,9 +1236,11 @@ function OptionsPanel({
   onRequestRide: () => void;
 }) {
   const basePrice = Math.max(
-    55,
+    42,
     BASE_FARE +
       distanceKm * PRICE_PER_KM +
+      durationMinutes *
+        PRICE_PER_MINUTE +
       BOOKING_FEE
   );
 
@@ -1336,7 +1435,7 @@ function OptionsPanel({
 
       <div className="mt-5 border-t border-slate-100 pt-4">
         <p className="text-sm font-black text-slate-950">
-          Método de pago
+          MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©todo de pago
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-3">
@@ -1369,7 +1468,7 @@ function OptionsPanel({
               size={17}
               className="mt-0.5 shrink-0"
             />
-            La tarjeta se seleccionará desde el módulo seguro de pagos.
+            La tarjeta se seleccionarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ desde el mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulo seguro de pagos.
           </div>
         )}
       </div>

@@ -20,6 +20,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useUserLocation } from "@/hooks/useUserLocation";
@@ -81,8 +82,130 @@ function isValidCoordinate(
   );
 }
 
+type NavigationRouteStep = {
+  instruction: string | null;
+  maneuver: string | null;
+  distanceMeters: number;
+  path: MapCoordinates[];
+  end: MapCoordinates | null;
+};
+
+type NavigationRouteSnapshot = {
+  distanceMeters: number;
+  durationSeconds: number;
+  path: MapCoordinates[];
+  steps: NavigationRouteStep[];
+};
+
+function toMapCoordinates(
+  value:
+    | google.maps.LatLng
+    | google.maps.LatLngLiteral
+    | null
+    | undefined
+): MapCoordinates | null {
+  if (!value) {
+    return null;
+  }
+
+  const latitude =
+    typeof value.lat === "function"
+      ? value.lat()
+      : Number(value.lat);
+
+  const longitude =
+    typeof value.lng === "function"
+      ? value.lng()
+      : Number(value.lng);
+
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ) {
+    return null;
+  }
+
+  return {
+    lat: latitude,
+    lng: longitude,
+  };
+}
+
+function calculateDistanceMeters(
+  first: MapCoordinates,
+  second: MapCoordinates
+) {
+  const earthRadiusMeters = 6371000;
+  const toRadians = (value: number) =>
+    (value * Math.PI) / 180;
+
+  const latitudeDelta = toRadians(
+    second.lat - first.lat
+  );
+
+  const longitudeDelta = toRadians(
+    second.lng - first.lng
+  );
+
+  const firstLatitude = toRadians(first.lat);
+  const secondLatitude = toRadians(second.lat);
+
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(firstLatitude) *
+      Math.cos(secondLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  return (
+    2 *
+    earthRadiusMeters *
+    Math.asin(Math.min(1, Math.sqrt(haversine)))
+  );
+}
+
+function distanceToPathMeters(
+  position: MapCoordinates,
+  path: MapCoordinates[]
+) {
+  if (path.length === 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  let shortestDistance =
+    Number.POSITIVE_INFINITY;
+
+  const samplingStep = Math.max(
+    1,
+    Math.floor(path.length / 250)
+  );
+
+  for (
+    let index = 0;
+    index < path.length;
+    index += samplingStep
+  ) {
+    shortestDistance = Math.min(
+      shortestDistance,
+      calculateDistanceMeters(
+        position,
+        path[index]
+      )
+    );
+  }
+
+  shortestDistance = Math.min(
+    shortestDistance,
+    calculateDistanceMeters(
+      position,
+      path[path.length - 1]
+    )
+  );
+
+  return shortestDistance;
+}
+
 function cleanDirectionsInstruction(
-  instruction: string | undefined
+  instruction: string | null | undefined
 ) {
   if (!instruction) {
     return null;
@@ -98,13 +221,47 @@ function cleanDirectionsInstruction(
   );
 }
 
+function formatRouteDistance(
+  distanceMeters: number
+) {
+  const safeDistance = Math.max(
+    0,
+    distanceMeters
+  );
+
+  return safeDistance < 1000
+    ? `${Math.round(safeDistance)} m`
+    : `${(safeDistance / 1000).toFixed(1)} km`;
+}
+
+function formatRouteDuration(
+  durationSeconds: number
+) {
+  const durationMinutes = Math.max(
+    1,
+    Math.ceil(
+      Math.max(0, durationSeconds) / 60
+    )
+  );
+
+  return durationMinutes < 60
+    ? `${durationMinutes} min`
+    : `${Math.floor(durationMinutes / 60)} h ${
+        durationMinutes % 60
+      } min`;
+}
+
 function RouteRenderer({
   origin,
   destination,
+  currentLocation,
+  navigationMode,
   onMetricsChange,
 }: {
   origin: MapCoordinates;
   destination: MapCoordinates;
+  currentLocation?: MapCoordinates | null;
+  navigationMode: boolean;
   onMetricsChange?: (
     metrics: RouteMetrics | null
   ) => void;
@@ -113,153 +270,456 @@ function RouteRenderer({
   const routesLibrary =
     useMapsLibrary("routes");
 
+  const polylinesRef =
+    useRef<google.maps.Polyline[]>([]);
+
+  const routeSnapshotRef =
+    useRef<NavigationRouteSnapshot | null>(
+      null
+    );
+
+  const lastRouteRequestRef = useRef<{
+    origin: MapCoordinates;
+    destination: MapCoordinates;
+    requestedAt: number;
+  } | null>(null);
+
+  const requestSequenceRef = useRef(0);
+
+  const emitNavigationMetrics = useCallback(
+    (
+      position:
+        | MapCoordinates
+        | null
+        | undefined
+    ) => {
+      const snapshot =
+        routeSnapshotRef.current;
+
+      if (!snapshot) {
+        return;
+      }
+
+      let activeStepIndex = 0;
+
+      if (
+        isValidCoordinate(position) &&
+        snapshot.steps.length > 0
+      ) {
+        let nearestDistance =
+          Number.POSITIVE_INFINITY;
+
+        snapshot.steps.forEach(
+          (step, index) => {
+            const stepDistance =
+              distanceToPathMeters(
+                position,
+                step.path
+              );
+
+            if (
+              stepDistance <
+              nearestDistance
+            ) {
+              nearestDistance =
+                stepDistance;
+
+              activeStepIndex = index;
+            }
+          }
+        );
+
+        const selectedStep =
+          snapshot.steps[activeStepIndex];
+
+        if (
+          selectedStep?.end &&
+          activeStepIndex <
+            snapshot.steps.length - 1 &&
+          calculateDistanceMeters(
+            position,
+            selectedStep.end
+          ) <= 25
+        ) {
+          activeStepIndex += 1;
+        }
+      }
+
+      const activeStep =
+        snapshot.steps[activeStepIndex] ??
+        null;
+
+      let remainingDistance =
+        snapshot.distanceMeters;
+
+      if (
+        activeStep &&
+        isValidCoordinate(position)
+      ) {
+        const currentStepRemaining =
+          activeStep.end
+            ? calculateDistanceMeters(
+                position,
+                activeStep.end
+              )
+            : activeStep.distanceMeters;
+
+        const followingStepsDistance =
+          snapshot.steps
+            .slice(activeStepIndex + 1)
+            .reduce(
+              (total, step) =>
+                total +
+                step.distanceMeters,
+              0
+            );
+
+        remainingDistance = Math.min(
+          snapshot.distanceMeters,
+          Math.max(
+            0,
+            currentStepRemaining +
+              followingStepsDistance
+          )
+        );
+      }
+
+      const remainingRatio =
+        snapshot.distanceMeters > 0
+          ? Math.min(
+              1,
+              remainingDistance /
+                snapshot.distanceMeters
+            )
+          : 1;
+
+      const remainingDurationSeconds =
+        Math.max(
+          0,
+          Math.round(
+            snapshot.durationSeconds *
+              remainingRatio
+          )
+        );
+
+      const distanceToNextStep =
+        activeStep?.end &&
+        isValidCoordinate(position)
+          ? calculateDistanceMeters(
+              position,
+              activeStep.end
+            )
+          : activeStep?.distanceMeters ??
+            null;
+
+      onMetricsChange?.({
+        distanceMeters:
+          remainingDistance,
+        distanceText:
+          formatRouteDistance(
+            remainingDistance
+          ),
+        durationSeconds:
+          remainingDurationSeconds,
+        durationText:
+          formatRouteDuration(
+            remainingDurationSeconds
+          ),
+        nextInstruction:
+          activeStep?.instruction ?? null,
+        nextManeuver:
+          activeStep?.maneuver ?? null,
+        nextStepDistanceText:
+          distanceToNextStep === null
+            ? null
+            : formatRouteDistance(
+                distanceToNextStep
+              ),
+      });
+    },
+    [onMetricsChange]
+  );
+
+  useEffect(() => {
+    emitNavigationMetrics(
+      currentLocation ?? origin
+    );
+  }, [
+    currentLocation?.lat,
+    currentLocation?.lng,
+    emitNavigationMetrics,
+    origin.lat,
+    origin.lng,
+  ]);
+
   useEffect(() => {
     if (!map || !routesLibrary) {
       return;
     }
 
-    const directionsService =
-      new routesLibrary.DirectionsService();
+    const requestOrigin =
+      isValidCoordinate(currentLocation)
+        ? currentLocation
+        : origin;
 
-    const directionsRenderer =
-      new routesLibrary.DirectionsRenderer({
-        map,
-        suppressMarkers: true,
-        preserveViewport: false,
-        polylineOptions: {
-          strokeColor: "#111827",
-          strokeOpacity: 0.92,
-          strokeWeight: 6,
-        },
-      });
+    const previousRequest =
+      lastRouteRequestRef.current;
 
-    let cancelled = false;
+    const now = Date.now();
 
-    /*
-     * Pequeño retraso para evitar varias llamadas
-     * mientras Realtime está moviendo el marcador.
-     */
-    const timer = window.setTimeout(
-      async () => {
-        try {
-          const result =
-            await directionsService.route({
-              origin,
-              destination,
-              travelMode:
-                google.maps.TravelMode.DRIVING,
-              provideRouteAlternatives: false,
-            });
+    const destinationChanged =
+      previousRequest
+        ? calculateDistanceMeters(
+            destination,
+            previousRequest.destination
+          ) > 5
+        : true;
 
-          if (cancelled) {
-            return;
-          }
+    const movedSinceLastRequest =
+      previousRequest
+        ? calculateDistanceMeters(
+            requestOrigin,
+            previousRequest.origin
+          )
+        : Number.POSITIVE_INFINITY;
 
-          directionsRenderer.setDirections(
-            result
-          );
+    const existingPath =
+      routeSnapshotRef.current?.path ?? [];
 
-          const route =
-            result.routes[0];
+    const distanceOutsideRoute =
+      existingPath.length > 0
+        ? distanceToPathMeters(
+            requestOrigin,
+            existingPath
+          )
+        : 0;
 
-          if (!route) {
-            onMetricsChange?.(null);
-            return;
-          }
+    const requestExpired =
+      previousRequest
+        ? now -
+            previousRequest.requestedAt >=
+          12000
+        : true;
 
-          const totals = route.legs.reduce(
-            (accumulator, leg) => {
-              accumulator.distanceMeters +=
-                leg.distance?.value ?? 0;
+    const shouldRecalculate =
+      !previousRequest ||
+      destinationChanged ||
+      movedSinceLastRequest >= 45 ||
+      distanceOutsideRoute >= 35 ||
+      requestExpired;
 
-              accumulator.durationSeconds +=
-                leg.duration?.value ?? 0;
+    if (!shouldRecalculate) {
+      return;
+    }
 
-              return accumulator;
-            },
-            {
-              distanceMeters: 0,
-              durationSeconds: 0,
-            }
-          );
+    lastRouteRequestRef.current = {
+      origin: requestOrigin,
+      destination,
+      requestedAt: now,
+    };
 
-          const distanceText =
-            totals.distanceMeters < 1000
-              ? `${Math.round(
-                  totals.distanceMeters
-                )} m`
-              : `${(
-                  totals.distanceMeters / 1000
-                ).toFixed(1)} km`;
+    requestSequenceRef.current += 1;
+    const requestSequence =
+      requestSequenceRef.current;
 
-          const durationMinutes =
-            Math.max(
-              1,
-              Math.ceil(
-                totals.durationSeconds / 60
-              )
-            );
-
-          const durationText =
-            durationMinutes < 60
-              ? `${durationMinutes} min`
-              : `${Math.floor(
-                  durationMinutes / 60
-                )} h ${durationMinutes % 60} min`;
-
-          const firstStep =
-            route.legs[0]?.steps?.[0];
-
-          onMetricsChange?.({
-            distanceMeters:
-              totals.distanceMeters,
-            distanceText,
-            durationSeconds:
-              totals.durationSeconds,
-            durationText,
-            nextInstruction:
-              cleanDirectionsInstruction(
-                firstStep?.instructions
-              ),
-            nextManeuver:
-              firstStep?.maneuver
-                ? String(firstStep.maneuver)
-                : null,
-            nextStepDistanceText:
-              firstStep?.distance?.text ?? null,
+    void (async () => {
+      try {
+        const response =
+          await routesLibrary.Route.computeRoutes({
+            origin: requestOrigin,
+            destination,
+            travelMode: "DRIVING",
+            routingPreference:
+              "TRAFFIC_AWARE_OPTIMAL",
+            trafficModel: "bestguess",
+            language: "es-MX",
+            region: "MX",
+            extraComputations: [
+              "TRAFFIC_ON_POLYLINE",
+            ],
+            fields: [
+              "path",
+              "distanceMeters",
+              "durationMillis",
+              "staticDurationMillis",
+              "localizedValues",
+              "legs",
+              "speedPaths",
+              "routeLabels",
+            ],
           });
-        } catch (error) {
-          if (!cancelled) {
-            console.error(
-              "No fue posible calcular la ruta:",
-              error
-            );
 
-            onMetricsChange?.(null);
+        if (
+          requestSequence !==
+          requestSequenceRef.current
+        ) {
+          return;
+        }
+
+        const route =
+          response.routes?.[0];
+
+        if (!route) {
+          onMetricsChange?.(null);
+          return;
+        }
+
+        const routePath = (
+          route.path ?? []
+        )
+          .map((point) =>
+            toMapCoordinates(point)
+          )
+          .filter(
+            (
+              point
+            ): point is MapCoordinates =>
+              point !== null
+          );
+
+        const steps: NavigationRouteStep[] =
+          [];
+
+        for (
+          const leg of route.legs ?? []
+        ) {
+          for (
+            const step of leg.steps ?? []
+          ) {
+            const stepPath = (
+              step.path ?? []
+            )
+              .map((point) =>
+                toMapCoordinates(point)
+              )
+              .filter(
+                (
+                  point
+                ): point is MapCoordinates =>
+                  point !== null
+              );
+
+            steps.push({
+              instruction:
+                cleanDirectionsInstruction(
+                  step.instructions
+                ),
+              maneuver: step.maneuver
+                ? String(step.maneuver)
+                : null,
+              distanceMeters:
+                step.distanceMeters ?? 0,
+              path: stepPath,
+              end:
+                stepPath[
+                  stepPath.length - 1
+                ] ?? null,
+            });
           }
         }
-      },
-      750
-    );
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-      directionsRenderer.setMap(null);
-    };
+        const distanceMeters =
+          route.distanceMeters ??
+          (route.legs ?? []).reduce(
+            (total, leg) =>
+              total +
+              (leg.distanceMeters ?? 0),
+            0
+          );
+
+        const durationSeconds =
+          Math.max(
+            0,
+            Math.round(
+              (route.durationMillis ?? 0) /
+                1000
+            )
+          );
+
+        routeSnapshotRef.current = {
+          distanceMeters,
+          durationSeconds,
+          path: routePath,
+          steps,
+        };
+
+        polylinesRef.current.forEach(
+          (polyline) => {
+            polyline.setMap(null);
+          }
+        );
+
+        const newPolylines =
+          route.createPolylines();
+
+        newPolylines.forEach(
+          (polyline) => {
+            polyline.setMap(map);
+
+            polyline.setOptions({
+              strokeOpacity: 0.95,
+              strokeWeight: 7,
+              zIndex: 5,
+            });
+          }
+        );
+
+        polylinesRef.current =
+          newPolylines;
+
+        emitNavigationMetrics(
+          currentLocation ??
+            requestOrigin
+        );
+      } catch (error) {
+        if (
+          requestSequence !==
+          requestSequenceRef.current
+        ) {
+          return;
+        }
+
+        console.error(
+          "No fue posible calcular la navegación de Google:",
+          error
+        );
+
+        lastRouteRequestRef.current =
+          null;
+
+        onMetricsChange?.(null);
+      }
+    })();
   }, [
+    currentLocation?.lat,
+    currentLocation?.lng,
     destination.lat,
     destination.lng,
+    emitNavigationMetrics,
     map,
+    navigationMode,
     onMetricsChange,
     origin.lat,
     origin.lng,
     routesLibrary,
   ]);
 
+  useEffect(() => {
+    return () => {
+      requestSequenceRef.current += 1;
+
+      polylinesRef.current.forEach(
+        (polyline) => {
+          polyline.setMap(null);
+        }
+      );
+
+      polylinesRef.current = [];
+    };
+  }, []);
+
   return null;
 }
-
 function FitMapBounds({
   origin,
   destination,
@@ -501,12 +961,10 @@ function MapContent({
         validRouteDestination && (
           <RouteRenderer
             origin={validRouteOrigin}
-            destination={
-              validRouteDestination
-            }
-            onMetricsChange={
-              onRouteMetricsChange
-            }
+            destination={validRouteDestination}
+            currentLocation={validDriverLocation}
+            navigationMode={navigationMode}
+            onMetricsChange={onRouteMetricsChange}
           />
         )}
 
@@ -590,6 +1048,65 @@ export function GoogleMapView({
     [onRouteMetricsChange]
   );
 
+  // AXI TURN-BY-TURN VOICE
+  const spokenInstructionRef =
+    useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!navigationMode) {
+      spokenInstructionRef.current = null;
+
+      if (
+        typeof window !== "undefined" &&
+        "speechSynthesis" in window
+      ) {
+        window.speechSynthesis.cancel();
+      }
+
+      return;
+    }
+
+    const instruction =
+      routeMetrics?.nextInstruction;
+
+    if (
+      !instruction ||
+      spokenInstructionRef.current ===
+        instruction ||
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window)
+    ) {
+      return;
+    }
+
+    spokenInstructionRef.current =
+      instruction;
+
+    const spokenDistance =
+      routeMetrics?.
+        nextStepDistanceText;
+
+    const utterance =
+      new SpeechSynthesisUtterance(
+        spokenDistance
+          ? `${spokenDistance}. ${instruction}`
+          : instruction
+      );
+
+    utterance.lang = "es-MX";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(
+      utterance
+    );
+  }, [
+    navigationMode,
+    routeMetrics?.nextInstruction,
+    routeMetrics?.nextStepDistanceText,
+  ]);
   const userLocation = useMemo(
     () =>
       showUserLocation && coordinates
@@ -680,6 +1197,8 @@ export function GoogleMapView({
       <APIProvider
         apiKey={apiKey}
         libraries={["places"]}
+        language="es"
+        region="MX"
       >
         <Map
           defaultCenter={center}
