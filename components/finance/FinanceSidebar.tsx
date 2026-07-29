@@ -9,6 +9,7 @@ const sections = [
     items: [
       ["Dashboard financiero", "/dashboard/admin/finance"],
       ["Executive Center", "/dashboard/admin/finance/executive"],
+      ["Inteligencia financiera", "/dashboard/admin/finance/intelligence"],
       ["Reportes", "/dashboard/admin/finance/reports"],
     ],
   },
