@@ -15,6 +15,7 @@ const sections = [
     title: "Contabilidad",
     items: [
       ["Estados financieros", "/dashboard/admin/finance/statements"],
+      ["Libro diario", "/dashboard/admin/finance/journal"],
       ["Libro mayor", "/dashboard/admin/finance/general-ledger"],
       ["Cuentas contables", "/dashboard/admin/finance/accounts"],
       ["Cierres diarios", "/dashboard/admin/finance/daily-closures"],

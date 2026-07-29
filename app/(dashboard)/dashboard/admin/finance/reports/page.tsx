@@ -3,38 +3,38 @@ import Link from "next/link";
 const reports = [
   {
     title: "Estados financieros",
-    description:
-      "Estado de resultados, balance general y flujo de efectivo.",
+    description: "Estado de resultados, balance general y flujo de efectivo.",
     href: "/dashboard/admin/finance/statements",
   },
   {
-    title: "Libro mayor",
+    title: "Libro diario",
     description:
-      "Consulta cada asiento contable registrado en AXI.",
+      "Consulta pólizas, asientos, referencias y reversiones contables.",
+    href: "/dashboard/admin/finance/journal",
+  },
+  {
+    title: "Libro mayor",
+    description: "Consulta cada asiento contable registrado en AXI.",
     href: "/dashboard/admin/finance/general-ledger",
   },
   {
     title: "Balanza de comprobación",
-    description:
-      "Saldos, cargos y abonos por cuenta contable.",
+    description: "Saldos, cargos y abonos por cuenta contable.",
     href: "/dashboard/admin/finance/accounts",
   },
   {
     title: "Resumen fiscal",
-    description:
-      "IVA, ISR y retenciones agrupadas por periodo.",
+    description: "IVA, ISR y retenciones agrupadas por periodo.",
     href: "/dashboard/admin/finance/taxes",
   },
   {
     title: "Conciliación",
-    description:
-      "Validación entre pagos, ledger y wallets.",
+    description: "Validación entre pagos, ledger y wallets.",
     href: "/dashboard/admin/finance/reconciliation",
   },
   {
     title: "Cierres diarios",
-    description:
-      "Snapshots financieros con folio e integridad.",
+    description: "Snapshots financieros con folio e integridad.",
     href: "/dashboard/admin/finance/daily-closures",
   },
 ];
