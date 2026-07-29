@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  EnterpriseMetricCard,
+  EnterprisePageHeader,
+} from "@/components/enterprise";
 import EnterpriseReportTable from "@/components/finance/EnterpriseReportTable";
 import FinanceReportToolbar from "@/components/finance/FinanceReportToolbar";
 
@@ -195,17 +199,11 @@ export default function FinancialStatementsPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <p className="text-sm font-medium text-blue-600">Finanzas</p>
-
-        <h1 className="text-2xl font-bold text-slate-900">
-          Estados financieros
-        </h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Estado de resultados, balance general y flujo de efectivo.
-        </p>
-      </header>
+      <EnterprisePageHeader
+        eyebrow="Finanzas"
+        title="Estados financieros"
+        description="Estado de resultados, balance general y flujo de efectivo de AXI."
+      />
 
       <FinanceReportToolbar
         dateFrom={dateFrom}
@@ -247,22 +245,29 @@ export default function FinancialStatementsPage() {
             </h2>
 
             <div className="grid gap-4 md:grid-cols-4">
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Activos"
                 value={formatCurrency(balance?.total_assets)}
+                tone="info"
               />
 
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Pasivos"
                 value={formatCurrency(balance?.total_liabilities)}
+                tone="warning"
               />
 
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Resultado acumulado"
                 value={formatCurrency(balance?.retained_result)}
+                tone={
+                  Number(balance?.retained_result ?? 0) >= 0
+                    ? "success"
+                    : "danger"
+                }
               />
 
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Diferencia contable"
                 value={formatCurrency(balance?.accounting_difference)}
                 detail={
@@ -270,7 +275,7 @@ export default function FinancialStatementsPage() {
                     ? "Balance cuadrado"
                     : "Requiere revisión"
                 }
-                warning={!Boolean(balance?.is_balanced)}
+                tone={balance?.is_balanced ? "success" : "danger"}
               />
             </div>
           </section>
@@ -281,24 +286,28 @@ export default function FinancialStatementsPage() {
             </h2>
 
             <div className="grid gap-4 md:grid-cols-4">
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Ingresos"
                 value={formatCurrency(periodTotals.income)}
+                tone="success"
               />
 
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Gastos"
                 value={formatCurrency(periodTotals.expenses)}
+                tone="warning"
               />
 
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Utilidad neta"
                 value={formatCurrency(periodTotals.netIncome)}
+                tone={periodTotals.netIncome >= 0 ? "success" : "danger"}
               />
 
-              <MetricCard
+              <EnterpriseMetricCard
                 label="Flujo neto"
                 value={formatCurrency(periodTotals.cashFlow)}
+                tone={periodTotals.cashFlow >= 0 ? "info" : "danger"}
               />
             </div>
           </section>
@@ -381,53 +390,6 @@ export default function FinancialStatementsPage() {
             />
           </section>
         </>
-      )}
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  detail,
-  warning = false,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  warning?: boolean;
-}) {
-  return (
-    <div
-      className={[
-        "rounded-2xl border p-5",
-        warning ? "border-red-200 bg-red-50" : "border-slate-200 bg-white",
-      ].join(" ")}
-    >
-      <p
-        className={warning ? "text-sm text-red-700" : "text-sm text-slate-500"}
-      >
-        {label}
-      </p>
-
-      <p
-        className={[
-          "mt-2 text-2xl font-bold",
-          warning ? "text-red-900" : "text-slate-900",
-        ].join(" ")}
-      >
-        {value}
-      </p>
-
-      {detail && (
-        <p
-          className={[
-            "mt-1 text-xs",
-            warning ? "text-red-700" : "text-slate-500",
-          ].join(" ")}
-        >
-          {detail}
-        </p>
       )}
     </div>
   );

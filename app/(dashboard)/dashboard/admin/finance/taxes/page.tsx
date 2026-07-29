@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  EnterpriseMetricCard,
+  EnterprisePageHeader,
+} from "@/components/enterprise";
 import EnterpriseReportTable from "@/components/finance/EnterpriseReportTable";
 import FinanceReportToolbar from "@/components/finance/FinanceReportToolbar";
 
@@ -121,19 +125,16 @@ export default function FinanceTaxesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm font-medium text-blue-600">Finanzas</p>
-
-        <h1 className="text-2xl font-bold text-slate-900">Centro fiscal</h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          IVA generado y retenciones calculadas sobre los pagos.
-        </p>
-      </header>
+      <EnterprisePageHeader
+        eyebrow="Finanzas"
+        title="Centro fiscal"
+        description="IVA generado y retenciones calculadas sobre los pagos procesados por AXI."
+      />
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        Este módulo es un control operativo. La declaración oficial debe ser
-        revisada por el contador de AXI.
+        Este módulo funciona como control operativo interno. Las declaraciones,
+        cálculos definitivos y obligaciones oficiales deben ser revisados por el
+        contador de AXI.
       </div>
 
       <FinanceReportToolbar
@@ -148,33 +149,48 @@ export default function FinanceTaxesPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard
+        <EnterpriseMetricCard
           label="Base fiscal"
           value={formatCurrency(totals.taxBase)}
+          tone="info"
         />
 
-        <MetricCard
+        <EnterpriseMetricCard
           label="IVA generado"
           value={formatCurrency(totals.generatedIva)}
+          tone="default"
         />
 
-        <MetricCard
+        <EnterpriseMetricCard
           label="IVA retenido"
           value={formatCurrency(totals.retainedIva)}
+          tone="warning"
         />
 
-        <MetricCard
+        <EnterpriseMetricCard
           label="ISR retenido"
           value={formatCurrency(totals.retainedIsr)}
+          tone="warning"
         />
 
-        <MetricCard
+        <EnterpriseMetricCard
           label="IVA neto estimado"
           value={formatCurrency(totals.estimatedNetIva)}
+          tone={
+            totals.estimatedNetIva > 0
+              ? "danger"
+              : totals.estimatedNetIva < 0
+                ? "success"
+                : "default"
+          }
         />
       </div>
 
-      {loading && <p className="text-sm text-slate-500">Cargando impuestos…</p>}
+      {loading && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
+          Cargando impuestos…
+        </div>
+      )}
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -231,16 +247,6 @@ export default function FinanceTaxesPage() {
           ]}
         />
       )}
-    </div>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
     </div>
   );
 }

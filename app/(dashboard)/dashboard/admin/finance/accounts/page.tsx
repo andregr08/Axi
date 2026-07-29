@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  EnterpriseMetricCard,
+  EnterprisePageHeader,
+} from "@/components/enterprise";
 import EnterpriseReportTable from "@/components/finance/EnterpriseReportTable";
 import FinanceReportToolbar from "@/components/finance/FinanceReportToolbar";
 
@@ -75,10 +79,9 @@ export default function FinancialAccountsPage() {
   }, [rows, search, type]);
 
   const totalDebits = sumFinancialColumn(filteredRows, "total_debits");
-
   const totalCredits = sumFinancialColumn(filteredRows, "total_credits");
-
   const difference = totalDebits - totalCredits;
+  const isBalanced = Math.abs(difference) < 0.005;
 
   function handleExport() {
     try {
@@ -130,17 +133,11 @@ export default function FinancialAccountsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm font-medium text-blue-600">Contabilidad</p>
-
-        <h1 className="text-2xl font-bold text-slate-900">
-          Balanza de comprobación
-        </h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Catálogo, cargos, abonos y saldos de las cuentas contables de AXI.
-        </p>
-      </header>
+      <EnterprisePageHeader
+        eyebrow="Contabilidad"
+        title="Balanza de comprobación"
+        description="Catálogo, cargos, abonos y saldos de las cuentas contables de AXI."
+      />
 
       <FinanceReportToolbar
         search={search}
@@ -155,6 +152,7 @@ export default function FinancialAccountsPage() {
           value={type}
           onChange={(event) => setType(event.target.value)}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm"
+          aria-label="Tipo de cuenta"
         >
           <option value="all">Todas las cuentas</option>
           <option value="asset">Activos</option>
@@ -170,25 +168,37 @@ export default function FinancialAccountsPage() {
       </FinanceReportToolbar>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Cuentas" value={String(filteredRows.length)} />
+        <EnterpriseMetricCard
+          label="Cuentas"
+          value={String(filteredRows.length)}
+          tone="info"
+        />
 
-        <MetricCard label="Total debe" value={formatCurrency(totalDebits)} />
+        <EnterpriseMetricCard
+          label="Total debe"
+          value={formatCurrency(totalDebits)}
+          tone="default"
+        />
 
-        <MetricCard label="Total haber" value={formatCurrency(totalCredits)} />
+        <EnterpriseMetricCard
+          label="Total haber"
+          value={formatCurrency(totalCredits)}
+          tone="default"
+        />
 
-        <MetricCard
+        <EnterpriseMetricCard
           label="Diferencia"
           value={formatCurrency(difference)}
-          detail={
-            Math.abs(difference) < 0.005
-              ? "Balanza cuadrada"
-              : "Requiere revisión"
-          }
-          warning={Math.abs(difference) >= 0.005}
+          detail={isBalanced ? "Balanza cuadrada" : "Requiere revisión"}
+          tone={isBalanced ? "success" : "danger"}
         />
       </div>
 
-      {loading && <p className="text-sm text-slate-500">Cargando cuentas…</p>}
+      {loading && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
+          Cargando cuentas…
+        </div>
+      )}
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -240,53 +250,6 @@ export default function FinancialAccountsPage() {
             },
           ]}
         />
-      )}
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  detail,
-  warning = false,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  warning?: boolean;
-}) {
-  return (
-    <div
-      className={[
-        "rounded-2xl border p-5",
-        warning ? "border-red-200 bg-red-50" : "border-slate-200 bg-white",
-      ].join(" ")}
-    >
-      <p
-        className={warning ? "text-sm text-red-700" : "text-sm text-slate-500"}
-      >
-        {label}
-      </p>
-
-      <p
-        className={[
-          "mt-2 text-2xl font-bold",
-          warning ? "text-red-900" : "text-slate-900",
-        ].join(" ")}
-      >
-        {value}
-      </p>
-
-      {detail && (
-        <p
-          className={[
-            "mt-1 text-xs",
-            warning ? "text-red-700" : "text-slate-500",
-          ].join(" ")}
-        >
-          {detail}
-        </p>
       )}
     </div>
   );
