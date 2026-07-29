@@ -45,6 +45,9 @@ export default function GeneralLedgerPage() {
   const [pageSize, setPageSize] = useState(25);
   const [totalRows, setTotalRows] = useState(0);
 
+  const [sortBy, setSortBy] = useState("effective_at");
+  const [ascending, setAscending] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,8 +93,8 @@ export default function GeneralLedgerPage() {
         {
           page,
           pageSize,
-          orderBy: "effective_at",
-          ascending: false,
+          orderBy: sortBy,
+          ascending,
           filters,
           search: debouncedSearch,
           searchColumns: SEARCH_COLUMNS,
@@ -116,7 +119,7 @@ export default function GeneralLedgerPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, filters, page, pageSize]);
+  }, [ascending, debouncedSearch, filters, page, pageSize, sortBy]);
 
   useEffect(() => {
     void loadData();
@@ -132,8 +135,8 @@ export default function GeneralLedgerPage() {
       setError(null);
 
       const exportRows = await getFinancialView("finance_general_ledger_v1", {
-        orderBy: "effective_at",
-        ascending: false,
+        orderBy: sortBy,
+        ascending,
         limit: EXPORT_LIMIT,
         filters,
         search: debouncedSearch,
@@ -213,6 +216,17 @@ export default function GeneralLedgerPage() {
     setPage(1);
   }
 
+  function handleSortChange(column: string) {
+    if (sortBy === column) {
+      setAscending((current) => !current);
+    } else {
+      setSortBy(column);
+      setAscending(true);
+    }
+
+    setPage(1);
+  }
+
   return (
     <div className="space-y-6">
       <EnterprisePageHeader
@@ -282,39 +296,49 @@ export default function GeneralLedgerPage() {
           <EnterpriseReportTable
             rows={rows}
             emptyMessage="No hay movimientos para el periodo seleccionado."
+            sortBy={sortBy}
+            ascending={ascending}
+            onSortChange={handleSortChange}
             columns={[
               {
                 key: "ledger_folio",
                 label: "Folio",
+                sortable: true,
               },
               {
                 key: "effective_at",
                 label: "Fecha",
                 render: formatDateTime,
+                sortable: true,
               },
               {
                 key: "transaction_type",
                 label: "Tipo",
+                sortable: true,
               },
               {
                 key: "account_code",
                 label: "Cuenta",
+                sortable: true,
               },
               {
                 key: "account_name",
                 label: "Nombre",
+                sortable: true,
               },
               {
                 key: "debit",
                 label: "Debe",
                 align: "right",
                 render: formatCurrency,
+                sortable: true,
               },
               {
                 key: "credit",
                 label: "Haber",
                 align: "right",
                 render: formatCurrency,
+                sortable: true,
               },
             ]}
           />
