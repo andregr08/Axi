@@ -29,12 +29,21 @@ type TripReceipt = {
   completed_at: string | null;
 };
 
+type PaymentTaxDetails = {
+  platform_commission_iva_amount: number | null;
+  iva_withholding_amount: number | null;
+  isr_withholding_amount: number | null;
+  driver_net_earnings: number | null;
+};
+
 export default function TripReceiptPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const tripId = params.id;
 
   const [trip, setTrip] = useState<TripReceipt | null>(null);
+  const [paymentDetails, setPaymentDetails] =
+    useState<PaymentTaxDetails | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [passengerName, setPassengerName] = useState("");
   const [driverName, setDriverName] = useState("");
@@ -110,6 +119,33 @@ export default function TripReceiptPage() {
       }
 
       setTrip(loadedTrip);
+
+      if (currentProfile.role !== "passenger") {
+        const {
+          data: paymentData,
+          error: paymentError,
+        } = await supabase
+          .from("payment_transactions")
+          .select(`
+            platform_commission_iva_amount,
+            iva_withholding_amount,
+            isr_withholding_amount,
+            driver_net_earnings
+          `)
+          .eq("trip_id", tripId)
+          .maybeSingle();
+
+        if (paymentError) {
+          console.error(
+            "No fue posible cargar el desglose fiscal:",
+            paymentError.message
+          );
+        } else {
+          setPaymentDetails(
+            (paymentData as PaymentTaxDetails | null) ?? null
+          );
+        }
+      }
 
       const userIds = [
         loadedTrip.passenger_id,
@@ -307,31 +343,106 @@ export default function TripReceiptPage() {
           </div>
 
           {role === "driver" && (
-            <div className="flex justify-between gap-5 rounded-xl bg-green-50 p-4 text-green-700">
-              <span className="font-semibold">
-                Tu ganancia
-              </span>
-              <span className="font-bold">
-                {formatMoney(trip.driver_earnings)}
-              </span>
-            </div>
+            <>
+              <div className="flex justify-between gap-5 rounded-xl bg-green-50 p-4 text-green-700">
+                <span className="font-semibold">
+                  Tu ganancia neta
+                </span>
+                <span className="font-bold">
+                  {formatMoney(
+                    paymentDetails?.driver_net_earnings ??
+                      trip.driver_earnings
+                  )}
+                </span>
+              </div>
+
+              {paymentDetails && (
+                <div className="space-y-3 rounded-xl border border-gray-200 p-4 text-sm">
+                  <div className="flex justify-between gap-5">
+                    <span>IVA de comisión AXI</span>
+                    <span className="font-semibold">
+                      {formatMoney(
+                        paymentDetails.platform_commission_iva_amount
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-5">
+                    <span>IVA retenido</span>
+                    <span className="font-semibold">
+                      {formatMoney(
+                        paymentDetails.iva_withholding_amount
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-5">
+                    <span>ISR retenido</span>
+                    <span className="font-semibold">
+                      {formatMoney(
+                        paymentDetails.isr_withholding_amount
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {isFinance(role) && (
             <>
               <div className="flex justify-between gap-5 rounded-xl bg-gray-50 p-4">
-                <span className="font-semibold">Comisión AXI</span>
+                <span className="font-semibold">
+                  Comisión AXI
+                </span>
                 <span className="font-bold">
                   {formatMoney(trip.platform_commission)}
                 </span>
               </div>
 
-              <div className="flex justify-between gap-5 rounded-xl bg-green-50 p-4 text-green-700">
+              <div className="flex justify-between gap-5 rounded-xl bg-gray-50 p-4">
                 <span className="font-semibold">
-                  Ganancia del conductor
+                  IVA de comisión AXI
                 </span>
                 <span className="font-bold">
-                  {formatMoney(trip.driver_earnings)}
+                  {formatMoney(
+                    paymentDetails?.platform_commission_iva_amount ??
+                      0
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-5 rounded-xl bg-gray-50 p-4">
+                <span className="font-semibold">
+                  IVA retenido
+                </span>
+                <span className="font-bold">
+                  {formatMoney(
+                    paymentDetails?.iva_withholding_amount ?? 0
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-5 rounded-xl bg-gray-50 p-4">
+                <span className="font-semibold">
+                  ISR retenido
+                </span>
+                <span className="font-bold">
+                  {formatMoney(
+                    paymentDetails?.isr_withholding_amount ?? 0
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-5 rounded-xl bg-green-50 p-4 text-green-700">
+                <span className="font-semibold">
+                  Ganancia neta del conductor
+                </span>
+                <span className="font-bold">
+                  {formatMoney(
+                    paymentDetails?.driver_net_earnings ??
+                      trip.driver_earnings
+                  )}
                 </span>
               </div>
             </>

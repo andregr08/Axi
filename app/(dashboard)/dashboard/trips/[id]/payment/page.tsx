@@ -18,6 +18,8 @@ type TripPayment = {
   fare_subtotal: number | null;
   booking_fee: number | null;
   final_price: number | null;
+  platform_commission: number | null;
+  wallet_credit_used: number | null;
   payment_method: PaymentMethod | null;
   payment_status: string;
   tip_amount: number;
@@ -42,6 +44,7 @@ export default function TripPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -78,6 +81,8 @@ export default function TripPaymentPage() {
         fare_subtotal,
         booking_fee,
         final_price,
+        platform_commission,
+        wallet_credit_used,
         payment_method,
         payment_status,
         tip_amount,
@@ -111,6 +116,24 @@ export default function TripPaymentPage() {
     const loadedTrip = data as TripPayment;
 
     setTrip(loadedTrip);
+
+    const { data: walletData, error: walletError } = await supabase
+      .from("passenger_wallets")
+      .select("available_balance")
+      .eq("passenger_id", session.user.id)
+      .maybeSingle();
+
+    if (walletError) {
+      setMessage(
+        `No fue posible cargar tu saldo AXI: ${walletError.message}`
+      );
+      setLoading(false);
+      return;
+    }
+
+    setWalletBalance(
+      Number(walletData?.available_balance ?? 0)
+    );
 
     if (loadedTrip.payment_method) {
       setMethod(loadedTrip.payment_method);
@@ -151,10 +174,15 @@ export default function TripPaymentPage() {
       return;
     }
 
+    const walletMessage =
+      walletCreditApplied > 0
+        ? ` Se aplicarán $${walletCreditApplied.toFixed(2)} MXN de tu saldo AXI.`
+        : "";
+
     const confirmed = window.confirm(
-      `¿Confirmas el pago de $${totalAmount.toFixed(2)} MXN mediante ${
+      `¿Confirmas el pago restante de $${amountToPay.toFixed(2)} MXN mediante ${
         paymentMethodLabels[method]
-      }?`
+      }?${walletMessage}`
     );
 
     if (!confirmed) return;
@@ -176,7 +204,15 @@ export default function TripPaymentPage() {
     }
 
     if (method === "cash") {
-      setMessage("Pago en efectivo registrado correctamente.");
+      setMessage(
+        walletCreditApplied > 0
+          ? `Pago registrado. Se aplicaron $${walletCreditApplied.toFixed(
+              2
+            )} MXN de saldo AXI y quedan $${amountToPay.toFixed(
+              2
+            )} MXN por pagar en efectivo.`
+          : "Pago en efectivo registrado correctamente."
+      );
 
       window.setTimeout(() => {
         router.push(`/dashboard/trips/${trip.id}/receipt`);
@@ -187,7 +223,9 @@ export default function TripPaymentPage() {
     }
 
     setMessage(
-      `${paymentMethodLabels[method]} quedó seleccionado. La integración del proveedor se conectará después.`
+      `${paymentMethodLabels[method]} quedó seleccionado por $${amountToPay.toFixed(
+        2
+      )} MXN. La integración del proveedor se conectará después.`
     );
 
     await loadTrip();
@@ -195,6 +233,27 @@ export default function TripPaymentPage() {
 
   const baseAmount = Number(trip?.final_price ?? 0);
   const totalAmount = baseAmount + tip;
+  const platformCommission = Number(
+    trip?.platform_commission ?? 0
+  );
+  const paymentConfigured = Boolean(trip?.payment_method);
+  const storedWalletCredit = Number(
+    trip?.wallet_credit_used ?? 0
+  );
+
+  const walletCreditApplied = paymentConfigured
+    ? storedWalletCredit
+    : Math.max(
+        Math.min(walletBalance, platformCommission),
+        0
+      );
+
+  const amountToPay = paymentConfigured
+    ? Number(
+        trip?.amount_due ??
+          Math.max(totalAmount - storedWalletCredit, 0)
+      )
+    : Math.max(totalAmount - walletCreditApplied, 0);
 
   if (loading) {
     return <p>Cargando pago...</p>;
@@ -350,10 +409,39 @@ export default function TripPaymentPage() {
             </span>
           </div>
 
-          <div className="flex justify-between gap-4 border-t pt-3 text-xl">
-            <span className="font-bold">Total</span>
-            <span className="font-bold">
+          <div className="flex justify-between gap-4 border-t pt-3">
+            <span className="text-gray-600">
+              Total del viaje
+            </span>
+            <span className="font-semibold">
               ${totalAmount.toFixed(2)} MXN
+            </span>
+          </div>
+
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-600">
+              Saldo AXI disponible
+            </span>
+            <span className="font-semibold">
+              ${walletBalance.toFixed(2)} MXN
+            </span>
+          </div>
+
+          <div className="flex justify-between gap-4 text-green-700">
+            <span className="font-semibold">
+              Saldo AXI aplicado
+            </span>
+            <span className="font-bold">
+              -${walletCreditApplied.toFixed(2)} MXN
+            </span>
+          </div>
+
+          <div className="flex justify-between gap-4 border-t pt-3 text-xl">
+            <span className="font-bold">
+              Por pagar
+            </span>
+            <span className="font-bold">
+              ${amountToPay.toFixed(2)} MXN
             </span>
           </div>
         </div>
@@ -390,7 +478,7 @@ export default function TripPaymentPage() {
               ? "Procesando..."
               : paymentCompleted
                 ? "Pago completado"
-                : `Confirmar $${totalAmount.toFixed(2)}`}
+                : `Confirmar $${amountToPay.toFixed(2)}`}
           </button>
         </div>
       </form>
