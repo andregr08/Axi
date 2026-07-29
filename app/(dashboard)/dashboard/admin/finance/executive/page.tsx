@@ -43,6 +43,10 @@ import {
   getFinanceDashboard,
   type FinanceDashboard,
 } from "@/lib/finance/dashboard";
+import {
+  getFinanceExecutiveKpis,
+  type FinanceExecutiveKpis,
+} from "@/lib/finance/executive";
 import { supabase } from "@/lib/supabaseClient";
 
 const moneyFormatter = new Intl.NumberFormat("es-MX", {
@@ -123,6 +127,8 @@ export default function FinanceExecutivePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] =
     useState<FinanceDashboard | null>(null);
+  const [executiveKpis, setExecutiveKpis] =
+    useState<FinanceExecutiveKpis | null>(null);
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] =
     useState<Date | null>(null);
@@ -162,9 +168,13 @@ export default function FinanceExecutivePage() {
       }
 
       try {
-        const dashboard = await getFinanceDashboard();
+        const [dashboard, executive] = await Promise.all([
+          getFinanceDashboard(),
+          getFinanceExecutiveKpis(),
+        ]);
 
         setStats(dashboard);
+        setExecutiveKpis(executive);
         setLastUpdated(new Date());
       } catch (error) {
         setMessage(
@@ -543,51 +553,58 @@ export default function FinanceExecutivePage() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <EnterpriseMetricCard
-            label="Ingresos AXI acumulados"
+            label="Volumen procesado"
             value={formatMoney(
-              stats?.platformCommissionAllTime ?? 0,
+              executiveKpis?.grossBookingValue ?? 0,
             )}
-            detail="Comisiones históricas de plataforma"
+            detail={`${(
+              executiveKpis?.paidPayments ?? 0
+            ).toLocaleString("es-MX")} pagos completados`}
             icon={<CircleDollarSign className="h-5 w-5" />}
-            tone="success"
-          />
-
-          <EnterpriseMetricCard
-            label="Resultado antes de gastos"
-            value={formatMoney(
-              stats?.netPlatformRevenueBeforeExpenses ?? 0,
-            )}
-            detail="Ingreso neto de plataforma"
-            icon={<TrendingUp className="h-5 w-5" />}
-            tone={
-              (stats?.netPlatformRevenueBeforeExpenses ?? 0) >= 0
-                ? "success"
-                : "danger"
-            }
-          />
-
-          <EnterpriseMetricCard
-            label="Saldo disponible conductores"
-            value={formatMoney(stats?.availableBalance ?? 0)}
-            detail={`${stats?.totalWallets ?? 0} wallets registradas`}
-            icon={<Wallet className="h-5 w-5" />}
             tone="info"
           />
 
           <EnterpriseMetricCard
-            label="Obligaciones pendientes"
+            label="Ingresos reales de AXI"
             value={formatMoney(
-              (stats?.pendingWithdrawalAmount ?? 0) +
-                (stats?.pendingRefundAmount ?? 0),
+              executiveKpis?.platformRevenue ?? 0,
             )}
-            detail="Retiros y reembolsos pendientes"
-            icon={<Landmark className="h-5 w-5" />}
+            detail="Comisiones reconocidas por la plataforma"
+            icon={<TrendingUp className="h-5 w-5" />}
+            tone="success"
+          />
+
+          <EnterpriseMetricCard
+            label="Gastos contables"
+            value={formatMoney(
+              executiveKpis?.totalExpenses ?? 0,
+            )}
+            detail="Gastos publicados en el libro contable"
+            icon={<ReceiptText className="h-5 w-5" />}
             tone={
-              (stats?.pendingWithdrawalAmount ?? 0) +
-                (stats?.pendingRefundAmount ?? 0) >
-              0
+              (executiveKpis?.totalExpenses ?? 0) > 0
                 ? "warning"
-                : "success"
+                : "default"
+            }
+          />
+
+          <EnterpriseMetricCard
+            label="Resultado operativo neto"
+            value={formatMoney(
+              executiveKpis?.netOperatingResult ?? 0,
+            )}
+            detail="Ingresos AXI menos gastos contables"
+            icon={
+              (executiveKpis?.netOperatingResult ?? 0) >= 0 ? (
+                <TrendingUp className="h-5 w-5" />
+              ) : (
+                <TrendingDown className="h-5 w-5" />
+              )
+            }
+            tone={
+              (executiveKpis?.netOperatingResult ?? 0) >= 0
+                ? "success"
+                : "danger"
             }
           />
         </div>
