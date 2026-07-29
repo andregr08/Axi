@@ -13,12 +13,15 @@ import {
   Banknote,
   CircleDollarSign,
   Clock3,
+  Download,
   Landmark,
   LoaderCircle,
+  Radio,
   ReceiptText,
   RefreshCw,
   ShieldCheck,
   TrendingUp,
+  TriangleAlert,
   Users,
   Wallet,
 } from "lucide-react";
@@ -82,6 +85,11 @@ export default function FinanceAdminPage() {
   const [stats, setStats] =
     useState<FinanceDashboard | null>(null);
   const [message, setMessage] = useState("");
+  const [realtimeStatus, setRealtimeStatus] = useState<
+    "connecting" | "live" | "error"
+  >("connecting");
+  const [lastRealtimeUpdate, setLastRealtimeUpdate] =
+    useState<Date | null>(null);
 
   const loadFinance = useCallback(
     async (silent = false) => {
@@ -140,6 +148,94 @@ export default function FinanceAdminPage() {
     void loadFinance();
   }, [loadFinance]);
 
+  useEffect(() => {
+    let refreshTimer: ReturnType<typeof setTimeout> | null =
+      null;
+
+    const requestRefresh = () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = setTimeout(() => {
+        setLastRealtimeUpdate(new Date());
+        void loadFinance(true);
+      }, 700);
+    };
+
+    const channel = supabase
+      .channel(`finance-dashboard-${crypto.randomUUID()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "payment_transactions",
+        },
+        requestRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "driver_wallets",
+        },
+        requestRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "withdrawal_requests",
+        },
+        requestRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "refund_requests",
+        },
+        requestRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "financial_transactions",
+        },
+        requestRefresh,
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setRealtimeStatus("live");
+          return;
+        }
+
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT"
+        ) {
+          setRealtimeStatus("error");
+          return;
+        }
+
+        setRealtimeStatus("connecting");
+      });
+
+    return () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+
+      void supabase.removeChannel(channel);
+    };
+  }, [loadFinance]);
+
   const maxDailyRevenue = useMemo(() => {
     if (!stats?.dailyRevenue.length) {
       return 0;
@@ -177,6 +273,161 @@ export default function FinanceAdminPage() {
         (total, item) => total + item.payments,
         0,
       ) ?? 0;
+
+  const financialAlerts = useMemo(() => {
+    if (!stats) {
+      return [];
+    }
+
+    const alerts: Array<{
+      id: string;
+      title: string;
+      detail: string;
+      severity: "warning" | "critical";
+    }> = [];
+
+    if (unreconciledPayments > 0) {
+      alerts.push({
+        id: "reconciliation",
+        title: "Pagos sin conciliar",
+        detail: `${unreconciledPayments} pago${
+          unreconciledPayments === 1 ? "" : "s"
+        } requieren revisión.`,
+        severity: "critical",
+      });
+    }
+
+    if (stats.pendingFinancialTransactions > 0) {
+      alerts.push({
+        id: "financial-transactions",
+        title: "Movimientos contables pendientes",
+        detail: `${stats.pendingFinancialTransactions} transacción${
+          stats.pendingFinancialTransactions === 1
+            ? ""
+            : "es"
+        } todavía no se ha publicado.`,
+        severity: "critical",
+      });
+    }
+
+    if (stats.pendingWithdrawals > 0) {
+      alerts.push({
+        id: "withdrawals",
+        title: "Retiros por procesar",
+        detail: `${stats.pendingWithdrawals} retiro${
+          stats.pendingWithdrawals === 1 ? "" : "s"
+        } por ${formatMoney(
+          stats.pendingWithdrawalAmount,
+        )}.`,
+        severity: "warning",
+      });
+    }
+
+    if (stats.pendingRefunds > 0) {
+      alerts.push({
+        id: "refunds",
+        title: "Reembolsos pendientes",
+        detail: `${stats.pendingRefunds} solicitud${
+          stats.pendingRefunds === 1 ? "" : "es"
+        } por ${formatMoney(stats.pendingRefundAmount)}.`,
+        severity: "warning",
+      });
+    }
+
+    if (stats.cashDebt > 0) {
+      alerts.push({
+        id: "cash-debt",
+        title: "Deuda de efectivo activa",
+        detail: `${formatMoney(
+          stats.cashDebt,
+        )} de participación de AXI está por recuperar.`,
+        severity: "warning",
+      });
+    }
+
+    return alerts;
+  }, [stats, unreconciledPayments]);
+
+  function exportDailyRevenueCsv() {
+    if (!stats || stats.dailyRevenue.length === 0) {
+      setMessage(
+        "Todavía no existen movimientos diarios para exportar.",
+      );
+      return;
+    }
+
+    const headers = [
+      "Fecha",
+      "Pagos completados",
+      "Ingreso bruto",
+      "Comision AXI",
+      "Ganancia bruta conductores",
+      "Ganancia neta conductores",
+      "Efectivo",
+      "Digital",
+      "IVA comision AXI",
+      "Retencion IVA",
+      "Retencion ISR",
+    ];
+
+    const rows = stats.dailyRevenue.map((item) => [
+      item.date,
+      item.paidPayments,
+      item.grossRevenue.toFixed(2),
+      item.platformCommission.toFixed(2),
+      item.grossDriverEarnings.toFixed(2),
+      item.netDriverEarnings.toFixed(2),
+      item.cashAmount.toFixed(2),
+      item.digitalAmount.toFixed(2),
+      item.platformCommissionIva.toFixed(2),
+      item.ivaWithholding.toFixed(2),
+      item.isrWithholding.toFixed(2),
+    ]);
+
+    const escapeCsv = (
+      value: string | number,
+    ): string => {
+      const stringValue = String(value);
+
+      if (
+        stringValue.includes(",") ||
+        stringValue.includes('"') ||
+        stringValue.includes("\n")
+      ) {
+        return `"${stringValue.replaceAll('"', '""')}"`;
+      }
+
+      return stringValue;
+    };
+
+    const csvContent = [
+      headers.map(escapeCsv).join(","),
+      ...rows.map((row) =>
+        row.map(escapeCsv).join(","),
+      ),
+    ].join("\n");
+
+    const blob = new Blob(
+      ["\ufeff", csvContent],
+      {
+        type: "text/csv;charset=utf-8;",
+      },
+    );
+
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const today = new Date()
+      .toISOString()
+      .slice(0, 10);
+
+    anchor.href = objectUrl;
+    anchor.download = `axi-finanzas-${today}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    URL.revokeObjectURL(objectUrl);
+  }
 
   if (loading) {
     return (
@@ -234,19 +485,70 @@ export default function FinanceAdminPage() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => void loadFinance(true)}
-            disabled={refreshing}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-yellow-400 px-5 text-sm font-black text-slate-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${
-                refreshing ? "animate-spin" : ""
+          <div className="flex flex-col gap-3 sm:items-end">
+            <div
+              className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1.5 text-xs font-bold sm:self-auto ${
+                realtimeStatus === "live"
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : realtimeStatus === "error"
+                    ? "bg-red-500/15 text-red-300"
+                    : "bg-slate-700 text-slate-300"
               }`}
-            />
-            Actualizar
-          </button>
+            >
+              <Radio
+                className={`h-3.5 w-3.5 ${
+                  realtimeStatus === "live"
+                    ? "animate-pulse"
+                    : ""
+                }`}
+              />
+
+              {realtimeStatus === "live"
+                ? "En vivo"
+                : realtimeStatus === "error"
+                  ? "Sin conexión en vivo"
+                  : "Conectando"}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={exportDailyRevenueCsv}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-5 text-sm font-black text-white transition hover:bg-slate-800"
+              >
+                <Download className="h-4 w-4" />
+                Exportar CSV
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void loadFinance(true)}
+                disabled={refreshing}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-yellow-400 px-5 text-sm font-black text-slate-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    refreshing ? "animate-spin" : ""
+                  }`}
+                />
+                Actualizar
+              </button>
+            </div>
+
+            {lastRealtimeUpdate && (
+              <p className="text-xs text-slate-400">
+                Último cambio recibido:{" "}
+                {lastRealtimeUpdate.toLocaleTimeString(
+                  "es-MX",
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  },
+                )}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -255,6 +557,87 @@ export default function FinanceAdminPage() {
           {message}
         </div>
       )}
+
+      <section
+        className={`rounded-3xl border p-5 shadow-sm sm:p-6 ${
+          financialAlerts.length === 0
+            ? "border-emerald-200 bg-emerald-50"
+            : "border-amber-200 bg-amber-50"
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className={`rounded-2xl p-3 ${
+              financialAlerts.length === 0
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {financialAlerts.length === 0 ? (
+              <ShieldCheck className="h-6 w-6" />
+            ) : (
+              <TriangleAlert className="h-6 w-6" />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h2
+              className={`text-lg font-black ${
+                financialAlerts.length === 0
+                  ? "text-emerald-950"
+                  : "text-amber-950"
+              }`}
+            >
+              {financialAlerts.length === 0
+                ? "Operación financiera saludable"
+                : `${financialAlerts.length} alerta${
+                    financialAlerts.length === 1
+                      ? ""
+                      : "s"
+                  } financiera${
+                    financialAlerts.length === 1
+                      ? ""
+                      : "s"
+                  }`}
+            </h2>
+
+            {financialAlerts.length === 0 ? (
+              <p className="mt-1 text-sm text-emerald-800">
+                No existen pagos sin conciliar,
+                movimientos contables pendientes,
+                retiros ni reembolsos por revisar.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {financialAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className={`rounded-2xl border bg-white/80 px-4 py-3 ${
+                      alert.severity === "critical"
+                        ? "border-red-200"
+                        : "border-amber-200"
+                    }`}
+                  >
+                    <p
+                      className={`text-sm font-black ${
+                        alert.severity === "critical"
+                          ? "text-red-800"
+                          : "text-amber-900"
+                      }`}
+                    >
+                      {alert.title}
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      {alert.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section>
         <div className="mb-4">
