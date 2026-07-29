@@ -42,7 +42,7 @@ import {
   type FinanceExecutiveKpis,
 } from "@/lib/finance/executive";
 import {
-  buildFinanceIntelligence,
+  getFinanceIntelligenceFromDatabase,
   type FinanceIntelligence,
   type IntelligenceSeverity,
 } from "@/lib/finance/intelligence";
@@ -166,6 +166,10 @@ export default function FinanceIntelligencePage() {
 
   const [executive, setExecutive] = useState<FinanceExecutiveKpis | null>(null);
 
+  const [intelligence, setIntelligence] = useState<FinanceIntelligence | null>(
+    null,
+  );
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -186,8 +190,12 @@ export default function FinanceIntelligencePage() {
         getFinanceExecutiveKpis(),
       ]);
 
+      const intelligenceResult =
+        await getFinanceIntelligenceFromDatabase(dashboardResult);
+
       setDashboard(dashboardResult);
       setExecutive(executiveResult);
+      setIntelligence(intelligenceResult);
       setLastUpdated(new Date());
     } catch (error) {
       setErrorMessage(
@@ -239,14 +247,6 @@ export default function FinanceIntelligencePage() {
       void supabase.removeChannel(channel);
     };
   }, [loadData]);
-
-  const intelligence = useMemo<FinanceIntelligence | null>(
-    () =>
-      dashboard && executive
-        ? buildFinanceIntelligence(dashboard, executive)
-        : null,
-    [dashboard, executive],
-  );
 
   const trendChart = useMemo(() => {
     return (

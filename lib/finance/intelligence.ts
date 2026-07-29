@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabaseClient";
 import type {
   FinanceDailyRevenue,
   FinanceDashboard,
@@ -380,5 +381,190 @@ export function buildFinanceIntelligence(
     anomalies,
     forecast,
     alerts,
+  };
+}
+
+type FinanceIntelligenceSummaryRow = {
+  generated_at: string | null;
+  observed_days: number | string | null;
+  average_daily_gbv: number | string | null;
+  average_daily_platform_revenue: number | string | null;
+  recent_7d_gbv: number | string | null;
+  previous_7d_gbv: number | string | null;
+  seven_day_growth_percentage: number | string | null;
+  projected_gbv_30d: number | string | null;
+  projected_gbv_60d: number | string | null;
+  projected_gbv_90d: number | string | null;
+  projected_platform_revenue_30d: number | string | null;
+  projected_platform_revenue_60d: number | string | null;
+  projected_platform_revenue_90d: number | string | null;
+  projected_operating_result_30d: number | string | null;
+  projected_operating_result_60d: number | string | null;
+  projected_operating_result_90d: number | string | null;
+  operating_margin_percentage: number | string | null;
+  platform_take_rate_percentage: number | string | null;
+  expense_ratio_percentage: number | string | null;
+  volatility_percentage: number | string | null;
+  cash_share_percentage: number | string | null;
+  digital_share_percentage: number | string | null;
+  revenue_trend: "growing" | "declining" | "stable" | null;
+};
+
+type FinanceIntelligenceDailyRow = {
+  finance_date: string;
+  gross_booking_value: number | string | null;
+  moving_average_30d: number | string | null;
+  deviation_percentage: number | string | null;
+  anomaly_direction: "above" | "below" | "normal" | null;
+  is_anomaly: boolean | null;
+};
+
+function intelligenceNumber(value: number | string | null | undefined): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export async function getFinanceIntelligenceFromDatabase(
+  dashboard: FinanceDashboard,
+): Promise<FinanceIntelligence> {
+  const [summaryResult, anomalyResult] = await Promise.all([
+    supabase.from("finance_intelligence_summary_v1").select("*").single(),
+
+    supabase
+      .from("finance_intelligence_daily_v1")
+      .select(
+        [
+          "finance_date",
+          "gross_booking_value",
+          "moving_average_30d",
+          "deviation_percentage",
+          "anomaly_direction",
+          "is_anomaly",
+        ].join(","),
+      )
+      .eq("is_anomaly", true)
+      .order("finance_date", { ascending: false })
+      .limit(6),
+  ]);
+
+  if (summaryResult.error) {
+    throw new Error(
+      `No se pudo cargar la inteligencia financiera: ${summaryResult.error.message}`,
+    );
+  }
+
+  if (anomalyResult.error) {
+    throw new Error(
+      `No se pudieron cargar las anomalías: ${anomalyResult.error.message}`,
+    );
+  }
+
+  const summary =
+    summaryResult.data as unknown as FinanceIntelligenceSummaryRow;
+
+  const anomalyRows = (anomalyResult.data ??
+    []) as unknown as FinanceIntelligenceDailyRow[];
+
+  const forecast = [
+    {
+      period: "30 días",
+      projectedRevenue: intelligenceNumber(summary.projected_gbv_30d),
+      projectedPlatformRevenue: intelligenceNumber(
+        summary.projected_platform_revenue_30d,
+      ),
+      projectedOperatingResult: intelligenceNumber(
+        summary.projected_operating_result_30d,
+      ),
+    },
+    {
+      period: "60 días",
+      projectedRevenue: intelligenceNumber(summary.projected_gbv_60d),
+      projectedPlatformRevenue: intelligenceNumber(
+        summary.projected_platform_revenue_60d,
+      ),
+      projectedOperatingResult: intelligenceNumber(
+        summary.projected_operating_result_60d,
+      ),
+    },
+    {
+      period: "90 días",
+      projectedRevenue: intelligenceNumber(summary.projected_gbv_90d),
+      projectedPlatformRevenue: intelligenceNumber(
+        summary.projected_platform_revenue_90d,
+      ),
+      projectedOperatingResult: intelligenceNumber(
+        summary.projected_operating_result_90d,
+      ),
+    },
+  ];
+
+  const databaseValues = {
+    generatedAt: summary.generated_at,
+    observedDays: intelligenceNumber(summary.observed_days),
+    averageDailyRevenue: intelligenceNumber(summary.average_daily_gbv),
+    averageDailyPlatformRevenue: intelligenceNumber(
+      summary.average_daily_platform_revenue,
+    ),
+    recentSevenDayRevenue: intelligenceNumber(summary.recent_7d_gbv),
+    previousSevenDayRevenue: intelligenceNumber(summary.previous_7d_gbv),
+    sevenDayGrowthPercentage: intelligenceNumber(
+      summary.seven_day_growth_percentage,
+    ),
+    projectedMonthlyRevenue: intelligenceNumber(summary.projected_gbv_30d),
+    projectedMonthlyPlatformRevenue: intelligenceNumber(
+      summary.projected_platform_revenue_30d,
+    ),
+    projectedMonthlyOperatingResult: intelligenceNumber(
+      summary.projected_operating_result_30d,
+    ),
+    operatingMarginPercentage: intelligenceNumber(
+      summary.operating_margin_percentage,
+    ),
+    platformTakeRatePercentage: intelligenceNumber(
+      summary.platform_take_rate_percentage,
+    ),
+    expenseRatioPercentage: intelligenceNumber(
+      summary.expense_ratio_percentage,
+    ),
+    cashSharePercentage: intelligenceNumber(summary.cash_share_percentage),
+    digitalSharePercentage: intelligenceNumber(
+      summary.digital_share_percentage,
+    ),
+    volatilityPercentage: intelligenceNumber(summary.volatility_percentage),
+    revenueTrend:
+      summary.revenue_trend === "growing" ||
+      summary.revenue_trend === "declining"
+        ? summary.revenue_trend
+        : ("stable" as const),
+    anomalies: anomalyRows
+      .filter(
+        (row) =>
+          row.is_anomaly &&
+          (row.anomaly_direction === "above" ||
+            row.anomaly_direction === "below"),
+      )
+      .map((row) => ({
+        date: row.finance_date,
+        actualRevenue: intelligenceNumber(row.gross_booking_value),
+        expectedRevenue: intelligenceNumber(row.moving_average_30d),
+        deviationPercentage: intelligenceNumber(row.deviation_percentage),
+        direction:
+          row.anomaly_direction === "above"
+            ? ("above" as const)
+            : ("below" as const),
+      })),
+    forecast,
+  };
+
+  const fallback = buildFinanceIntelligence(dashboard, {
+    grossBookingValue: dashboard.grossRevenueMonth,
+    platformRevenue: dashboard.platformCommissionMonth,
+    totalExpenses: 0,
+    netOperatingResult: dashboard.platformCommissionMonth,
+  } as Parameters<typeof buildFinanceIntelligence>[1]);
+
+  return {
+    ...fallback,
+    ...databaseValues,
   };
 }
