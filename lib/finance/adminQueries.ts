@@ -134,38 +134,8 @@ export async function getPendingWithdrawals() {
   const { data, error } = await supabase
     .from("withdraw_requests")
     .select("*")
-    .eq("status", "pending")
-    .order("created_at");
-
-  if (error) throw error;
-
-  return attachProfiles(
-    (data ?? []) as FinanceRow[],
-    "driver_id"
-  );
-}
-
-export async function getPendingBonuses() {
-  const { data, error } = await supabase
-    .from("driver_bonus_requests")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at");
-
-  if (error) throw error;
-
-  return attachProfiles(
-    (data ?? []) as FinanceRow[],
-    "driver_id"
-  );
-}
-
-export async function getPendingIncentives() {
-  const { data, error } = await supabase
-    .from("driver_incentives")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at");
+    .in("status", ["pending", "approved", "processing"])
+    .order("requested_at", { ascending: true });
 
   if (error) throw error;
 
@@ -220,17 +190,6 @@ export async function getCashDebts() {
     .from("cash_debts_view")
     .select("*")
     .order("cash_debt", { ascending: false });
-
-  if (error) throw error;
-
-  return data ?? [];
-}
-
-export async function getCommissions() {
-  const { data, error } = await supabase
-    .from("driver_commissions_view")
-    .select("*")
-    .order("created_at", { ascending: false });
 
   if (error) throw error;
 

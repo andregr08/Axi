@@ -7,8 +7,7 @@ import {
   Banknote,
   CircleDollarSign,
   Clock3,
-  Gift,
-  HandCoins,
+  Landmark,
   LoaderCircle,
   RefreshCw,
   ReceiptText,
@@ -135,8 +134,8 @@ export default function FinanceAdminPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-              Control de saldos, comisiones, retiros, bonos, incentivos,
-              reembolsos y deudas de conductores.
+              Supervisión de ingresos por viajes, participación de AXI,
+              wallets, retiros, reembolsos y deudas en efectivo.
             </p>
           </div>
 
@@ -162,24 +161,31 @@ export default function FinanceAdminPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <FinanceCard
-          title="Comisiones de hoy"
+          title="Participación AXI hoy"
           value={formatMoney(stats.commissionsToday)}
-          subtitle="Ingresos generados para AXI"
+          subtitle="20% generado por los viajes"
           icon={TrendingUp}
         />
 
         <FinanceCard
           title="Saldo disponible"
           value={formatMoney(stats.availableBalance)}
-          subtitle="Disponible en wallets"
+          subtitle="Listo para retiro de conductores"
           icon={CircleDollarSign}
         />
 
         <FinanceCard
           title="Saldo pendiente"
           value={formatMoney(stats.pendingBalance)}
-          subtitle="Pendiente para conductores"
+          subtitle="Pagos digitales por confirmar"
           icon={Wallet}
+        />
+
+        <FinanceCard
+          title="Saldo reservado"
+          value={formatMoney(stats.reservedBalance)}
+          subtitle="Apartado para retiros en proceso"
+          icon={Landmark}
         />
 
         <FinanceCard
@@ -190,23 +196,9 @@ export default function FinanceAdminPage() {
         />
 
         <FinanceCard
-          title="Bonos pendientes"
-          value={String(stats.pendingBonuses)}
-          subtitle={formatMoney(stats.pendingBonusAmount)}
-          icon={Gift}
-        />
-
-        <FinanceCard
-          title="Incentivos pendientes"
-          value={String(stats.pendingIncentives)}
-          subtitle={formatMoney(stats.pendingIncentiveAmount)}
-          icon={HandCoins}
-        />
-
-        <FinanceCard
           title="Deuda en efectivo"
           value={formatMoney(stats.cashDebt)}
-          subtitle="Comisiones por recuperar"
+          subtitle="Participación de AXI por recuperar"
           icon={Banknote}
         />
 
@@ -225,9 +217,9 @@ export default function FinanceAdminPage() {
         />
 
         <FinanceCard
-          title="Operación financiera"
-          value="Activa"
-          subtitle="Datos conectados con Supabase"
+          title="Motor financiero"
+          value="Activo"
+          subtitle="Saldos y movimientos automatizados"
           icon={BadgeDollarSign}
         />
       </div>

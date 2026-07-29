@@ -6,10 +6,7 @@ type FinanceSummaryRow = {
   total_pending_balance: number | string | null;
   pending_withdrawals: number | string | null;
   pending_withdrawal_amount: number | string | null;
-  pending_bonus_requests: number | string | null;
-  pending_bonus_amount: number | string | null;
-  pending_incentives: number | string | null;
-  pending_incentive_amount: number | string | null;
+  total_reserved_balance: number | string | null;
 };
 
 type CashDebtRow = {
@@ -24,15 +21,10 @@ export type FinanceDashboard = {
   totalWallets: number;
   availableBalance: number;
   pendingBalance: number;
+  reservedBalance: number;
 
   pendingWithdrawals: number;
   pendingWithdrawalAmount: number;
-
-  pendingBonuses: number;
-  pendingBonusAmount: number;
-
-  pendingIncentives: number;
-  pendingIncentiveAmount: number;
 
   pendingRefunds: number;
   cashDebt: number;
@@ -135,19 +127,13 @@ export async function getFinanceDashboard(): Promise<FinanceDashboard> {
     totalWallets: toNumber(summary.total_wallets),
     availableBalance: toNumber(summary.total_available_balance),
     pendingBalance: toNumber(summary.total_pending_balance),
+    reservedBalance: toNumber(summary.total_reserved_balance),
 
     pendingWithdrawals: toNumber(summary.pending_withdrawals),
     pendingWithdrawalAmount: toNumber(
       summary.pending_withdrawal_amount,
     ),
 
-    pendingBonuses: toNumber(summary.pending_bonus_requests),
-    pendingBonusAmount: toNumber(summary.pending_bonus_amount),
-
-    pendingIncentives: toNumber(summary.pending_incentives),
-    pendingIncentiveAmount: toNumber(
-      summary.pending_incentive_amount,
-    ),
 
     pendingRefunds: refundsResult.count ?? 0,
     cashDebt,
