@@ -13,12 +13,49 @@ export interface FinancialViewOptions {
   orderBy?: string;
   ascending?: boolean;
   filters?: FinancialFilter[];
+  search?: string;
+  searchColumns?: string[];
+}
+
+export interface PaginatedFinancialViewOptions extends Omit<
+  FinancialViewOptions,
+  "limit"
+> {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedFinancialResult {
+  rows: FinancialRow[];
+  totalRows: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface CsvColumn {
   key: string;
   label: string;
   format?: (value: unknown, row: FinancialRow) => string;
+}
+
+function normalizeDatabaseSearch(value: string): string {
+  return value.replace(/[(),]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function buildSearchExpression(
+  search: string | undefined,
+  columns: string[] | undefined,
+): string | null {
+  const normalizedSearch = normalizeDatabaseSearch(search ?? "");
+
+  if (!normalizedSearch || !columns?.length) {
+    return null;
+  }
+
+  return columns
+    .map((column) => `${column}.ilike.%${normalizedSearch}%`)
+    .join(",");
 }
 
 export async function getFinancialView(
@@ -54,6 +91,15 @@ export async function getFinancialView(
     }
   }
 
+  const searchExpression = buildSearchExpression(
+    options?.search,
+    options?.searchColumns,
+  );
+
+  if (searchExpression) {
+    query = query.or(searchExpression);
+  }
+
   if (options?.orderBy) {
     query = query.order(options.orderBy, {
       ascending: options.ascending ?? false,
@@ -67,6 +113,77 @@ export async function getFinancialView(
   }
 
   return (data ?? []) as FinancialRow[];
+}
+
+export async function getPaginatedFinancialView(
+  viewName: string,
+  options?: PaginatedFinancialViewOptions,
+): Promise<PaginatedFinancialResult> {
+  const pageSize = Math.max(1, options?.pageSize ?? 25);
+  const page = Math.max(1, options?.page ?? 1);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from(viewName)
+    .select("*", { count: "exact" })
+    .range(from, to);
+
+  for (const filter of options?.filters ?? []) {
+    const operator = filter.operator ?? "eq";
+
+    if (operator === "eq") {
+      query = query.eq(filter.column, filter.value);
+    } else if (operator === "neq") {
+      query = query.neq(filter.column, filter.value);
+    } else if (operator === "gte") {
+      query = query.gte(filter.column, filter.value);
+    } else if (operator === "lte") {
+      query = query.lte(filter.column, filter.value);
+    } else if (operator === "gt") {
+      query = query.gt(filter.column, filter.value);
+    } else if (operator === "lt") {
+      query = query.lt(filter.column, filter.value);
+    } else if (operator === "in") {
+      query = query.in(
+        filter.column,
+        Array.isArray(filter.value) ? filter.value : [filter.value],
+      );
+    } else if (operator === "is") {
+      query = query.is(filter.column, filter.value);
+    }
+  }
+
+  const searchExpression = buildSearchExpression(
+    options?.search,
+    options?.searchColumns,
+  );
+
+  if (searchExpression) {
+    query = query.or(searchExpression);
+  }
+
+  if (options?.orderBy) {
+    query = query.order(options.orderBy, {
+      ascending: options.ascending ?? false,
+    });
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const totalRows = count ?? 0;
+
+  return {
+    rows: (data ?? []) as FinancialRow[],
+    totalRows,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(totalRows / pageSize)),
+  };
 }
 
 export function formatCurrency(value: unknown): string {
