@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import {
   ArrowRight,
   CarFront,
   LoaderCircle,
+  Navigation,
   ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
@@ -18,6 +19,7 @@ type DriverActionCardProps = {
   actionLabel: string | null;
   processing: boolean;
   pinError?: string;
+  onNavigateToPassenger?: () => void;
   onAdvanceStatus: (
     nextStatus: TripDetailStatus
   ) => Promise<void>;
@@ -45,6 +47,7 @@ export function DriverActionCard({
   actionLabel,
   processing,
   pinError,
+  onNavigateToPassenger,
   onAdvanceStatus,
   onVerifyPin,
 }: DriverActionCardProps) {
@@ -64,6 +67,18 @@ export function DriverActionCard({
     }
 
     await onVerifyPin(pin);
+  }
+
+  async function handlePrimaryAction() {
+    if (!nextStatus || processing) {
+      return;
+    }
+
+    await onAdvanceStatus(nextStatus);
+
+    if (currentStatus === "accepted") {
+      onNavigateToPassenger?.();
+    }
   }
 
   if (currentStatus === "driver_arrived") {
@@ -170,13 +185,24 @@ export function DriverActionCard({
           "Actualiza el progreso del servicio."}
       </p>
 
+      {currentStatus === "driver_arriving" &&
+        onNavigateToPassenger && (
+          <button
+            type="button"
+            onClick={onNavigateToPassenger}
+            disabled={processing}
+            className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-yellow-400/50 bg-yellow-400/10 px-5 font-black text-yellow-400 transition hover:bg-yellow-400 hover:text-black disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Navigation size={19} />
+            Navegar al pasajero
+          </button>
+        )}
+
       <button
         type="button"
-        onClick={() =>
-          onAdvanceStatus(nextStatus)
-        }
+        onClick={() => void handlePrimaryAction()}
         disabled={processing}
-        className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-50"
+        className={`${currentStatus === "driver_arriving" ? "mt-3" : "mt-6"} flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 font-black text-black transition hover:bg-yellow-300 disabled:pointer-events-none disabled:opacity-50`}
       >
         {processing ? (
           <>
@@ -188,8 +214,17 @@ export function DriverActionCard({
           </>
         ) : (
           <>
-            {actionLabel}
-            <ArrowRight size={19} />
+            {currentStatus === "accepted" ? (
+              <>
+                <Navigation size={19} />
+                Navegar al pasajero
+              </>
+            ) : (
+              <>
+                {actionLabel}
+                <ArrowRight size={19} />
+              </>
+            )}
           </>
         )}
       </button>

@@ -921,6 +921,7 @@ return (
       {role === "driver" ? (
         <DriverTripView
           trip={trip}
+          driverLocation={driverLocation}
           passengerName={passengerName}
           passengerPhone={passengerPhone}
           estimatedPrice={formatCurrency(
@@ -948,6 +949,7 @@ return (
       ) : (
         <PassengerTripView
           trip={trip}
+          driverLocation={driverLocation}
           driverIdentity={driverIdentity}
           driverPhone={driverPhone}
           driverDistanceKm={driverDistanceKm}

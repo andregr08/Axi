@@ -22,10 +22,12 @@ import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/hooks/useLanguage";
 import type {
   TripDetailData,
+  TripDriverLocation,
 } from "@/components/trips/detail/TripDetailTypes";
 
 type PassengerTripViewProps = {
   trip: TripDetailData;
+  driverLocation: TripDriverLocation | null;
   driverIdentity: DriverIdentity | null;
   driverPhone: string | null;
   driverDistanceKm: number | null;
@@ -38,6 +40,7 @@ type PassengerTripViewProps = {
 
 export function PassengerTripView({
   trip,
+  driverLocation,
   driverIdentity,
   driverPhone,
   driverDistanceKm,
@@ -49,6 +52,61 @@ export function PassengerTripView({
 }: PassengerTripViewProps) {
   const { locale } = useLanguage();
   const english = locale === "en";
+
+  const originCoordinates =
+    trip.origin_lat !== null &&
+    trip.origin_lng !== null
+      ? {
+          lat: Number(trip.origin_lat),
+          lng: Number(trip.origin_lng),
+        }
+      : null;
+
+  const destinationCoordinates =
+    trip.destination_lat !== null &&
+    trip.destination_lng !== null
+      ? {
+          lat: Number(trip.destination_lat),
+          lng: Number(trip.destination_lng),
+        }
+      : null;
+
+  const driverCoordinates = driverLocation
+    ? {
+        lat: Number(driverLocation.latitude),
+        lng: Number(driverLocation.longitude),
+      }
+    : null;
+
+  const driverApproachingPickup = [
+    "accepted",
+    "driver_arriving",
+    "driver_arrived",
+  ].includes(trip.status);
+
+  const tripInProgress =
+    trip.status === "in_progress";
+
+  const routeOrigin =
+    driverApproachingPickup || tripInProgress
+      ? driverCoordinates ?? originCoordinates
+      : originCoordinates;
+
+  const routeDestination = driverApproachingPickup
+    ? originCoordinates
+    : destinationCoordinates;
+
+  const routeLabel = driverApproachingPickup
+    ? english
+      ? "Driver approaching pickup"
+      : "Conductor en camino"
+    : tripInProgress
+      ? english
+        ? "Route to destination"
+        : "Ruta hacia el destino"
+      : english
+        ? "Your trip route"
+        : "Ruta de tu viaje";
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
@@ -74,7 +132,15 @@ export function PassengerTripView({
               </h2>
             </div>
 
-            <GoogleMapView />
+            <GoogleMapView
+              origin={originCoordinates}
+              destination={destinationCoordinates}
+              driverLocation={driverCoordinates}
+              routeOrigin={routeOrigin}
+              routeDestination={routeDestination}
+              routeLabel={routeLabel}
+              showUserLocation={false}
+            />
           </Card>
         )}
 

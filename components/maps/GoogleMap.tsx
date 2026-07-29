@@ -17,6 +17,7 @@ import {
   Route,
 } from "lucide-react";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -33,6 +34,9 @@ export type RouteMetrics = {
   distanceText: string;
   durationSeconds: number;
   durationText: string;
+  nextInstruction: string | null;
+  nextManeuver: string | null;
+  nextStepDistanceText: string | null;
 };
 
 type GoogleMapViewProps = {
@@ -55,6 +59,8 @@ type GoogleMapViewProps = {
 
   showUserLocation?: boolean;
   showRoute?: boolean;
+  navigationMode?: boolean;
+  driverHeading?: number | null;
   heightClassName?: string;
   className?: string;
 };
@@ -72,6 +78,23 @@ function isValidCoordinate(
     value !== undefined &&
     Number.isFinite(value.lat) &&
     Number.isFinite(value.lng)
+  );
+}
+
+function cleanDirectionsInstruction(
+  instruction: string | undefined
+) {
+  if (!instruction) {
+    return null;
+  }
+
+  const documentResult = new DOMParser().
+    parseFromString(instruction, "text/html");
+
+  return (
+    documentResult.body.textContent?.
+      replace(/\s+/g, " ").
+      trim() || null
   );
 }
 
@@ -184,6 +207,9 @@ function RouteRenderer({
                   durationMinutes / 60
                 )} h ${durationMinutes % 60} min`;
 
+          const firstStep =
+            route.legs[0]?.steps?.[0];
+
           onMetricsChange?.({
             distanceMeters:
               totals.distanceMeters,
@@ -191,6 +217,16 @@ function RouteRenderer({
             durationSeconds:
               totals.durationSeconds,
             durationText,
+            nextInstruction:
+              cleanDirectionsInstruction(
+                firstStep?.instructions
+              ),
+            nextManeuver:
+              firstStep?.maneuver
+                ? String(firstStep.maneuver)
+                : null,
+            nextStepDistanceText:
+              firstStep?.distance?.text ?? null,
           });
         } catch (error) {
           if (!cancelled) {
@@ -292,6 +328,47 @@ function FitMapBounds({
   return null;
 }
 
+function FollowDriverCamera({
+  active,
+  driverLocation,
+  heading,
+}: {
+  active: boolean;
+  driverLocation?: MapCoordinates | null;
+  heading?: number | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (
+      !map ||
+      !active ||
+      !isValidCoordinate(driverLocation)
+    ) {
+      return;
+    }
+
+    map.moveCamera({
+      center: driverLocation,
+      zoom: 17,
+      heading:
+        typeof heading === "number" &&
+        Number.isFinite(heading)
+          ? heading
+          : map.getHeading() ?? 0,
+      tilt: 45,
+    });
+  }, [
+    active,
+    driverLocation?.lat,
+    driverLocation?.lng,
+    heading,
+    map,
+  ]);
+
+  return null;
+}
+
 function LocationMarker({
   position,
   type,
@@ -349,6 +426,8 @@ function MapContent({
   routeOrigin,
   routeDestination,
   showRoute,
+  navigationMode,
+  driverHeading,
   onRouteMetricsChange,
 }: {
   origin?: MapCoordinates | null;
@@ -358,6 +437,8 @@ function MapContent({
   routeOrigin?: MapCoordinates | null;
   routeDestination?: MapCoordinates | null;
   showRoute: boolean;
+  navigationMode: boolean;
+  driverHeading?: number | null;
   onRouteMetricsChange?: (
     metrics: RouteMetrics | null
   ) => void;
@@ -394,17 +475,25 @@ function MapContent({
 
   return (
     <>
-      <FitMapBounds
-        origin={validOrigin}
-        destination={validDestination}
-        driverLocation={
-          validDriverLocation
-        }
-        userLocation={validUserLocation}
-        routeOrigin={validRouteOrigin}
-        routeDestination={
-          validRouteDestination
-        }
+      {!navigationMode && (
+        <FitMapBounds
+          origin={validOrigin}
+          destination={validDestination}
+          driverLocation={
+            validDriverLocation
+          }
+          userLocation={validUserLocation}
+          routeOrigin={validRouteOrigin}
+          routeDestination={
+            validRouteDestination
+          }
+        />
+      )}
+
+      <FollowDriverCamera
+        active={navigationMode}
+        driverLocation={validDriverLocation}
+        heading={driverHeading}
       />
 
       {showRoute &&
@@ -466,6 +555,8 @@ export function GoogleMapView({
   onRouteMetricsChange,
   showUserLocation = true,
   showRoute = true,
+  navigationMode = false,
+  driverHeading = null,
   heightClassName = "h-[520px]",
   className = "",
 }: GoogleMapViewProps) {
@@ -487,6 +578,17 @@ export function GoogleMapView({
 
   const [locationRequested, setLocationRequested] =
     useState(false);
+
+  const [routeMetrics, setRouteMetrics] =
+    useState<RouteMetrics | null>(null);
+
+  const handleRouteMetricsChange = useCallback(
+    (metrics: RouteMetrics | null) => {
+      setRouteMetrics(metrics);
+      onRouteMetricsChange?.(metrics);
+    },
+    [onRouteMetricsChange]
+  );
 
   const userLocation = useMemo(
     () =>
@@ -599,14 +701,54 @@ export function GoogleMapView({
               routeDestination
             }
             showRoute={showRoute}
+            navigationMode={navigationMode}
+            driverHeading={driverHeading}
             onRouteMetricsChange={
-              onRouteMetricsChange
+              handleRouteMetricsChange
             }
           />
         </Map>
       </APIProvider>
 
-      <div className="pointer-events-none absolute left-4 top-4 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-xl backdrop-blur-xl sm:left-6 sm:top-6">
+      {navigationMode && (
+        <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 rounded-3xl border border-white/70 bg-[#0B0F19]/95 p-4 text-white shadow-2xl backdrop-blur-xl sm:left-6 sm:right-auto sm:min-w-[340px] sm:top-6">
+          <div className="flex items-start gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-400 text-black">
+              <Navigation size={23} />
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-yellow-400">
+                Navegación AXI
+              </p>
+
+              <p className="mt-1 break-words text-base font-black leading-5">
+                {routeMetrics?.nextInstruction ??
+                  routeLabel}
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-300">
+                <span>
+                  {routeMetrics?.nextStepDistanceText ??
+                    "Calculando indicación"}
+                </span>
+
+                <span>
+                  {routeMetrics?.distanceText ??
+                    "Calculando distancia"}
+                </span>
+
+                <span>
+                  {routeMetrics?.durationText ??
+                    "Calculando llegada"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`pointer-events-none absolute left-4 top-4 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-xl backdrop-blur-xl sm:left-6 sm:top-6 ${navigationMode ? "hidden" : ""}`}>
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-400 text-black">
             {hasRoute ? (

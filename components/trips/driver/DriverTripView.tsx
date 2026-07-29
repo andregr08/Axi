@@ -1,5 +1,10 @@
-﻿"use client";
+"use client";
 
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   CircleDollarSign,
   Clock3,
@@ -14,10 +19,12 @@ import { Card } from "@/components/ui/Card";
 import type {
   TripDetailData,
   TripDetailStatus,
+  TripDriverLocation,
 } from "@/components/trips/detail/TripDetailTypes";
 
 type DriverTripViewProps = {
   trip: TripDetailData;
+  driverLocation: TripDriverLocation | null;
   passengerName: string;
   passengerPhone: string | null;
   estimatedPrice: string;
@@ -38,6 +45,7 @@ type DriverTripViewProps = {
 
 export function DriverTripView({
   trip,
+  driverLocation,
   passengerName,
   passengerPhone,
   estimatedPrice,
@@ -51,6 +59,76 @@ export function DriverTripView({
   onAdvanceStatus,
   onVerifyPin,
 }: DriverTripViewProps) {
+  const navigationMapRef =
+    useRef<HTMLDivElement>(null);
+
+  const [
+    navigationActive,
+    setNavigationActive,
+  ] = useState(
+    trip.status === "in_progress"
+  );
+
+  function handleNavigateToPassenger() {
+    setNavigationActive(true);
+
+    navigationMapRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
+  useEffect(() => {
+    if (trip.status === "in_progress") {
+      setNavigationActive(true);
+    }
+
+    if (isCompleted || isCancelled) {
+      setNavigationActive(false);
+    }
+  }, [
+    isCancelled,
+    isCompleted,
+    trip.status,
+  ]);
+
+  const originCoordinates =
+    trip.origin_lat !== null &&
+    trip.origin_lng !== null
+      ? {
+          lat: Number(trip.origin_lat),
+          lng: Number(trip.origin_lng),
+        }
+      : null;
+
+  const destinationCoordinates =
+    trip.destination_lat !== null &&
+    trip.destination_lng !== null
+      ? {
+          lat: Number(trip.destination_lat),
+          lng: Number(trip.destination_lng),
+        }
+      : null;
+
+  const driverCoordinates = driverLocation
+    ? {
+        lat: Number(driverLocation.latitude),
+        lng: Number(driverLocation.longitude),
+      }
+    : null;
+
+  const navigatingToDestination =
+    trip.status === "in_progress" ||
+    trip.status === "completed";
+
+  const routeOrigin = isCompleted
+    ? originCoordinates
+    : driverCoordinates;
+
+  const routeDestination = navigatingToDestination
+    ? destinationCoordinates
+    : originCoordinates;
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
       <div className="xl:col-span-2">
@@ -60,6 +138,9 @@ export function DriverTripView({
           actionLabel={actionLabel}
           processing={processing}
           pinError={pinError}
+          onNavigateToPassenger={
+            handleNavigateToPassenger
+          }
           onAdvanceStatus={onAdvanceStatus}
           onVerifyPin={onVerifyPin}
         />
@@ -67,7 +148,11 @@ export function DriverTripView({
 
       <div className="space-y-6">
         {!isCancelled && (
-          <Card className="overflow-hidden p-0">
+          <div
+            ref={navigationMapRef}
+            className="scroll-mt-6"
+          >
+            <Card className="overflow-hidden p-0">
             <div className="border-b border-slate-100 px-6 py-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                 Navegación del conductor
@@ -80,8 +165,25 @@ export function DriverTripView({
               </h2>
             </div>
 
-            <GoogleMapView />
-          </Card>
+            <GoogleMapView
+              origin={originCoordinates}
+              destination={destinationCoordinates}
+              driverLocation={driverCoordinates}
+              routeOrigin={routeOrigin}
+              routeDestination={routeDestination}
+              routeLabel={
+                navigatingToDestination
+                  ? "Ruta hacia el destino"
+                  : "Ruta hacia el pasajero"
+              }
+              navigationMode={navigationActive}
+              driverHeading={
+                driverLocation?.heading ?? null
+              }
+              showUserLocation={false}
+            />
+            </Card>
+          </div>
         )}
 
         {!isCompleted && !isCancelled && (
