@@ -77,6 +77,19 @@ export type JournalFilters = {
   limit?: number;
 };
 
+export type PaginatedJournalFilters = Omit<JournalFilters, "limit"> & {
+  page?: number;
+  pageSize?: number;
+};
+
+export type PaginatedJournalResult = {
+  rows: JournalTransaction[];
+  totalRows: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export async function getJournalTransactions(
   filters: JournalFilters = {},
 ): Promise<JournalTransaction[]> {
@@ -143,6 +156,111 @@ export async function getJournalTransactions(
   }
 
   return (data ?? []) as JournalTransaction[];
+}
+
+function normalizeJournalSearch(value: string): string {
+  return value.replace(/[(),]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function applyJournalFilters<T>(query: T, filters: JournalFilters): T {
+  let nextQuery = query as any;
+
+  if (filters.status && filters.status !== "all") {
+    nextQuery = nextQuery.eq("status", filters.status);
+  }
+
+  if (filters.dateFrom) {
+    nextQuery = nextQuery.gte(
+      "effective_at",
+      `${filters.dateFrom}T00:00:00-06:00`,
+    );
+  }
+
+  if (filters.dateTo) {
+    nextQuery = nextQuery.lte(
+      "effective_at",
+      `${filters.dateTo}T23:59:59.999-06:00`,
+    );
+  }
+
+  const search = normalizeJournalSearch(filters.search ?? "");
+
+  if (search) {
+    nextQuery = nextQuery.or(
+      [
+        `ledger_folio.ilike.%${search}%`,
+        `transaction_type.ilike.%${search}%`,
+        `description.ilike.%${search}%`,
+        `provider.ilike.%${search}%`,
+        `provider_reference.ilike.%${search}%`,
+        `trip_id.eq.${search}`,
+        `payment_id.eq.${search}`,
+        `refund_id.eq.${search}`,
+        `withdrawal_id.eq.${search}`,
+      ].join(","),
+    );
+  }
+
+  return nextQuery as T;
+}
+
+export async function getPaginatedJournalTransactions(
+  filters: PaginatedJournalFilters = {},
+): Promise<PaginatedJournalResult> {
+  const pageSize = Math.max(1, filters.pageSize ?? 25);
+  const page = Math.max(1, filters.page ?? 1);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from("financial_transactions")
+    .select(
+      `
+        id,
+        ledger_folio,
+        transaction_type,
+        status,
+        currency,
+        description,
+        trip_id,
+        payment_id,
+        refund_id,
+        withdrawal_id,
+        wallet_transaction_id,
+        passenger_wallet_transaction_id,
+        provider,
+        provider_reference,
+        idempotency_key,
+        reversal_of_transaction_id,
+        created_by,
+        metadata,
+        effective_at,
+        posted_at,
+        created_at,
+        updated_at
+      `,
+      { count: "exact" },
+    )
+    .order("effective_at", { ascending: false })
+    .range(from, to);
+
+  query = applyJournalFilters(query, filters);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const totalRows = count ?? 0;
+
+  return {
+    rows: (data ?? []) as JournalTransaction[],
+    totalRows,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(totalRows / pageSize)),
+  };
 }
 
 export async function getJournalTransactionDetail(

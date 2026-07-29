@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BookOpenText, Download, RefreshCw, Search } from "lucide-react";
 
 import {
@@ -10,6 +10,7 @@ import {
   EnterprisePageHeader,
   EnterpriseStatusBadge,
 } from "@/components/enterprise";
+import EnterprisePagination from "@/components/enterprise/EnterprisePagination";
 
 import {
   createFinancialFilename,
@@ -18,8 +19,11 @@ import {
 
 import {
   getJournalTransactions,
+  getPaginatedJournalTransactions,
   type JournalTransaction,
 } from "@/lib/finance/journal";
+
+const EXPORT_LIMIT = 50000;
 
 const statusLabels: Record<string, string> = {
   posted: "Publicada",
@@ -63,26 +67,52 @@ function firstDayOfMonth() {
 export default function FinanceJournalPage() {
   const [rows, setRows] = useState<JournalTransaction[]>([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [dateFrom, setDateFrom] = useState(firstDayOfMonth());
   const [dateTo, setDateTo] = useState(today());
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalRows, setTotalRows] = useState(0);
+
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [search]);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      const data = await getJournalTransactions({
+      const result = await getPaginatedJournalTransactions({
+        search: debouncedSearch,
         status,
         dateFrom,
         dateTo,
-        limit: 1000,
+        page,
+        pageSize,
       });
 
-      setRows(data);
+      if (page > result.totalPages) {
+        setPage(result.totalPages);
+        return;
+      }
+
+      setRows(result.rows);
+      setTotalRows(result.totalRows);
     } catch (loadError) {
+      setRows([]);
+      setTotalRows(0);
       setError(
         loadError instanceof Error
           ? loadError.message
@@ -91,61 +121,54 @@ export default function FinanceJournalPage() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, status]);
+  }, [dateFrom, dateTo, debouncedSearch, page, pageSize, status]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const filteredRows = useMemo(() => {
-    const value = search.trim().toLowerCase();
-
-    if (!value) {
-      return rows;
-    }
-
-    return rows.filter((row) =>
-      [
-        row.ledger_folio,
-        row.transaction_type,
-        row.description,
-        row.provider,
-        row.provider_reference,
-        row.trip_id,
-        row.payment_id,
-        row.refund_id,
-        row.withdrawal_id,
-      ]
-        .map((item) => String(item ?? "").toLowerCase())
-        .some((item) => item.includes(value)),
-    );
-  }, [rows, search]);
-
   const postedCount = rows.filter((row) => row.status === "posted").length;
-
   const reversedCount = rows.filter((row) => row.status === "reversed").length;
 
-  function handleExport() {
+  async function handleExport() {
     try {
-      const exportRows = filteredRows.map((row) => ({
-        id: row.id,
-        ledger_folio: row.ledger_folio,
-        effective_at: row.effective_at,
-        transaction_type: row.transaction_type,
-        description: row.description,
-        status: row.status,
-        trip_id: row.trip_id,
-        payment_id: row.payment_id,
-        refund_id: row.refund_id,
-        withdrawal_id: row.withdrawal_id,
-        provider_reference: row.provider_reference,
-        created_at: row.created_at,
-        posted_at: row.posted_at,
-      }));
+      setExporting(true);
+      setError("");
+
+      if (totalRows > EXPORT_LIMIT) {
+        throw new Error(
+          `La exportación supera el límite de ${EXPORT_LIMIT.toLocaleString(
+            "es-MX",
+          )} pólizas. Reduce el periodo o aplica filtros.`,
+        );
+      }
+
+      const exportRows = await getJournalTransactions({
+        search: debouncedSearch,
+        status,
+        dateFrom,
+        dateTo,
+        limit: EXPORT_LIMIT,
+      });
 
       exportFinancialCsv({
         filename: createFinancialFilename("libro-diario", dateFrom, dateTo),
-        rows: exportRows,
+        rows: exportRows.map((row) => ({
+          id: row.id,
+          ledger_folio: row.ledger_folio,
+          effective_at: row.effective_at,
+          transaction_type: row.transaction_type,
+          description: row.description,
+          status: row.status,
+          trip_id: row.trip_id,
+          payment_id: row.payment_id,
+          refund_id: row.refund_id,
+          withdrawal_id: row.withdrawal_id,
+          provider: row.provider,
+          provider_reference: row.provider_reference,
+          created_at: row.created_at,
+          posted_at: row.posted_at,
+        })),
         columns: [
           {
             key: "ledger_folio",
@@ -184,6 +207,10 @@ export default function FinanceJournalPage() {
             label: "Retiro",
           },
           {
+            key: "provider",
+            label: "Proveedor",
+          },
+          {
             key: "provider_reference",
             label: "Referencia proveedor",
           },
@@ -203,7 +230,29 @@ export default function FinanceJournalPage() {
           ? exportError.message
           : "No fue posible exportar el libro diario.",
       );
+    } finally {
+      setExporting(false);
     }
+  }
+
+  function handleStatusChange(value: string) {
+    setStatus(value);
+    setPage(1);
+  }
+
+  function handleDateFromChange(value: string) {
+    setDateFrom(value);
+    setPage(1);
+  }
+
+  function handleDateToChange(value: string) {
+    setDateTo(value);
+    setPage(1);
+  }
+
+  function handlePageSizeChange(value: number) {
+    setPageSize(value);
+    setPage(1);
   }
 
   return (
@@ -217,7 +266,7 @@ export default function FinanceJournalPage() {
             <button
               type="button"
               onClick={() => void load()}
-              disabled={loading}
+              disabled={loading || exporting}
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw
@@ -228,12 +277,12 @@ export default function FinanceJournalPage() {
 
             <button
               type="button"
-              onClick={handleExport}
-              disabled={loading || filteredRows.length === 0}
+              onClick={() => void handleExport()}
+              disabled={loading || exporting || totalRows === 0}
               className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download className="mr-2 h-4 w-4" />
-              Exportar CSV
+              {exporting ? "Exportando…" : "Exportar CSV"}
             </button>
           </>
         }
@@ -241,20 +290,23 @@ export default function FinanceJournalPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <EnterpriseMetricCard
-          label="Pólizas del periodo"
-          value={String(rows.length)}
+          label="Pólizas encontradas"
+          value={String(totalRows)}
+          detail="Total según los filtros actuales"
           tone="info"
         />
 
         <EnterpriseMetricCard
-          label="Publicadas"
+          label="Publicadas en página"
           value={String(postedCount)}
+          detail={`${rows.length} pólizas visibles`}
           tone="success"
         />
 
         <EnterpriseMetricCard
-          label="Revertidas"
+          label="Revertidas en página"
           value={String(reversedCount)}
+          detail={`${rows.length} pólizas visibles`}
           tone={reversedCount > 0 ? "danger" : "default"}
         />
       </div>
@@ -274,7 +326,7 @@ export default function FinanceJournalPage() {
 
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => handleStatusChange(event.target.value)}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm"
           >
             <option value="all">Todos los estados</option>
@@ -286,7 +338,7 @@ export default function FinanceJournalPage() {
           <input
             type="date"
             value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            onChange={(event) => handleDateFromChange(event.target.value)}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm"
             aria-label="Fecha inicial"
           />
@@ -294,7 +346,7 @@ export default function FinanceJournalPage() {
           <input
             type="date"
             value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            onChange={(event) => handleDateToChange(event.target.value)}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm"
             aria-label="Fecha final"
           />
@@ -311,84 +363,95 @@ export default function FinanceJournalPage() {
         <div className="flex min-h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white">
           <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
         </div>
-      ) : filteredRows.length === 0 ? (
+      ) : rows.length === 0 ? (
         <EnterpriseEmptyState
           title="No hay pólizas en este periodo"
           description="Cambia las fechas o los filtros de búsqueda."
           icon={<BookOpenText className="h-6 w-6" />}
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                    Folio
-                  </th>
+        <div className="space-y-4">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                      Folio
+                    </th>
 
-                  <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                    Fecha
-                  </th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                      Fecha
+                    </th>
 
-                  <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                    Tipo
-                  </th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                      Tipo
+                    </th>
 
-                  <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                    Descripción
-                  </th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                      Descripción
+                    </th>
 
-                  <th className="px-4 py-3 text-center font-semibold text-slate-600">
-                    Estado
-                  </th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-600">
+                      Estado
+                    </th>
 
-                  <th className="px-4 py-3 text-right font-semibold text-slate-600">
-                    Acción
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-100">
-                {filteredRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs font-semibold text-slate-800">
-                      {row.ledger_folio ?? "Sin folio"}
-                    </td>
-
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                      {dateTime(row.effective_at)}
-                    </td>
-
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                      {row.transaction_type}
-                    </td>
-
-                    <td className="max-w-md px-4 py-3 text-slate-600">
-                      <p className="line-clamp-2">
-                        {row.description ?? "Sin descripción"}
-                      </p>
-                    </td>
-
-                    <td className="whitespace-nowrap px-4 py-3 text-center">
-                      <EnterpriseStatusBadge tone={getStatusTone(row.status)}>
-                        {statusLabels[row.status] ?? row.status}
-                      </EnterpriseStatusBadge>
-                    </td>
-
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <Link
-                        href={`/dashboard/admin/finance/transactions/${row.id}`}
-                        className="font-semibold text-blue-600 hover:text-blue-800"
-                      >
-                        Ver póliza
-                      </Link>
-                    </td>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-600">
+                      Acción
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50">
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs font-semibold text-slate-800">
+                        {row.ledger_folio ?? "Sin folio"}
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                        {dateTime(row.effective_at)}
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        {row.transaction_type}
+                      </td>
+
+                      <td className="max-w-md px-4 py-3 text-slate-600">
+                        <p className="line-clamp-2">
+                          {row.description ?? "Sin descripción"}
+                        </p>
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-3 text-center">
+                        <EnterpriseStatusBadge tone={getStatusTone(row.status)}>
+                          {statusLabels[row.status] ?? row.status}
+                        </EnterpriseStatusBadge>
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <Link
+                          href={`/dashboard/admin/finance/transactions/${row.id}`}
+                          className="font-semibold text-blue-600 hover:text-blue-800"
+                        >
+                          Ver póliza
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          <EnterprisePagination
+            page={page}
+            pageSize={pageSize}
+            totalRows={totalRows}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+            loading={loading}
+          />
         </div>
       )}
     </div>
