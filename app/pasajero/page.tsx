@@ -66,8 +66,8 @@ type RideOption = {
   pickupMinutes: number;
 };
 const BASE_FARE = 21;
-const PRICE_PER_KM = 12.91;
-const PRICE_PER_MINUTE = 5.34;
+const PRICE_PER_KM = 9.75;
+const PRICE_PER_MINUTE = 4;
 const BOOKING_FEE = 0;
 const MINIMUM_FARE = 42;
 const rideOptions: RideOption[] = [
