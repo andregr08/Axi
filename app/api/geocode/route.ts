@@ -83,7 +83,7 @@ async function getPlaceDetails(
     return NextResponse.json(
       {
         error:
-          "El identificador del lugar no es vÃ¡lido.",
+          "El identificador del lugar no es vÃƒÂ¡lido.",
       },
       {
         status: 400,
@@ -137,7 +137,7 @@ async function getPlaceDetails(
 
   if (!response.ok) {
     console.error(
-      "Google Place Details respondiÃ³ con error:",
+      "Google Place Details respondiÃƒÂ³ con error:",
       {
         status: response.status,
         googleStatus:
@@ -174,7 +174,7 @@ async function getPlaceDetails(
     return NextResponse.json(
       {
         error:
-          "El lugar seleccionado no tiene coordenadas vÃ¡lidas.",
+          "El lugar seleccionado no tiene coordenadas vÃƒÂ¡lidas.",
       },
       {
         status: 404,
@@ -185,12 +185,12 @@ async function getPlaceDetails(
   const address =
     data.formattedAddress?.trim() ||
     data.displayName?.text?.trim() ||
-    "UbicaciÃ³n seleccionada";
+    "UbicaciÃƒÂ³n seleccionada";
 
   const name =
     data.displayName?.text?.trim() ||
     address.split(",")[0]?.trim() ||
-    "UbicaciÃ³n";
+    "UbicaciÃƒÂ³n";
 
   return NextResponse.json({
     placeId: data.id,
@@ -232,7 +232,7 @@ async function autocompletePlaces(
               latitude: 19.0414,
               longitude: -98.2063,
             },
-            radius: 80000,
+            radius: 50000,
           },
         },
         ...(sessionToken
@@ -250,7 +250,7 @@ async function autocompletePlaces(
 
   if (!response.ok) {
     console.error(
-      "Google Places Autocomplete respondiÃ³ con error:",
+      "Google Places Autocomplete respondiÃƒÂ³ con error:",
       {
         status: response.status,
         googleStatus:
@@ -297,7 +297,7 @@ async function autocompletePlaces(
         prediction.structuredFormat?.
           mainText?.text?.trim() ||
         completeText.split(",")[0]?.trim() ||
-        "UbicaciÃ³n";
+        "UbicaciÃƒÂ³n";
 
       const secondaryText =
         prediction.structuredFormat?.
@@ -331,13 +331,13 @@ export async function GET(
 
   if (!apiKey) {
     console.error(
-      "GOOGLE_MAPS_SERVER_API_KEY no estÃ¡ configurada."
+      "GOOGLE_MAPS_SERVER_API_KEY no estÃƒÂ¡ configurada."
     );
 
     return NextResponse.json(
       {
         error:
-          "El buscador de Google no estÃ¡ configurado.",
+          "El buscador de Google no estÃƒÂ¡ configurado.",
       },
       {
         status: 503,
@@ -382,7 +382,7 @@ export async function GET(
       return NextResponse.json(
         {
           error:
-            "La bÃºsqueda es demasiado larga.",
+            "La bÃƒÂºsqueda es demasiado larga.",
         },
         {
           status: 400,
