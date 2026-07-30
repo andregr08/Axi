@@ -49,9 +49,10 @@ type GooglePlaceDetailsResponse = {
 };
 
 function getServerApiKey() {
-  return process.env
-    .GOOGLE_MAPS_SERVER_API_KEY?.
-    trim();
+  return (
+    process.env.GOOGLE_MAPS_SERVER_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  )?.trim();
 }
 
 function normalizeSessionToken(
@@ -82,7 +83,7 @@ async function getPlaceDetails(
     return NextResponse.json(
       {
         error:
-          "El identificador del lugar no es válido.",
+          "El identificador del lugar no es vÃ¡lido.",
       },
       {
         status: 400,
@@ -136,7 +137,7 @@ async function getPlaceDetails(
 
   if (!response.ok) {
     console.error(
-      "Google Place Details respondió con error:",
+      "Google Place Details respondiÃ³ con error:",
       {
         status: response.status,
         googleStatus:
@@ -173,7 +174,7 @@ async function getPlaceDetails(
     return NextResponse.json(
       {
         error:
-          "El lugar seleccionado no tiene coordenadas válidas.",
+          "El lugar seleccionado no tiene coordenadas vÃ¡lidas.",
       },
       {
         status: 404,
@@ -184,12 +185,12 @@ async function getPlaceDetails(
   const address =
     data.formattedAddress?.trim() ||
     data.displayName?.text?.trim() ||
-    "Ubicación seleccionada";
+    "UbicaciÃ³n seleccionada";
 
   const name =
     data.displayName?.text?.trim() ||
     address.split(",")[0]?.trim() ||
-    "Ubicación";
+    "UbicaciÃ³n";
 
   return NextResponse.json({
     placeId: data.id,
@@ -225,9 +226,6 @@ async function autocompletePlaces(
         input: query,
         languageCode: "es-MX",
         regionCode: "MX",
-        includedRegionCodes: [
-          "mx",
-        ],
         locationBias: {
           circle: {
             center: {
@@ -252,7 +250,7 @@ async function autocompletePlaces(
 
   if (!response.ok) {
     console.error(
-      "Google Places Autocomplete respondió con error:",
+      "Google Places Autocomplete respondiÃ³ con error:",
       {
         status: response.status,
         googleStatus:
@@ -299,7 +297,7 @@ async function autocompletePlaces(
         prediction.structuredFormat?.
           mainText?.text?.trim() ||
         completeText.split(",")[0]?.trim() ||
-        "Ubicación";
+        "UbicaciÃ³n";
 
       const secondaryText =
         prediction.structuredFormat?.
@@ -333,13 +331,13 @@ export async function GET(
 
   if (!apiKey) {
     console.error(
-      "GOOGLE_MAPS_SERVER_API_KEY no está configurada."
+      "GOOGLE_MAPS_SERVER_API_KEY no estÃ¡ configurada."
     );
 
     return NextResponse.json(
       {
         error:
-          "El buscador de Google no está configurado.",
+          "El buscador de Google no estÃ¡ configurado.",
       },
       {
         status: 503,
@@ -384,7 +382,7 @@ export async function GET(
       return NextResponse.json(
         {
           error:
-            "La búsqueda es demasiado larga.",
+            "La bÃºsqueda es demasiado larga.",
         },
         {
           status: 400,
