@@ -65,12 +65,11 @@ type RideOption = {
   multiplier: number;
   pickupMinutes: number;
 };
-
-const BASE_FARE = 10;
-const PRICE_PER_KM = 5.8;
-const PRICE_PER_MINUTE = 2.4;
+const BASE_FARE = 21;
+const PRICE_PER_KM = 12.91;
+const PRICE_PER_MINUTE = 5.34;
 const BOOKING_FEE = 0;
-
+const MINIMUM_FARE = 42;
 const rideOptions: RideOption[] = [
   {
     id: "economy",
@@ -1235,13 +1234,10 @@ function OptionsPanel({
   ) => void;
   onRequestRide: () => void;
 }) {
-  const basePrice = Math.max(
-    42,
-    BASE_FARE +
-      distanceKm * PRICE_PER_KM +
-      durationMinutes *
-        PRICE_PER_MINUTE +
-      BOOKING_FEE
+  const basePrice = Math.max(MINIMUM_FARE, BASE_FARE +
+        distanceKm * PRICE_PER_KM +
+        durationMinutes * PRICE_PER_MINUTE +
+        BOOKING_FEE
   );
 
   const selectedOption =
