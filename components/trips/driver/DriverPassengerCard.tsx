@@ -15,6 +15,8 @@ type DriverPassengerCardProps = {
   passengerName: string;
   passengerPhone: string | null;
   originAddress: string;
+  navigationUrl: string | null;
+  navigationLabel: string | null;
 };
 
 export function DriverPassengerCard({
@@ -22,6 +24,8 @@ export function DriverPassengerCard({
   passengerName,
   passengerPhone,
   originAddress,
+  navigationUrl,
+  navigationLabel,
 }: DriverPassengerCardProps) {
   return (
     <Card>
@@ -101,14 +105,17 @@ export function DriverPassengerCard({
             Sin teléfono
           </button>
         )}
-
-        <button
-          type="button"
-          className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 font-black text-slate-950 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
-        >
-          <Navigation size={18} />
-          Navegar
-        </button>
+        {navigationUrl && navigationLabel && (
+          <a
+            href={navigationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 font-black text-slate-950 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white"
+          >
+            <Navigation size={18} />
+            {navigationLabel}
+          </a>
+        )}
       </div>
     </Card>
   );

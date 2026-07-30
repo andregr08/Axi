@@ -1,11 +1,6 @@
 "use client";
 
 import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
   CircleDollarSign,
   Clock3,
   MapPin,
@@ -59,39 +54,6 @@ export function DriverTripView({
   onAdvanceStatus,
   onVerifyPin,
 }: DriverTripViewProps) {
-  const navigationMapRef =
-    useRef<HTMLDivElement>(null);
-
-  const [
-    navigationActive,
-    setNavigationActive,
-  ] = useState(
-    trip.status === "in_progress"
-  );
-
-  function handleNavigateToPassenger() {
-    setNavigationActive(true);
-
-    navigationMapRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
-
-  useEffect(() => {
-    if (trip.status === "in_progress") {
-      setNavigationActive(true);
-    }
-
-    if (isCompleted || isCancelled) {
-      setNavigationActive(false);
-    }
-  }, [
-    isCancelled,
-    isCompleted,
-    trip.status,
-  ]);
-
   const originCoordinates =
     trip.origin_lat !== null &&
     trip.origin_lng !== null
@@ -109,6 +71,62 @@ export function DriverTripView({
           lng: Number(trip.destination_lng),
         }
       : null;
+
+  const externalNavigationToPickup =
+    trip.status === "accepted" ||
+    trip.status === "driver_arriving";
+
+  const externalNavigationToDestination =
+    trip.status === "in_progress";
+
+  const externalNavigationCoordinates =
+    externalNavigationToDestination
+      ? destinationCoordinates
+      : externalNavigationToPickup
+        ? originCoordinates
+        : null;
+
+  const externalNavigationAddress =
+    externalNavigationToDestination
+      ? trip.destination_address
+      : externalNavigationToPickup
+        ? trip.origin_address
+        : "";
+
+  const externalNavigationDestination =
+    externalNavigationCoordinates
+      ? `${externalNavigationCoordinates.lat},${externalNavigationCoordinates.lng}`
+      : externalNavigationAddress.trim();
+
+  const navigationUrl =
+    (
+      externalNavigationToPickup ||
+      externalNavigationToDestination
+    ) &&
+    externalNavigationDestination
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+          externalNavigationDestination
+        )}&travelmode=driving`
+      : null;
+
+  const navigationLabel =
+    externalNavigationToDestination
+      ? "Navegar al destino"
+      : externalNavigationToPickup
+        ? "Navegar al pasajero"
+        : null;
+
+  function handleOpenNavigation() {
+    if (!navigationUrl) {
+      return;
+    }
+
+    window.open(
+      navigationUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
 
   const driverCoordinates = driverLocation
     ? {
@@ -139,7 +157,7 @@ export function DriverTripView({
           processing={processing}
           pinError={pinError}
           onNavigateToPassenger={
-            handleNavigateToPassenger
+            handleOpenNavigation
           }
           onAdvanceStatus={onAdvanceStatus}
           onVerifyPin={onVerifyPin}
@@ -149,7 +167,6 @@ export function DriverTripView({
       <div className="space-y-6">
         {!isCancelled && (
           <div
-            ref={navigationMapRef}
             className="scroll-mt-6"
           >
             <Card className="overflow-hidden p-0">
@@ -176,7 +193,7 @@ export function DriverTripView({
                   ? "Ruta hacia el destino"
                   : "Ruta hacia el pasajero"
               }
-              navigationMode={navigationActive}
+
               driverHeading={
                 driverLocation?.heading ?? null
               }
@@ -192,6 +209,8 @@ export function DriverTripView({
             passengerName={passengerName}
             passengerPhone={passengerPhone}
             originAddress={trip.origin_address}
+            navigationUrl={navigationUrl}
+            navigationLabel={navigationLabel}
           />
         )}
       </div>
