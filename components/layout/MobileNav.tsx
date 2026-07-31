@@ -14,6 +14,7 @@ import {
   Menu,
   Route,
   ReceiptText,
+  Scale,
   Settings,
   ShieldCheck,
   Siren,
@@ -142,6 +143,23 @@ export function MobileNav({ role, onLogout }: MobileNavProps) {
       descriptionKey: "navigation.manageFleet",
       icon: CarFront,
       visible: role === "driver",
+    },
+
+    // LEGAL PARA PASAJERO Y CONDUCTOR
+    {
+      href:
+        role === "driver"
+          ? "/legal/driver"
+          : "/legal/passenger",
+      label: "Legal",
+      description:
+        locale === "en"
+          ? "Terms and privacy policy"
+          : "Términos y privacidad",
+      icon: Scale,
+      visible:
+        role === "passenger" ||
+        role === "driver",
     },
 
     // ADMINISTRACIÓN

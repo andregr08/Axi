@@ -38,6 +38,14 @@ export default function RegisterPage() {
   const [registrationComplete, setRegistrationComplete] =
     useState(false);
 
+  function selectAccountType(nextType: AccountType) {
+    if (nextType !== accountType) {
+      setAcceptTerms(false);
+    }
+
+    setAccountType(nextType);
+  }
+
   async function handleRegister(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -296,7 +304,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setAccountType("passenger")
+                    selectAccountType("passenger")
                   }
                   className={`rounded-3xl border p-5 text-left transition ${
                     accountType === "passenger"
@@ -335,7 +343,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setAccountType("driver")
+                    selectAccountType("driver")
                   }
                   className={`rounded-3xl border p-5 text-left transition ${
                     accountType === "driver"
@@ -422,7 +430,53 @@ export default function RegisterPage() {
               />
 
               <span className="text-sm leading-6 text-slate-500">
-                {t("register.terms")}
+                {locale === "en"
+                  ? "I accept the "
+                  : "Acepto los "}
+
+                <Link
+                  href={
+                    "/legal/" +
+                    accountType +
+                    "/terms"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) =>
+                    event.stopPropagation()
+                  }
+                  className="font-black text-slate-950 underline decoration-yellow-400 decoration-2 underline-offset-2"
+                >
+                  {locale === "en"
+                    ? "Terms and Conditions"
+                    : "Términos y Condiciones"}
+                </Link>
+
+                {locale === "en"
+                  ? " and the "
+                  : " y la "}
+
+                <Link
+                  href={
+                    "/legal/" +
+                    accountType +
+                    "/privacy"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) =>
+                    event.stopPropagation()
+                  }
+                  className="font-black text-slate-950 underline decoration-yellow-400 decoration-2 underline-offset-2"
+                >
+                  {locale === "en"
+                    ? "Privacy Policy"
+                    : "Política de Privacidad"}
+                </Link>
+
+                {locale === "en"
+                  ? " of AXI."
+                  : " de AXI."}
               </span>
             </label>
 

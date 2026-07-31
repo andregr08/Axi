@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -67,8 +68,8 @@ function countryFlag(
     );
 }
 
-const countries: CountryOption[] =
-  getCountries()
+function createCountryOptions(): CountryOption[] {
+  return getCountries()
     .map((code) => ({
       code,
       name: getCountryName(code),
@@ -81,6 +82,7 @@ const countries: CountryOption[] =
         "es"
       )
     );
+}
 
 function detectCountry(
   value: string
@@ -109,6 +111,15 @@ export function InternationalPhoneInput({
     useState<CountryCode>(
       initialCountry
     );
+
+  const [countries, setCountries] =
+    useState<CountryOption[]>([]);
+
+  useEffect(() => {
+    setCountries(
+      createCountryOptions()
+    );
+  }, []);
 
   const callingCode =
     getCountryCallingCode(country);
@@ -210,18 +221,25 @@ export function InternationalPhoneInput({
             aria-label="País del teléfono"
             className="h-14 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/5 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {countries.map(
-              (option) => (
-                <option
-                  key={option.code}
-                  value={option.code}
-                >
-                  {countryFlag(
-                    option.code
-                  )}{" "}
-                  {option.name} +
-                  {option.callingCode}
-                </option>
+            {countries.length === 0 ? (
+              <option value={country}>
+                {countryFlag(country)}{" "}
+                {country} +{callingCode}
+              </option>
+            ) : (
+              countries.map(
+                (option) => (
+                  <option
+                    key={option.code}
+                    value={option.code}
+                  >
+                    {countryFlag(
+                      option.code
+                    )}{" "}
+                    {option.name} +
+                    {option.callingCode}
+                  </option>
+                )
               )
             )}
           </select>

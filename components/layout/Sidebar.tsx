@@ -12,6 +12,7 @@ import {
   LogOut,
   Route,
   ReceiptText,
+  Scale,
   ShieldCheck,
   Siren,
   UserRound,
@@ -48,7 +49,7 @@ type MenuItem = {
 
 export function Sidebar({ role, onLogout }: SidebarProps) {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const menuItems: MenuItem[] = [
     {
@@ -110,6 +111,22 @@ export function Sidebar({ role, onLogout }: SidebarProps) {
       labelKey: "navigation.payments",
       icon: CreditCard,
       visible: isPassenger(role) || isDriver(role),
+    },
+
+    // LEGAL PARA PASAJERO Y CONDUCTOR
+    {
+      href:
+        role === "driver"
+          ? "/legal/driver"
+          : "/legal/passenger",
+      label:
+        locale === "en"
+          ? "Legal"
+          : "Legal",
+      icon: Scale,
+      visible:
+        isPassenger(role) ||
+        isDriver(role),
     },
 
     // ADMINISTRACIÓN
