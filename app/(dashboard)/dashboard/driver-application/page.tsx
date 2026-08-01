@@ -465,7 +465,7 @@ export default function DriverApplicationPage() {
 
     if (holderAnswer === null) {
       setMessage(
-        "Selecciona si eres titular del permiso o concesi?n."
+        "Selecciona si eres titular del permiso o concesión."
       );
       return;
     }
@@ -489,7 +489,7 @@ export default function DriverApplicationPage() {
         !cleanHolderPhone
       ) {
         setMessage(
-          "Registra el correo o tel?fono del permisionario."
+          "Registra el correo o teléfono del permisionario."
         );
         return;
       }
@@ -501,14 +501,14 @@ export default function DriverApplicationPage() {
         )
       ) {
         setMessage(
-          "El correo del permisionario no es v?lido."
+          "El correo del permisionario no es válido."
         );
         return;
       }
 
       if (!holderRelationship.trim()) {
         setMessage(
-          "Indica tu relaci?n con el permisionario."
+          "Indica tu relación con el permisionario."
         );
         return;
       }
@@ -518,7 +518,7 @@ export default function DriverApplicationPage() {
         !authorizationExpiration
       ) {
         setMessage(
-          "Indica la vigencia de la autorizaci?n."
+          "Indica la vigencia de la autorización."
         );
         return;
       }
@@ -945,7 +945,7 @@ export default function DriverApplicationPage() {
 
       setMessage(
         holderAnswer === "no"
-          ? "Solicitud enviada correctamente. Pendiente de autorizaci?n del permisionario."
+          ? "Solicitud enviada correctamente. Pendiente de autorización del permisionario."
           : t(
               "driverApplication.submitted"
             )
@@ -965,7 +965,7 @@ export default function DriverApplicationPage() {
   async function copyAuthorizationLink() {
     if (!authorizationLink) {
       setMessage(
-        "El enlace todav?a no est? disponible."
+        "El enlace todavía no est? disponible."
       );
       return;
     }
@@ -1014,14 +1014,14 @@ export default function DriverApplicationPage() {
   async function shareAuthorizationLink() {
     if (!authorizationLink) {
       setMessage(
-        "El enlace todav?a no est? disponible."
+        "El enlace todavía no est? disponible."
       );
       return;
     }
 
     const shareData = {
       title:
-        "Autorizaci?n de conductor AXI",
+        "Autorización de conductor AXI",
 
       text:
         `Hola. ${concessionHolderName.trim() || "El titular del permiso"} debe revisar y autorizar mi solicitud para conducir este taxi en AXI.`,
@@ -1084,11 +1084,11 @@ export default function DriverApplicationPage() {
       >
         <section>
           <h2 className="mb-1 text-xl font-bold">
-            ?Eres titular del permiso o concesi?n del taxi?
+            ¿Eres titular del permiso o concesión del taxi?
           </h2>
 
           <p className="mb-5 text-sm text-gray-500">
-            Selecciona la opci?n que corresponda antes de continuar con tu registro.
+            Selecciona la opción que corresponda antes de continuar con tu registro.
           </p>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -1103,11 +1103,11 @@ export default function DriverApplicationPage() {
               }
             >
               <span className="block font-bold">
-                S?, soy el titular
+                Sí, soy el titular
               </span>
 
               <span className="mt-2 block text-sm opacity-80">
-                El permiso o concesi?n del taxi est? a mi nombre.
+                El permiso o concesión del taxi está a mi nombre.
               </span>
             </button>
 
@@ -1126,7 +1126,7 @@ export default function DriverApplicationPage() {
               </span>
 
               <span className="mt-2 block text-sm opacity-80">
-                El titular deber? autorizarme antes de que AXI pueda activarme.
+                El titular deberá autorizarme antes de que AXI pueda activarme.
               </span>
             </button>
           </div>
@@ -1364,19 +1364,19 @@ export default function DriverApplicationPage() {
             </h2>
 
             <p className="mb-5 text-sm text-gray-500">
-              Ya utilizamos el nombre del titular y el n?mero de concesi?n capturados arriba. Completa los datos necesarios para solicitar su autorizaci?n.
+              Ya utilizamos el nombre del titular y el número de concesión capturados arriba. Completa los datos necesarios para solicitar su autorización.
             </p>
 
             <div className="grid gap-5 md:grid-cols-2">
               <TextInput
-                label="Correo electr?nico"
+                label="Correo electrónico"
                 value={holderEmail}
                 onChange={setHolderEmail}
                 placeholder="correo@ejemplo.com"
               />
 
               <TextInput
-                label="Tel?fono"
+                label="Teléfono"
                 value={holderPhone}
                 onChange={(value) =>
                   setHolderPhone(
@@ -1390,7 +1390,7 @@ export default function DriverApplicationPage() {
               />
 
               <TextInput
-                label="Relaci?n con el conductor"
+                label="Relación con el conductor"
                 value={holderRelationship}
                 onChange={setHolderRelationship}
                 placeholder="Empleado, operador, familiar..."
@@ -1433,7 +1433,7 @@ export default function DriverApplicationPage() {
 
               {!authorizationNoExpiration && (
                 <DateInput
-                  label="Fecha de vencimiento de la autorizaci?n"
+                  label="Fecha de vencimiento de la autorización"
                   value={
                     authorizationExpiration
                   }
@@ -1446,7 +1446,7 @@ export default function DriverApplicationPage() {
             </div>
 
             <div className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
-              El conductor permanecer? pendiente y no podr? recibir viajes hasta que el permisionario autorice la solicitud y AXI la apruebe.
+              El conductor permanecerá pendiente y no podrá recibir viajes hasta que el permisionario autorice la solicitud y AXI la apruebe.
             </div>
           </section>
         )}
@@ -1615,7 +1615,7 @@ export default function DriverApplicationPage() {
             {status === "pending" &&
               (
                 holderAnswer === "no"
-                  ? "Pendiente de autorizaci?n del permisionario"
+                  ? "Pendiente de autorización del permisionario"
                   : t(
                       "driverApplication.pending"
                     )
@@ -1634,7 +1634,7 @@ export default function DriverApplicationPage() {
           authorizationLink && (
             <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
               <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-                Autorizaci?n del permisionario
+                Autorización del permisionario
               </p>
 
               <h2 className="mt-2 text-lg font-bold text-blue-950">
@@ -1642,7 +1642,7 @@ export default function DriverApplicationPage() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-blue-900">
-                El permisionario deber? abrirlo, revisar los datos, subir su identificaci?n y su concesi?n, y autorizarte.
+                El permisionario deberá abrirlo, revisar los datos, subir su identificación y su concesión, y autorizarte.
               </p>
 
               <div className="mt-4 overflow-hidden rounded-xl border border-blue-200 bg-white p-4">
@@ -1674,7 +1674,7 @@ export default function DriverApplicationPage() {
               </div>
 
               <p className="mt-4 text-xs leading-5 text-blue-800">
-                Tu solicitud permanecer? bloqueada hasta que el titular autorice y AXI revise los documentos.
+                Tu solicitud permanecerá bloqueada hasta que el titular autorice y AXI revise los documentos.
               </p>
             </section>
           )}
