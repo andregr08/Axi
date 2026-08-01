@@ -71,6 +71,7 @@ type DriverApplication = {
   fiscal_postal_code: string | null;
   tax_regime_code: string | null;
   tax_certificate_url: string | null;
+  tax_document_url: string | null;
 
   tax_validation_status:
     | "not_submitted"
@@ -210,6 +211,7 @@ export default function DriverApplicationsAdminPage() {
         fiscal_postal_code,
         tax_regime_code,
         tax_certificate_url,
+        tax_document_url,
         tax_validation_status,
         tax_rejection_reason,
         created_at,
@@ -418,7 +420,11 @@ export default function DriverApplicationsAdminPage() {
   async function openTaxCertificate(
     application: DriverApplication
   ) {
-    if (!application.tax_certificate_url) {
+    const taxDocumentPath =
+      application.tax_certificate_url ||
+      application.tax_document_url;
+
+    if (!taxDocumentPath) {
       window.alert(
         "Esta solicitud no tiene constancia fiscal."
       );
@@ -432,7 +438,7 @@ export default function DriverApplicationsAdminPage() {
     try {
       const signedUrl =
         await createSignedLink(
-          application.tax_certificate_url
+          taxDocumentPath
         );
 
       if (!signedUrl) {
@@ -467,11 +473,10 @@ export default function DriverApplicationsAdminPage() {
       !application.rfc ||
       !application.fiscal_name ||
       !application.fiscal_postal_code ||
-      !application.tax_regime_code ||
-      !application.tax_certificate_url
+      !application.tax_regime_code
     ) {
       window.alert(
-        "La informaci?n fiscal est? incompleta."
+        "La informaci\u00f3n fiscal est\u00e1 incompleta."
       );
 
       return;
@@ -479,7 +484,7 @@ export default function DriverApplicationsAdminPage() {
 
     const confirmed =
       window.confirm(
-        "?Confirmas que los datos coinciden con la constancia fiscal?"
+        "\u00bfConfirmas que los datos coinciden con la constancia fiscal?"
       );
 
     if (!confirmed) {
@@ -500,14 +505,14 @@ export default function DriverApplicationsAdminPage() {
 
     if (error) {
       const fiscalError =
-        "Error validando informaci?n fiscal: " +
+        "Error validando informaci\u00f3n fiscal: " +
         error.message;
 
       setMessage(fiscalError);
       window.alert(fiscalError);
     } else {
       setMessage(
-        "Informaci?n fiscal validada correctamente."
+        "Informaci\u00f3n fiscal validada correctamente."
       );
 
       await loadApplications();
@@ -1064,8 +1069,7 @@ export default function DriverApplicationsAdminPage() {
                           }
                           disabled={
                             openingId ===
-                              application.id ||
-                            !application.tax_certificate_url
+                              application.id
                           }
                           className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200 bg-white px-3 text-xs font-bold text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -1085,12 +1089,7 @@ export default function DriverApplicationsAdminPage() {
                           disabled={
                             processing ||
                             application.tax_validation_status ===
-                              "verified" ||
-                            !application.rfc ||
-                            !application.fiscal_name ||
-                            !application.fiscal_postal_code ||
-                            !application.tax_regime_code ||
-                            !application.tax_certificate_url
+                              "verified"
                           }
                           className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-3 text-xs font-bold text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700"
                         >
@@ -1258,21 +1257,21 @@ export default function DriverApplicationsAdminPage() {
                       />
 
                       <DataItem
-                        label="C?digo postal fiscal"
+                        label={"C\u00f3digo postal fiscal"}
                         value={
                           application.fiscal_postal_code
                         }
                       />
 
                       <DataItem
-                        label="R?gimen fiscal"
+                        label={"R\u00e9gimen fiscal"}
                         value={
                           application.tax_regime_code
                         }
                       />
 
                       <DataItem
-                        label="Validaci?n fiscal"
+                        label={"Validaci\u00f3n fiscal"}
                         value={
                           application.tax_validation_status ===
                           "verified"
