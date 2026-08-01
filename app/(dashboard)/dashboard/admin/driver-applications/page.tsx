@@ -936,12 +936,35 @@ export default function DriverApplicationsAdminPage() {
                         <button
                           type="button"
                           onClick={() =>
+                            reviewFace(
+                              application.id,
+                              "matched"
+                            )
+                          }
+                          disabled={
+                            processing ||
+                            application.face_match_status ===
+                              "matched"
+                          }
+                          className="inline-flex h-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700 disabled:shadow-none"
+                        >
+                          {application.face_match_status ===
+                          "matched"
+                            ? "Rostro confirmado"
+                            : "Rostro coincide"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
                             approveApplication(
                               application.id
                             )
                           }
                           disabled={
                             processing ||
+                            application.face_match_status !==
+                              "matched" ||
                             !application.documents_complete ||
                             !application.concession_document_url ||
                             !application.vehicle_vin ||
