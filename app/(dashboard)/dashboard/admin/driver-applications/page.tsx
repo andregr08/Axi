@@ -427,7 +427,16 @@ export default function DriverApplicationsAdminPage() {
     });
 
     if (error) {
-      setMessage(`${t("driverApplications.approveError")} ${error.message}`);
+      const approvalError =
+        `${t("driverApplications.approveError")} ${error.message}`;
+
+      setMessage(
+        approvalError
+      );
+
+      window.alert(
+        approvalError
+      );
     } else {
       setMessage(t("driverApplications.approved"));
 
@@ -881,9 +890,10 @@ export default function DriverApplicationsAdminPage() {
                 key={application.id}
                 className="rounded-2xl bg-white p-6 shadow-sm"
               >
-                <div className="flex flex-col justify-between gap-6 xl:flex-row">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
+                <div className="space-y-5">
+                  <div className="min-w-0">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex flex-wrap items-center gap-3">
                       <div>
                         <h2 className="text-xl font-bold">
                           {getApplicantName(application)}
@@ -907,9 +917,67 @@ export default function DriverApplicationsAdminPage() {
                       >
                         {applicationStatusLabel(application.status)}
                       </span>
+                      </div>
+
+                  <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => openDocuments(application)}
+                      disabled={openingId === application.id}
+                      className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {openingId === application.id
+                        ? t("driverApplications.opening")
+                        : t("driverApplications.reviewDocuments")}
+                    </button>
+
+                    {application.status === "pending" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            approveApplication(
+                              application.id
+                            )
+                          }
+                          disabled={
+                            processing ||
+                            !application.documents_complete ||
+                            !application.concession_document_url ||
+                            !application.vehicle_vin ||
+                            !application.taxi_number ||
+                            !application.concession_number ||
+                            !permitAuthorizationReady
+                          }
+                          className="inline-flex h-9 items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+                        >
+                          {processing
+                            ? "Aprobando..."
+                            : t(
+                                "driverApplications.approve"
+                              )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            rejectApplication(
+                              application.id
+                            )
+                          }
+                          disabled={processing}
+                          className="inline-flex h-9 items-center justify-center rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {t(
+                            "driverApplications.reject"
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
                     </div>
 
-                    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       <DataItem
                         label={t("driverApplications.licenseNumber")}
                         value={application.license_number}
@@ -1009,60 +1077,7 @@ export default function DriverApplicationsAdminPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 xl:max-w-md xl:justify-end">
-                    <button
-                      type="button"
-                      onClick={() => openDocuments(application)}
-                      disabled={openingId === application.id}
-                      className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {openingId === application.id
-                        ? t("driverApplications.opening")
-                        : t("driverApplications.reviewDocuments")}
-                    </button>
 
-                    {application.status === "pending" && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            approveApplication(
-                              application.id
-                            )
-                          }
-                          disabled={
-                            processing ||
-                            !application.documents_complete ||
-                            !application.concession_document_url ||
-                            !application.vehicle_vin ||
-                            !application.taxi_number ||
-                            !application.concession_number ||
-                            !permitAuthorizationReady
-                          }
-                          className="inline-flex h-9 items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
-                        >
-                          {t(
-                            "driverApplications.approve"
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            rejectApplication(
-                              application.id
-                            )
-                          }
-                          disabled={processing}
-                          className="inline-flex h-9 items-center justify-center rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {t(
-                            "driverApplications.reject"
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </div>
                 </div>
 
                 {application
