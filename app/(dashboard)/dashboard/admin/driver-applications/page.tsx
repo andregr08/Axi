@@ -66,6 +66,20 @@ type DriverApplication = {
   vehicle_left_photo_url: string | null;
   vehicle_right_photo_url: string | null;
 
+  rfc: string | null;
+  fiscal_name: string | null;
+  fiscal_postal_code: string | null;
+  tax_regime_code: string | null;
+  tax_certificate_url: string | null;
+
+  tax_validation_status:
+    | "not_submitted"
+    | "pending"
+    | "verified"
+    | "rejected";
+
+  tax_rejection_reason: string | null;
+
   created_at: string;
 
   permit_holder_authorizations:
@@ -191,6 +205,13 @@ export default function DriverApplicationsAdminPage() {
         vehicle_rear_photo_url,
         vehicle_left_photo_url,
         vehicle_right_photo_url,
+        rfc,
+        fiscal_name,
+        fiscal_postal_code,
+        tax_regime_code,
+        tax_certificate_url,
+        tax_validation_status,
+        tax_rejection_reason,
         created_at,
         permit_holder_authorizations (
           id,
@@ -387,6 +408,107 @@ export default function DriverApplicationsAdminPage() {
       setMessage(`${t("driverApplications.faceReviewError")} ${error.message}`);
     } else {
       setMessage(t("driverApplications.faceReviewSaved"));
+
+      await loadApplications();
+    }
+
+    setProcessingId(null);
+  }
+
+  async function openTaxCertificate(
+    application: DriverApplication
+  ) {
+    if (!application.tax_certificate_url) {
+      window.alert(
+        "Esta solicitud no tiene constancia fiscal."
+      );
+
+      return;
+    }
+
+    setOpeningId(application.id);
+    setMessage("");
+
+    try {
+      const signedUrl =
+        await createSignedLink(
+          application.tax_certificate_url
+        );
+
+      if (!signedUrl) {
+        throw new Error(
+          "No se pudo generar el enlace."
+        );
+      }
+
+      window.open(
+        signedUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (error) {
+      const fiscalDocumentError =
+        error instanceof Error
+          ? "Error abriendo la constancia fiscal: " +
+            error.message
+          : "No se pudo abrir la constancia fiscal.";
+
+      setMessage(fiscalDocumentError);
+      window.alert(fiscalDocumentError);
+    } finally {
+      setOpeningId(null);
+    }
+  }
+
+  async function validateTaxInformation(
+    application: DriverApplication
+  ) {
+    if (
+      !application.rfc ||
+      !application.fiscal_name ||
+      !application.fiscal_postal_code ||
+      !application.tax_regime_code ||
+      !application.tax_certificate_url
+    ) {
+      window.alert(
+        "La informaci?n fiscal est? incompleta."
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "?Confirmas que los datos coinciden con la constancia fiscal?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setProcessingId(application.id);
+    setMessage("");
+
+    const { error } =
+      await supabase.rpc(
+        "verify_driver_tax_information_current",
+        {
+          application_id:
+            application.id,
+        }
+      );
+
+    if (error) {
+      const fiscalError =
+        "Error validando informaci?n fiscal: " +
+        error.message;
+
+      setMessage(fiscalError);
+      window.alert(fiscalError);
+    } else {
+      setMessage(
+        "Informaci?n fiscal validada correctamente."
+      );
 
       await loadApplications();
     }
@@ -936,6 +1058,51 @@ export default function DriverApplicationsAdminPage() {
                         <button
                           type="button"
                           onClick={() =>
+                            openTaxCertificate(
+                              application
+                            )
+                          }
+                          disabled={
+                            openingId ===
+                              application.id ||
+                            !application.tax_certificate_url
+                          }
+                          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200 bg-white px-3 text-xs font-bold text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {openingId ===
+                          application.id
+                            ? "Abriendo..."
+                            : "Ver constancia"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            validateTaxInformation(
+                              application
+                            )
+                          }
+                          disabled={
+                            processing ||
+                            application.tax_validation_status ===
+                              "verified" ||
+                            !application.rfc ||
+                            !application.fiscal_name ||
+                            !application.fiscal_postal_code ||
+                            !application.tax_regime_code ||
+                            !application.tax_certificate_url
+                          }
+                          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-3 text-xs font-bold text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700"
+                        >
+                          {application.tax_validation_status ===
+                          "verified"
+                            ? "Fiscal validado"
+                            : "Validar fiscal"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
                             reviewFace(
                               application.id,
                               "matched"
@@ -965,6 +1132,8 @@ export default function DriverApplicationsAdminPage() {
                             processing ||
                             application.face_match_status !==
                               "matched" ||
+                            application.tax_validation_status !==
+                              "verified" ||
                             !application.documents_complete ||
                             !application.concession_document_url ||
                             !application.vehicle_vin ||
@@ -1076,6 +1245,46 @@ export default function DriverApplicationsAdminPage() {
                       <DataItem
                         label={t("driverApplications.vehicleVin")}
                         value={application.vehicle_vin}
+                      />
+
+                      <DataItem
+                        label="RFC"
+                        value={application.rfc}
+                      />
+
+                      <DataItem
+                        label="Nombre fiscal"
+                        value={application.fiscal_name}
+                      />
+
+                      <DataItem
+                        label="C?digo postal fiscal"
+                        value={
+                          application.fiscal_postal_code
+                        }
+                      />
+
+                      <DataItem
+                        label="R?gimen fiscal"
+                        value={
+                          application.tax_regime_code
+                        }
+                      />
+
+                      <DataItem
+                        label="Validaci?n fiscal"
+                        value={
+                          application.tax_validation_status ===
+                          "verified"
+                            ? "Validada"
+                            : application.tax_validation_status ===
+                                "rejected"
+                              ? "Rechazada"
+                              : application.tax_validation_status ===
+                                  "pending"
+                                ? "Pendiente"
+                                : "Sin validar"
+                        }
                       />
 
                       <DataItem
