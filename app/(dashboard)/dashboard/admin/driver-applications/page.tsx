@@ -76,12 +76,10 @@ type DriverApplication = {
   profiles:
     | {
         full_name: string | null;
-        email: string | null;
         role: string;
       }
     | {
         full_name: string | null;
-        email: string | null;
         role: string;
       }[]
     | null;
@@ -209,7 +207,6 @@ export default function DriverApplicationsAdminPage() {
         ),
         profiles:user_id (
           full_name,
-          email,
           role
         )
       `,
@@ -599,8 +596,8 @@ export default function DriverApplicationsAdminPage() {
     );
   }
 
-  function getApplicantEmail(application: DriverApplication) {
-    return getApplicantProfile(application)?.email || "";
+  function getApplicantEmail(_application: DriverApplication) {
+    return "";
   }
 
   function faceStatusLabel(status: FaceStatus) {
