@@ -408,7 +408,7 @@ export default function DriverApplicationsAdminPage() {
       )
     ) {
       window.alert(
-        "No puedes aprobar esta solicitud hasta que el permisionario autorice, adjunte su identificaci?n y su concesi?n, y la autorizaci?n siga vigente."
+        "No puedes aprobar esta solicitud hasta que el permisionario autorice, adjunte su identificación y su concesión, y la autorización siga vigente."
       );
       return;
     }
@@ -489,7 +489,7 @@ export default function DriverApplicationsAdminPage() {
     /*
      * Las solicitudes del propio titular y las
      * solicitudes anteriores al nuevo flujo no
-     * requieren una autorizaci?n externa.
+     * requieren una autorización externa.
      */
     if (
       application
@@ -571,7 +571,7 @@ export default function DriverApplicationsAdminPage() {
             application
           )
             ? "Autorizada"
-            : "Autorizaci?n incompleta o vencida",
+            : "Autorización incompleta o vencida",
         expired:
           "Vencida",
         revoked:
@@ -941,20 +941,20 @@ export default function DriverApplicationsAdminPage() {
                       />
 
                       <DataItem
-                        label="Relaci?n con la concesi?n"
+                        label="Relación con la concesión"
                         value={
                           application
                             .is_concession_holder === false
                             ? "Trabaja para un permisionario"
                             : application
                                   .is_concession_holder === true
-                              ? "Es titular de la concesi?n"
+                              ? "Es titular de la concesión"
                               : "Solicitud anterior al nuevo flujo"
                         }
                       />
 
                       <DataItem
-                        label="Autorizaci?n del permisionario"
+                        label="Autorización del permisionario"
                         value={
                           permitAuthorizationLabel(
                             application
@@ -1009,12 +1009,12 @@ export default function DriverApplicationsAdminPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-3 xl:max-w-sm xl:justify-end">
+                  <div className="flex flex-wrap items-center gap-2 xl:max-w-md xl:justify-end">
                     <button
                       type="button"
                       onClick={() => openDocuments(application)}
                       disabled={openingId === application.id}
-                      className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                      className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {openingId === application.id
                         ? t("driverApplications.opening")
@@ -1025,41 +1025,13 @@ export default function DriverApplicationsAdminPage() {
                       <>
                         <button
                           type="button"
-                          onClick={() => reviewFace(application.id, "matched")}
-                          disabled={processing}
-                          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                        >
-                          {t("driverApplications.faceMatches")}
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() =>
-                            reviewFace(application.id, "not_matched")
+                            approveApplication(
+                              application.id
+                            )
                           }
-                          disabled={processing}
-                          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
-                        >
-                          {t("driverApplications.notMatched")}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            reviewFace(application.id, "manual_review")
-                          }
-                          disabled={processing}
-                          className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
-                        >
-                          {t("driverApplications.manualReview")}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => approveApplication(application.id)}
                           disabled={
                             processing ||
-                            application.face_match_status !== "matched" ||
                             !application.documents_complete ||
                             !application.concession_document_url ||
                             !application.vehicle_vin ||
@@ -1067,18 +1039,26 @@ export default function DriverApplicationsAdminPage() {
                             !application.concession_number ||
                             !permitAuthorizationReady
                           }
-                          className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                          className="inline-flex h-9 items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
                         >
-                          {t("driverApplications.approve")}
+                          {t(
+                            "driverApplications.approve"
+                          )}
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => rejectApplication(application.id)}
+                          onClick={() =>
+                            rejectApplication(
+                              application.id
+                            )
+                          }
                           disabled={processing}
-                          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
+                          className="inline-flex h-9 items-center justify-center rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {t("driverApplications.reject")}
+                          {t(
+                            "driverApplications.reject"
+                          )}
                         </button>
                       </>
                     )}
@@ -1097,7 +1077,7 @@ export default function DriverApplicationsAdminPage() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                          Autorizaci?n externa
+                          Autorización externa
                         </p>
 
                         <h3 className="mt-1 text-lg font-bold">
@@ -1137,7 +1117,7 @@ export default function DriverApplicationsAdminPage() {
                         />
 
                         <DataItem
-                          label="Tel?fono"
+                          label="Teléfono"
                           value={
                             permitAuthorization
                               .holder_phone
@@ -1145,7 +1125,7 @@ export default function DriverApplicationsAdminPage() {
                         />
 
                         <DataItem
-                          label="Relaci?n con el conductor"
+                          label="Relación con el conductor"
                           value={
                             permitAuthorization
                               .relationship_to_driver
@@ -1166,7 +1146,7 @@ export default function DriverApplicationsAdminPage() {
                         />
 
                         <DataItem
-                          label="Fecha de autorizaci?n"
+                          label="Fecha de autorización"
                           value={
                             permitAuthorization
                               .authorized_at
@@ -1178,19 +1158,19 @@ export default function DriverApplicationsAdminPage() {
                                     ? "es-MX"
                                     : "en-US"
                                 )
-                              : "Todav?a no autoriza"
+                              : "Todavía no autoriza"
                           }
                         />
                       </div>
                     ) : (
                       <p className="mt-4 text-sm text-amber-900">
-                        No se encontr? una solicitud de autorizaci?n para este permisionario.
+                        No se encontró una solicitud de autorización para este permisionario.
                       </p>
                     )}
 
                     {!permitAuthorizationReady && (
                       <p className="mt-4 text-sm font-semibold text-amber-900">
-                        El bot?n Aprobar permanecer? bloqueado hasta que la autorizaci?n sea v?lida y est?n presentes los dos documentos del permisionario.
+                        El botón Aprobar permanecerá bloqueado hasta que la autorización sea válida y están presentes los dos documentos del permisionario.
                       </p>
                     )}
                   </section>
@@ -1244,7 +1224,7 @@ export default function DriverApplicationsAdminPage() {
 
                         <div className="grid gap-4 md:grid-cols-2">
                           <DocumentCard
-                            label="Identificaci?n oficial del permisionario"
+                            label="Identificación oficial del permisionario"
                             url={
                               links
                                 .holderIdentification
@@ -1253,7 +1233,7 @@ export default function DriverApplicationsAdminPage() {
                           />
 
                           <DocumentCard
-                            label="Permiso o concesi?n a nombre del permisionario"
+                            label="Permiso o concesión a nombre del permisionario"
                             url={
                               links
                                 .holderConcessionDocument
