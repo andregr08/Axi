@@ -10,6 +10,26 @@ type ApplicationStatus = "pending" | "approved" | "rejected";
 
 type FaceStatus = "pending" | "matched" | "not_matched" | "manual_review";
 
+type PermitHolderStatus =
+  | "pending"
+  | "authorized"
+  | "expired"
+  | "revoked";
+
+type PermitHolderAuthorization = {
+  id: string;
+  status: PermitHolderStatus;
+  holder_name: string;
+  holder_email: string | null;
+  holder_phone: string | null;
+  relationship_to_driver: string;
+  authorization_expires_on: string | null;
+  no_expiration: boolean;
+  holder_identification_url: string | null;
+  holder_concession_document_url: string | null;
+  authorized_at: string | null;
+};
+
 type DriverApplication = {
   id: string;
   user_id: string;
@@ -20,6 +40,8 @@ type DriverApplication = {
   operating_state: string | null;
   operating_city: string | null;
   taxi_number: string | null;
+  vehicle_plate: string | null;
+  is_concession_holder: boolean | null;
   concession_number: string | null;
   concession_authority: string | null;
   concession_holder_name: string | null;
@@ -46,6 +68,11 @@ type DriverApplication = {
 
   created_at: string;
 
+  permit_holder_authorizations:
+    | PermitHolderAuthorization
+    | PermitHolderAuthorization[]
+    | null;
+
   profiles:
     | {
         full_name: string | null;
@@ -67,6 +94,8 @@ type DocumentLinks = {
   licenseBack: string | null;
   identification: string | null;
   concessionDocument: string | null;
+  holderIdentification: string | null;
+  holderConcessionDocument: string | null;
   vehicleFrontPhoto: string | null;
   vehicleRearPhoto: string | null;
   vehicleLeftPhoto: string | null;
@@ -142,6 +171,8 @@ export default function DriverApplicationsAdminPage() {
         operating_state,
         operating_city,
         taxi_number,
+        vehicle_plate,
+        is_concession_holder,
         concession_number,
         concession_authority,
         concession_holder_name,
@@ -163,6 +194,19 @@ export default function DriverApplicationsAdminPage() {
         vehicle_left_photo_url,
         vehicle_right_photo_url,
         created_at,
+        permit_holder_authorizations (
+          id,
+          status,
+          holder_name,
+          holder_email,
+          holder_phone,
+          relationship_to_driver,
+          authorization_expires_on,
+          no_expiration,
+          holder_identification_url,
+          holder_concession_document_url,
+          authorized_at
+        ),
         profiles:user_id (
           full_name,
           email,
@@ -207,11 +251,44 @@ export default function DriverApplicationsAdminPage() {
     return data.signedUrl;
   }
 
+  async function createPermitHolderSignedLink(
+    path: string | null
+  ) {
+    if (!path) {
+      return null;
+    }
+
+    const {
+      data,
+      error,
+    } = await supabase.storage
+      .from(
+        "permit-holder-documents"
+      )
+      .createSignedUrl(
+        path,
+        600
+      );
+
+    if (error) {
+      throw new Error(
+        error.message
+      );
+    }
+
+    return data.signedUrl;
+  }
+
   async function openDocuments(application: DriverApplication) {
     setOpeningId(application.id);
     setMessage("");
 
     try {
+      const permitAuthorization =
+        getPermitAuthorization(
+          application
+        );
+
       const links: DocumentLinks = {
         profilePhoto: await createSignedLink(application.profile_photo_url),
 
@@ -226,6 +303,20 @@ export default function DriverApplicationsAdminPage() {
         concessionDocument: await createSignedLink(
           application.concession_document_url,
         ),
+
+        holderIdentification:
+          await createPermitHolderSignedLink(
+            permitAuthorization
+              ?.holder_identification_url ??
+              null
+          ),
+
+        holderConcessionDocument:
+          await createPermitHolderSignedLink(
+            permitAuthorization
+              ?.holder_concession_document_url ??
+              null
+          ),
 
         vehicleFrontPhoto: await createSignedLink(
           application.vehicle_front_photo_url,
@@ -313,6 +404,18 @@ export default function DriverApplicationsAdminPage() {
       window.alert("Esta solicitud ya fue procesada.");
       return;
     }
+
+    if (
+      !isPermitAuthorizationReady(
+        application
+      )
+    ) {
+      window.alert(
+        "No puedes aprobar esta solicitud hasta que el permisionario autorice, adjunte su identificaci?n y su concesi?n, y la autorizaci?n siga vigente."
+      );
+      return;
+    }
+
     const confirmed = window.confirm(t("driverApplications.confirmApprove"));
 
     if (!confirmed) {
@@ -369,6 +472,120 @@ export default function DriverApplicationsAdminPage() {
     setProcessingId(null);
   }
 
+  function getPermitAuthorization(
+    application: DriverApplication
+  ) {
+    const authorization =
+      application
+        .permit_holder_authorizations;
+
+    return Array.isArray(
+      authorization
+    )
+      ? authorization[0] ?? null
+      : authorization;
+  }
+
+  function isPermitAuthorizationReady(
+    application: DriverApplication
+  ) {
+    /*
+     * Las solicitudes del propio titular y las
+     * solicitudes anteriores al nuevo flujo no
+     * requieren una autorizaci?n externa.
+     */
+    if (
+      application
+        .is_concession_holder !== false
+    ) {
+      return true;
+    }
+
+    const authorization =
+      getPermitAuthorization(
+        application
+      );
+
+    if (
+      !authorization ||
+      authorization.status !==
+        "authorized" ||
+      !authorization
+        .holder_identification_url ||
+      !authorization
+        .holder_concession_document_url
+    ) {
+      return false;
+    }
+
+    if (
+      authorization.no_expiration
+    ) {
+      return true;
+    }
+
+    if (
+      !authorization
+        .authorization_expires_on
+    ) {
+      return false;
+    }
+
+    const today =
+      new Date()
+        .toISOString()
+        .slice(0, 10);
+
+    return (
+      authorization
+        .authorization_expires_on >=
+      today
+    );
+  }
+
+  function permitAuthorizationLabel(
+    application: DriverApplication
+  ) {
+    if (
+      application
+        .is_concession_holder !== false
+    ) {
+      return "No requerida";
+    }
+
+    const authorization =
+      getPermitAuthorization(
+        application
+      );
+
+    if (!authorization) {
+      return "Sin solicitud";
+    }
+
+    const labels:
+      Record<
+        PermitHolderStatus,
+        string
+      > = {
+        pending:
+          "Pendiente del permisionario",
+        authorized:
+          isPermitAuthorizationReady(
+            application
+          )
+            ? "Autorizada"
+            : "Autorizaci?n incompleta o vencida",
+        expired:
+          "Vencida",
+        revoked:
+          "Revocada",
+      };
+
+    return labels[
+      authorization.status
+    ];
+  }
+
   function getApplicantProfile(application: DriverApplication) {
     return Array.isArray(application.profiles)
       ? application.profiles[0]
@@ -420,6 +637,11 @@ export default function DriverApplicationsAdminPage() {
   const filteredApplications = applications.filter((application) => {
     const normalizedSearch = search.trim().toLowerCase();
 
+    const permitAuthorization =
+      getPermitAuthorization(
+        application
+      );
+
     const searchableValues = [
       getApplicantName(application),
       getApplicantEmail(application),
@@ -427,8 +649,15 @@ export default function DriverApplicationsAdminPage() {
       application.operating_state,
       application.operating_city,
       application.taxi_number,
+      application.vehicle_plate,
       application.concession_number,
       application.concession_holder_name,
+      permitAuthorization
+        ?.holder_name,
+      permitAuthorization
+        ?.holder_email,
+      permitAuthorization
+        ?.holder_phone,
       application.vehicle_vin,
     ]
       .filter(Boolean)
@@ -636,7 +865,19 @@ export default function DriverApplicationsAdminPage() {
           filteredApplications.map((application) => {
             const links = documentLinks[application.id];
 
-            const processing = processingId === application.id;
+            const processing =
+              processingId ===
+              application.id;
+
+            const permitAuthorization =
+              getPermitAuthorization(
+                application
+              );
+
+            const permitAuthorizationReady =
+              isPermitAuthorizationReady(
+                application
+              );
 
             return (
               <article
@@ -695,6 +936,33 @@ export default function DriverApplicationsAdminPage() {
                       <DataItem
                         label={t("driverApplications.taxiNumber")}
                         value={application.taxi_number}
+                      />
+
+                      <DataItem
+                        label="Placas"
+                        value={application.vehicle_plate}
+                      />
+
+                      <DataItem
+                        label="Relaci?n con la concesi?n"
+                        value={
+                          application
+                            .is_concession_holder === false
+                            ? "Trabaja para un permisionario"
+                            : application
+                                  .is_concession_holder === true
+                              ? "Es titular de la concesi?n"
+                              : "Solicitud anterior al nuevo flujo"
+                        }
+                      />
+
+                      <DataItem
+                        label="Autorizaci?n del permisionario"
+                        value={
+                          permitAuthorizationLabel(
+                            application
+                          )
+                        }
                       />
 
                       <DataItem
@@ -799,7 +1067,8 @@ export default function DriverApplicationsAdminPage() {
                             !application.concession_document_url ||
                             !application.vehicle_vin ||
                             !application.taxi_number ||
-                            !application.concession_number
+                            !application.concession_number ||
+                            !permitAuthorizationReady
                           }
                           className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                         >
@@ -818,6 +1087,117 @@ export default function DriverApplicationsAdminPage() {
                     )}
                   </div>
                 </div>
+
+                {application
+                  .is_concession_holder === false && (
+                  <section
+                    className={
+                      permitAuthorizationReady
+                        ? "mt-6 rounded-2xl border border-green-200 bg-green-50 p-5"
+                        : "mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5"
+                    }
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                          Autorizaci?n externa
+                        </p>
+
+                        <h3 className="mt-1 text-lg font-bold">
+                          Datos del permisionario
+                        </h3>
+                      </div>
+
+                      <span
+                        className={
+                          permitAuthorizationReady
+                            ? "rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800"
+                            : "rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800"
+                        }
+                      >
+                        {permitAuthorizationLabel(
+                          application
+                        )}
+                      </span>
+                    </div>
+
+                    {permitAuthorization ? (
+                      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <DataItem
+                          label="Nombre completo"
+                          value={
+                            permitAuthorization
+                              .holder_name
+                          }
+                        />
+
+                        <DataItem
+                          label="Correo"
+                          value={
+                            permitAuthorization
+                              .holder_email
+                          }
+                        />
+
+                        <DataItem
+                          label="Tel?fono"
+                          value={
+                            permitAuthorization
+                              .holder_phone
+                          }
+                        />
+
+                        <DataItem
+                          label="Relaci?n con el conductor"
+                          value={
+                            permitAuthorization
+                              .relationship_to_driver
+                          }
+                        />
+
+                        <DataItem
+                          label="Vigencia"
+                          value={
+                            permitAuthorization
+                              .no_expiration
+                              ? "Sin fecha definida"
+                              : formatDate(
+                                  permitAuthorization
+                                    .authorization_expires_on
+                                )
+                          }
+                        />
+
+                        <DataItem
+                          label="Fecha de autorizaci?n"
+                          value={
+                            permitAuthorization
+                              .authorized_at
+                              ? new Date(
+                                  permitAuthorization
+                                    .authorized_at
+                                ).toLocaleString(
+                                  locale === "es"
+                                    ? "es-MX"
+                                    : "en-US"
+                                )
+                              : "Todav?a no autoriza"
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm text-amber-900">
+                        No se encontr? una solicitud de autorizaci?n para este permisionario.
+                      </p>
+                    )}
+
+                    {!permitAuthorizationReady && (
+                      <p className="mt-4 text-sm font-semibold text-amber-900">
+                        El bot?n Aprobar permanecer? bloqueado hasta que la autorizaci?n sea v?lida y est?n presentes los dos documentos del permisionario.
+                      </p>
+                    )}
+                  </section>
+                )}
 
                 {links && (
                   <div className="mt-8">
@@ -857,6 +1237,35 @@ export default function DriverApplicationsAdminPage() {
                         document
                       />
                     </div>
+
+                    {application
+                      .is_concession_holder === false && (
+                      <>
+                        <h3 className="mb-4 mt-8 text-lg font-bold">
+                          Documentos del permisionario
+                        </h3>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <DocumentCard
+                            label="Identificaci?n oficial del permisionario"
+                            url={
+                              links
+                                .holderIdentification
+                            }
+                            document
+                          />
+
+                          <DocumentCard
+                            label="Permiso o concesi?n a nombre del permisionario"
+                            url={
+                              links
+                                .holderConcessionDocument
+                            }
+                            document
+                          />
+                        </div>
+                      </>
+                    )}
 
                     <h3 className="mb-4 mt-8 text-lg font-bold">
                       {t("driverApplications.optionalTaxiPhotos")}

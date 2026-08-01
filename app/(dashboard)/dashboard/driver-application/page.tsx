@@ -15,6 +15,11 @@ type Status =
   | "approved"
   | "rejected";
 
+type HolderAnswer =
+  | "yes"
+  | "no"
+  | null;
+
 type DocumentFiles = {
   profilePhoto: File | null;
   selfie: File | null;
@@ -84,6 +89,51 @@ export default function DriverApplicationPage() {
     setConcessionExpiration,
   ] = useState("");
 
+  const [
+    holderAnswer,
+    setHolderAnswer,
+  ] = useState<HolderAnswer>(null);
+
+  const [
+    vehiclePlate,
+    setVehiclePlate,
+  ] = useState("");
+
+  const [
+    holderEmail,
+    setHolderEmail,
+  ] = useState("");
+
+  const [
+    holderPhone,
+    setHolderPhone,
+  ] = useState("");
+
+  const [
+    holderRelationship,
+    setHolderRelationship,
+  ] = useState("");
+
+  const [
+    authorizationExpiration,
+    setAuthorizationExpiration,
+  ] = useState("");
+
+  const [
+    authorizationNoExpiration,
+    setAuthorizationNoExpiration,
+  ] = useState(false);
+
+  const [
+    authorizationToken,
+    setAuthorizationToken,
+  ] = useState<string | null>(null);
+
+  const [
+    authorizationLink,
+    setAuthorizationLink,
+  ] = useState("");
+
   const [vehicleVin, setVehicleVin] =
     useState("");
 
@@ -136,11 +186,14 @@ export default function DriverApplicationPage() {
     const { data, error } = await supabase
       .from("driver_applications")
       .select(`
+        id,
+        is_concession_holder,
         license_number,
         license_expiration,
         operating_state,
         operating_city,
         taxi_number,
+        vehicle_plate,
         concession_number,
         concession_authority,
         concession_holder_name,
@@ -179,6 +232,10 @@ export default function DriverApplicationPage() {
 
       setTaxiNumber(
         data.taxi_number ?? ""
+      );
+
+      setVehiclePlate(
+        data.vehicle_plate ?? ""
       );
 
       setConcessionNumber(
@@ -224,6 +281,76 @@ export default function DriverApplicationPage() {
       setStatus(
         data.status as Status
       );
+
+      const loadedHolderAnswer: HolderAnswer =
+        data.is_concession_holder === false
+          ? "no"
+          : "yes";
+
+      setHolderAnswer(
+        loadedHolderAnswer
+      );
+
+      if (
+        loadedHolderAnswer === "no" &&
+        data.id
+      ) {
+        const {
+          data: holderAuthorization,
+          error: holderAuthorizationError,
+        } = await supabase
+          .from(
+            "permit_holder_authorizations"
+          )
+          .select(`
+            holder_email,
+            holder_phone,
+            relationship_to_driver,
+            authorization_expires_on,
+            no_expiration,
+            authorization_token
+          `)
+          .eq(
+            "driver_application_id",
+            data.id
+          )
+          .maybeSingle();
+
+        if (
+          !holderAuthorizationError &&
+          holderAuthorization
+        ) {
+          setHolderEmail(
+            holderAuthorization
+              .holder_email ?? ""
+          );
+
+          setHolderPhone(
+            holderAuthorization
+              .holder_phone ?? ""
+          );
+
+          setHolderRelationship(
+            holderAuthorization
+              .relationship_to_driver ?? ""
+          );
+
+          setAuthorizationExpiration(
+            holderAuthorization
+              .authorization_expires_on ?? ""
+          );
+
+          setAuthorizationNoExpiration(
+            holderAuthorization
+              .no_expiration ?? false
+          );
+
+          setAuthorizationToken(
+            holderAuthorization
+              .authorization_token ?? null
+          );
+        }
+      }
     }
 
     setLoading(false);
@@ -237,6 +364,17 @@ export default function DriverApplicationPage() {
     return () =>
       window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!authorizationToken) {
+      setAuthorizationLink("");
+      return;
+    }
+
+    setAuthorizationLink(
+      `${window.location.origin}/permit-holder/${authorizationToken}`
+    );
+  }, [authorizationToken]);
 
   function getExtension(file: File) {
     const parts = file.name.split(".");
@@ -324,6 +462,67 @@ export default function DriverApplicationPage() {
 
     const cleanRfc =
       normalizeRfc(rfc);
+
+    if (holderAnswer === null) {
+      setMessage(
+        "Selecciona si eres titular del permiso o concesi?n."
+      );
+      return;
+    }
+
+    if (!vehiclePlate.trim()) {
+      setMessage(
+        "Las placas del taxi son obligatorias."
+      );
+      return;
+    }
+
+    if (holderAnswer === "no") {
+      const cleanHolderEmail =
+        holderEmail.trim();
+
+      const cleanHolderPhone =
+        holderPhone.trim();
+
+      if (
+        !cleanHolderEmail &&
+        !cleanHolderPhone
+      ) {
+        setMessage(
+          "Registra el correo o tel?fono del permisionario."
+        );
+        return;
+      }
+
+      if (
+        cleanHolderEmail &&
+        !/^[^s@]+@[^s@]+.[^s@]+$/.test(
+          cleanHolderEmail
+        )
+      ) {
+        setMessage(
+          "El correo del permisionario no es v?lido."
+        );
+        return;
+      }
+
+      if (!holderRelationship.trim()) {
+        setMessage(
+          "Indica tu relaci?n con el permisionario."
+        );
+        return;
+      }
+
+      if (
+        !authorizationNoExpiration &&
+        !authorizationExpiration
+      ) {
+        setMessage(
+          "Indica la vigencia de la autorizaci?n."
+        );
+        return;
+      }
+    }
 
     if (
       !licenseNumber.trim() ||
@@ -532,11 +731,17 @@ export default function DriverApplicationPage() {
         uploadedTaxCertificatePath ??
         existingTaxCertificateUrl;
 
-      const { error } = await supabase
+      const {
+        data: savedApplication,
+        error,
+      } = await supabase
         .from("driver_applications")
         .upsert(
           {
             user_id: userId,
+
+            is_concession_holder:
+              holderAnswer === "yes",
 
             license_number:
               licenseNumber.trim(),
@@ -552,6 +757,11 @@ export default function DriverApplicationPage() {
 
             taxi_number:
               taxiNumber.trim(),
+
+            vehicle_plate:
+              vehiclePlate
+                .trim()
+                .toUpperCase(),
 
             concession_number:
               concessionNumber.trim(),
@@ -626,16 +836,119 @@ export default function DriverApplicationPage() {
           {
             onConflict: "user_id",
           }
-        );
+        )
+        .select("id")
+        .single();
 
       if (error) {
         throw new Error(error.message);
       }
 
+      if (!savedApplication?.id) {
+        throw new Error(
+          "No fue posible identificar la solicitud guardada."
+        );
+      }
+
+      if (holderAnswer === "yes") {
+        const {
+          error: holderSelectionError,
+        } = await supabase.rpc(
+          "set_driver_as_concession_holder",
+          {
+            p_application_id:
+              savedApplication.id,
+          }
+        );
+
+        if (holderSelectionError) {
+          throw new Error(
+            holderSelectionError.message
+          );
+        }
+
+        setAuthorizationToken(null);
+      }
+
+      if (holderAnswer === "no") {
+        const {
+          error: authorizationError,
+        } = await supabase.rpc(
+          "upsert_permit_holder_authorization",
+          {
+            p_application_id:
+              savedApplication.id,
+
+            p_holder_name:
+              concessionHolderName.trim(),
+
+            p_holder_email:
+              holderEmail.trim() || null,
+
+            p_holder_phone:
+              holderPhone.trim() || null,
+
+            p_relationship_to_driver:
+              holderRelationship.trim(),
+
+            p_authorization_expires_on:
+              authorizationNoExpiration
+                ? null
+                : authorizationExpiration,
+
+            p_no_expiration:
+              authorizationNoExpiration,
+          }
+        );
+
+        if (authorizationError) {
+          throw new Error(
+            authorizationError.message
+          );
+        }
+
+        const {
+          data: savedAuthorization,
+          error: savedAuthorizationError,
+        } = await supabase
+          .from(
+            "permit_holder_authorizations"
+          )
+          .select(
+            "authorization_token"
+          )
+          .eq(
+            "driver_application_id",
+            savedApplication.id
+          )
+          .single();
+
+        if (
+          savedAuthorizationError ||
+          !savedAuthorization
+            ?.authorization_token
+        ) {
+          throw new Error(
+            savedAuthorizationError
+              ?.message ||
+              "No fue posible generar el enlace del permisionario."
+          );
+        }
+
+        setAuthorizationToken(
+          savedAuthorization
+            .authorization_token
+        );
+      }
+
       setStatus("pending");
 
       setMessage(
-        t("driverApplication.submitted")
+        holderAnswer === "no"
+          ? "Solicitud enviada correctamente. Pendiente de autorizaci?n del permisionario."
+          : t(
+              "driverApplication.submitted"
+            )
       );
     } catch (error) {
       const errorMessage =
@@ -646,6 +959,102 @@ export default function DriverApplicationPage() {
       setMessage(errorMessage);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function copyAuthorizationLink() {
+    if (!authorizationLink) {
+      setMessage(
+        "El enlace todav?a no est? disponible."
+      );
+      return;
+    }
+
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(
+          authorizationLink
+        );
+      } else {
+        const temporaryInput =
+          document.createElement(
+            "textarea"
+          );
+
+        temporaryInput.value =
+          authorizationLink;
+
+        temporaryInput.style.position =
+          "fixed";
+
+        temporaryInput.style.opacity =
+          "0";
+
+        document.body.appendChild(
+          temporaryInput
+        );
+
+        temporaryInput.select();
+
+        document.execCommand("copy");
+
+        temporaryInput.remove();
+      }
+
+      setMessage(
+        "Enlace copiado correctamente."
+      );
+    } catch {
+      setMessage(
+        "No fue posible copiar el enlace."
+      );
+    }
+  }
+
+  async function shareAuthorizationLink() {
+    if (!authorizationLink) {
+      setMessage(
+        "El enlace todav?a no est? disponible."
+      );
+      return;
+    }
+
+    const shareData = {
+      title:
+        "Autorizaci?n de conductor AXI",
+
+      text:
+        `Hola. ${concessionHolderName.trim() || "El titular del permiso"} debe revisar y autorizar mi solicitud para conducir este taxi en AXI.`,
+
+      url:
+        authorizationLink,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(
+          shareData
+        );
+
+        setMessage(
+          "Enlace compartido correctamente."
+        );
+
+        return;
+      }
+
+      await copyAuthorizationLink();
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.name === "AbortError"
+      ) {
+        return;
+      }
+
+      setMessage(
+        "No fue posible compartir el enlace."
+      );
     }
   }
 
@@ -674,6 +1083,58 @@ export default function DriverApplicationPage() {
         className="space-y-8 rounded-2xl bg-white p-8 shadow-sm"
       >
         <section>
+          <h2 className="mb-1 text-xl font-bold">
+            ?Eres titular del permiso o concesi?n del taxi?
+          </h2>
+
+          <p className="mb-5 text-sm text-gray-500">
+            Selecciona la opci?n que corresponda antes de continuar con tu registro.
+          </p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <button
+              type="button"
+              disabled={status === "approved"}
+              onClick={() => setHolderAnswer("yes")}
+              className={
+                holderAnswer === "yes"
+                  ? "rounded-xl border border-black bg-black p-5 text-left text-white transition"
+                  : "rounded-xl border border-gray-200 bg-white p-5 text-left text-gray-900 transition hover:border-gray-400"
+              }
+            >
+              <span className="block font-bold">
+                S?, soy el titular
+              </span>
+
+              <span className="mt-2 block text-sm opacity-80">
+                El permiso o concesi?n del taxi est? a mi nombre.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              disabled={status === "approved"}
+              onClick={() => setHolderAnswer("no")}
+              className={
+                holderAnswer === "no"
+                  ? "rounded-xl border border-black bg-black p-5 text-left text-white transition"
+                  : "rounded-xl border border-gray-200 bg-white p-5 text-left text-gray-900 transition hover:border-gray-400"
+              }
+            >
+              <span className="block font-bold">
+                No, trabajo para un permisionario
+              </span>
+
+              <span className="mt-2 block text-sm opacity-80">
+                El titular deber? autorizarme antes de que AXI pueda activarme.
+              </span>
+            </button>
+          </div>
+        </section>
+
+        {holderAnswer !== null && (
+          <>
+        <section className="border-t pt-8">
           <h2 className="mb-1 text-xl font-bold">
             {t("driverApplication.driverLicense")}
           </h2>
@@ -812,6 +1273,23 @@ export default function DriverApplicationPage() {
             />
 
             <TextInput
+              label="Placas del taxi"
+              value={vehiclePlate}
+              onChange={(value) =>
+                setVehiclePlate(
+                  value
+                    .toUpperCase()
+                    .replace(
+                      /[^A-Z0-9-]/g,
+                      ""
+                    )
+                )
+              }
+              placeholder="Ej. 1234-SSJ"
+              required
+            />
+
+            <TextInput
               label={t("driverApplication.concessionNumber")}
               value={concessionNumber}
               onChange={setConcessionNumber}
@@ -828,7 +1306,13 @@ export default function DriverApplicationPage() {
             />
 
             <TextInput
-              label={t("driverApplication.concessionHolder")}
+              label={
+                holderAnswer === "no"
+                  ? "Nombre completo del permisionario"
+                  : t(
+                      "driverApplication.concessionHolder"
+                    )
+              }
               value={concessionHolderName}
               onChange={setConcessionHolderName}
               placeholder={t("driverApplication.concessionHolderPlaceholder")}
@@ -872,6 +1356,100 @@ export default function DriverApplicationPage() {
             </div>
           </div>
         </section>
+
+        {holderAnswer === "no" && (
+          <section className="border-t pt-8">
+            <h2 className="mb-1 text-xl font-bold">
+              Datos del permisionario
+            </h2>
+
+            <p className="mb-5 text-sm text-gray-500">
+              Ya utilizamos el nombre del titular y el n?mero de concesi?n capturados arriba. Completa los datos necesarios para solicitar su autorizaci?n.
+            </p>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <TextInput
+                label="Correo electr?nico"
+                value={holderEmail}
+                onChange={setHolderEmail}
+                placeholder="correo@ejemplo.com"
+              />
+
+              <TextInput
+                label="Tel?fono"
+                value={holderPhone}
+                onChange={(value) =>
+                  setHolderPhone(
+                    value.replace(
+                      /[^0-9+ ()-]/g,
+                      ""
+                    )
+                  )
+                }
+                placeholder="222 123 4567"
+              />
+
+              <TextInput
+                label="Relaci?n con el conductor"
+                value={holderRelationship}
+                onChange={setHolderRelationship}
+                placeholder="Empleado, operador, familiar..."
+                required
+              />
+
+              <div>
+                <p className="mb-2 block text-sm font-semibold">
+                  Vigencia
+                </p>
+
+                <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={
+                      authorizationNoExpiration
+                    }
+                    onChange={(event) => {
+                      const checked =
+                        event.target.checked;
+
+                      setAuthorizationNoExpiration(
+                        checked
+                      );
+
+                      if (checked) {
+                        setAuthorizationExpiration(
+                          ""
+                        );
+                      }
+                    }}
+                    className="h-4 w-4"
+                  />
+
+                  <span className="text-sm font-semibold">
+                    Sin fecha definida
+                  </span>
+                </label>
+              </div>
+
+              {!authorizationNoExpiration && (
+                <DateInput
+                  label="Fecha de vencimiento de la autorizaci?n"
+                  value={
+                    authorizationExpiration
+                  }
+                  onChange={
+                    setAuthorizationExpiration
+                  }
+                  required
+                />
+              )}
+            </div>
+
+            <div className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+              El conductor permanecer? pendiente y no podr? recibir viajes hasta que el permisionario autorice la solicitud y AXI la apruebe.
+            </div>
+          </section>
+        )}
 
         <section className="border-t pt-8">
           <h2 className="mb-1 text-xl font-bold">
@@ -1035,7 +1613,13 @@ export default function DriverApplicationPage() {
               t("driverApplication.noApplication")}
 
             {status === "pending" &&
-              t("driverApplication.pending")}
+              (
+                holderAnswer === "no"
+                  ? "Pendiente de autorizaci?n del permisionario"
+                  : t(
+                      "driverApplication.pending"
+                    )
+              )}
 
             {status === "approved" &&
               t("driverApplication.approved")}
@@ -1044,6 +1628,56 @@ export default function DriverApplicationPage() {
               t("driverApplication.rejected")}
           </p>
         </div>
+
+        {holderAnswer === "no" &&
+          authorizationToken &&
+          authorizationLink && (
+            <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+              <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+                Autorizaci?n del permisionario
+              </p>
+
+              <h2 className="mt-2 text-lg font-bold text-blue-950">
+                Comparte este enlace con el titular
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-blue-900">
+                El permisionario deber? abrirlo, revisar los datos, subir su identificaci?n y su concesi?n, y autorizarte.
+              </p>
+
+              <div className="mt-4 overflow-hidden rounded-xl border border-blue-200 bg-white p-4">
+                <p className="break-all text-sm font-medium text-slate-700">
+                  {authorizationLink}
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void copyAuthorizationLink()
+                  }
+                  className="rounded-xl border border-blue-300 bg-white px-4 py-3 text-sm font-bold text-blue-900 transition hover:bg-blue-100"
+                >
+                  Copiar enlace
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void shareAuthorizationLink()
+                  }
+                  className="rounded-xl bg-blue-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-900"
+                >
+                  Compartir con el permisionario
+                </button>
+              </div>
+
+              <p className="mt-4 text-xs leading-5 text-blue-800">
+                Tu solicitud permanecer? bloqueada hasta que el titular autorice y AXI revise los documentos.
+              </p>
+            </section>
+          )}
 
         {message && (
           <div
@@ -1069,6 +1703,8 @@ export default function DriverApplicationPage() {
             ? t("driverApplication.uploading")
             : t("driverApplication.submit")}
         </button>
+          </>
+        )}
       </form>
     </section>
   );
