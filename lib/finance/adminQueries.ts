@@ -171,6 +171,45 @@ export async function getPendingRefunds() {
   return data ?? [];
 }
 
+export async function getChargebackPayments() {
+  const { data, error } = await supabase
+    .from("payment_transactions")
+    .select(`
+      id,
+      trip_id,
+      passenger_id,
+      driver_id,
+      method,
+      status,
+      total_amount,
+      external_amount,
+      passenger_wallet_applied,
+      driver_net_earnings,
+      provider,
+      provider_payment_id,
+      paid_at,
+      chargeback_at,
+      chargeback_reason,
+      chargeback_provider_reference,
+      chargeback_provider_payload,
+      chargeback_available_recovered,
+      chargeback_driver_debt_created,
+      chargeback_passenger_wallet_restored,
+      wallet_released_at,
+      wallet_reversed_at,
+      created_at,
+      updated_at
+    `)
+    .in("method", ["card", "mercado_pago"])
+    .in("status", ["paid", "charged_back"])
+    .order("paid_at", { ascending: false })
+    .limit(300);
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+
 export async function getDrivers() {
   return getFinanceUserDirectory({
     role: "driver",

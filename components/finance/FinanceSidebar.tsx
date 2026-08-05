@@ -29,6 +29,7 @@ const sections = [
       ["Wallets", "/dashboard/admin/finance/wallets"],
       ["Promociones", "/dashboard/admin/finance/promotions"],
       ["Reembolsos", "/dashboard/admin/finance/refunds"],
+      ["Contracargos", "/dashboard/admin/finance/chargebacks"],
       ["Retiros", "/dashboard/admin/finance/withdrawals"],
       ["Deudas en efectivo", "/dashboard/admin/finance/cash-debts"],
       ["Ajustes manuales", "/dashboard/admin/finance/manual-adjustments"],

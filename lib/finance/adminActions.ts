@@ -272,6 +272,29 @@ export async function reconcileOriginalPaymentRefund(payload: {
 }
 
 
+export async function processTripPaymentChargeback(payload: {
+  paymentId: string;
+  reason: string;
+  providerReference: string;
+  providerPayload?: Record<string, unknown>;
+}) {
+  const { data, error } = await supabase.rpc(
+    "process_trip_payment_chargeback",
+    {
+      p_payment_id: payload.paymentId,
+      p_chargeback_reason: payload.reason.trim(),
+      p_provider_reference:
+        payload.providerReference.trim(),
+      p_provider_payload:
+        payload.providerPayload ?? {},
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
 export async function registerCashDebtPayment(payload: {
   driverId: string;
   amount: number;
