@@ -13,15 +13,48 @@ export async function approveWithdrawal(id: string) {
   return data;
 }
 
-export async function completeWithdrawal(
-  id: string,
-  providerReference: string
-) {
+export async function completeWithdrawalWithSpei(payload: {
+  id: string;
+  transferProvider: string;
+  providerReference: string;
+  providerTransferId?: string;
+  speiTrackingKey?: string;
+  receiptUrl?: string;
+  providerPayload?: Record<string, unknown>;
+}) {
   const { data, error } = await supabase.rpc(
-    "complete_withdrawal",
+    "complete_withdrawal_with_spei",
     {
-      p_request_id: id,
-      p_provider_reference: providerReference,
+      p_request_id: payload.id,
+      p_transfer_provider: payload.transferProvider,
+      p_provider_reference: payload.providerReference,
+      p_provider_transfer_id:
+        payload.providerTransferId?.trim() || null,
+      p_spei_tracking_key:
+        payload.speiTrackingKey?.trim() || null,
+      p_receipt_url:
+        payload.receiptUrl?.trim() || null,
+      p_provider_payload:
+        payload.providerPayload ?? {},
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function reconcileWithdrawal(payload: {
+  id: string;
+  status: "matched" | "mismatch" | "not_required";
+  notes?: string;
+}) {
+  const { data, error } = await supabase.rpc(
+    "reconcile_withdrawal",
+    {
+      p_request_id: payload.id,
+      p_reconciliation_status: payload.status,
+      p_notes: payload.notes?.trim() || null,
     }
   );
 

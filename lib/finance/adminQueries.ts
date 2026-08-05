@@ -132,17 +132,22 @@ export async function getFinanceTransactions(
 
 export async function getPendingWithdrawals() {
   const { data, error } = await supabase
-    .from("withdraw_requests")
+    .from("finance_withdrawals_detailed")
     .select("*")
-    .in("status", ["pending", "approved", "processing"])
-    .order("requested_at", { ascending: true });
+    .in("status", [
+      "pending",
+      "approved",
+      "processing",
+      "paid",
+      "failed",
+      "rejected",
+    ])
+    .order("requested_at", { ascending: false })
+    .limit(200);
 
   if (error) throw error;
 
-  return attachProfiles(
-    (data ?? []) as FinanceRow[],
-    "driver_id"
-  );
+  return data ?? [];
 }
 
 export async function getPendingRefunds() {
