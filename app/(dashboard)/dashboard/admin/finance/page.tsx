@@ -188,7 +188,7 @@ export default function FinanceAdminPage() {
         {
           event: "*",
           schema: "public",
-          table: "withdrawal_requests",
+          table: "withdraw_requests",
         },
         requestRefresh,
       )
@@ -273,6 +273,43 @@ export default function FinanceAdminPage() {
         (total, item) => total + item.payments,
         0,
       ) ?? 0;
+
+  const totalReconciliationPayments =
+    stats?.reconciliation.reduce(
+      (total, item) => total + item.payments,
+      0,
+    ) ?? 0;
+
+  const reconciledPayments =
+    stats?.reconciliation
+      .filter((item) => item.status === "reconciled")
+      .reduce(
+        (total, item) => total + item.payments,
+        0,
+      ) ?? 0;
+
+  const reconciliationPercentage =
+    totalReconciliationPayments > 0
+      ? (reconciledPayments / totalReconciliationPayments) * 100
+      : 100;
+
+  const averageTicket =
+    (stats?.totalPaidPayments ?? 0) > 0
+      ? (stats?.grossRevenueAllTime ?? 0) /
+        (stats?.totalPaidPayments ?? 1)
+      : 0;
+
+  const totalTaxesAdministered =
+    (stats?.platformCommissionIvaTotal ?? 0) +
+    (stats?.ivaWithholdingTotal ?? 0) +
+    (stats?.isrWithholdingTotal ?? 0);
+
+  const effectivePlatformMargin =
+    (stats?.grossRevenueAllTime ?? 0) > 0
+      ? ((stats?.platformCommissionAllTime ?? 0) /
+          (stats?.grossRevenueAllTime ?? 1)) *
+        100
+      : 0;
 
   const financialAlerts = useMemo(() => {
     if (!stats) {
@@ -642,50 +679,69 @@ export default function FinanceAdminPage() {
       <section>
         <div className="mb-4">
           <h2 className="text-xl font-black text-slate-950">
-            Rendimiento
+            Resumen ejecutivo
           </h2>
+
           <p className="mt-1 text-sm text-slate-500">
-            Ingresos generados por los viajes
-            completados.
+            Ingreso, participación de AXI y desempeño operativo.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <FinanceCard
-            title="Ingresos hoy"
-            value={formatMoney(
-              stats.grossRevenueToday,
-            )}
-            subtitle={`${stats.totalPaidPayments} pagos históricos`}
+            title="Ingreso bruto"
+            value={formatMoney(stats.grossRevenueAllTime)}
+            subtitle={`${stats.totalPaidPayments} viajes pagados`}
             icon={CircleDollarSign}
           />
 
           <FinanceCard
-            title="Ingresos esta semana"
-            value={formatMoney(
-              stats.grossRevenueWeek,
-            )}
-            subtitle="Ventas brutas"
-            icon={TrendingUp}
-          />
-
-          <FinanceCard
-            title="Ingresos este mes"
-            value={formatMoney(
-              stats.grossRevenueMonth,
-            )}
-            subtitle={formatMoney(
-              stats.platformCommissionMonth,
-            ).concat(" para AXI")}
+            title="Comisión AXI"
+            value={formatMoney(stats.platformCommissionAllTime)}
+            subtitle={`${effectivePlatformMargin.toFixed(1)}% efectivo`}
             icon={BadgeDollarSign}
           />
 
           <FinanceCard
-            title="Ingresos históricos"
+            title="Ingreso neto AXI"
             value={formatMoney(
-              stats.grossRevenueAllTime,
+              stats.netPlatformRevenueBeforeExpenses,
             )}
-            subtitle={`${stats.totalPaidPayments} viajes pagados`}
+            subtitle="Antes de gastos operativos"
+            icon={TrendingUp}
+          />
+
+          <FinanceCard
+            title="Ticket promedio"
+            value={formatMoney(averageTicket)}
+            subtitle={formatMoney(
+              stats.grossRevenueMonth,
+            ).concat(" este mes")}
+            icon={ReceiptText}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <FinanceCard
+            title="Ingreso hoy"
+            value={formatMoney(stats.grossRevenueToday)}
+            subtitle="Ventas brutas del día"
+            icon={CircleDollarSign}
+          />
+
+          <FinanceCard
+            title="Ingreso semanal"
+            value={formatMoney(stats.grossRevenueWeek)}
+            subtitle="Acumulado de la semana"
+            icon={TrendingUp}
+          />
+
+          <FinanceCard
+            title="Ingreso mensual"
+            value={formatMoney(stats.grossRevenueMonth)}
+            subtitle={formatMoney(
+              stats.platformCommissionMonth,
+            ).concat(" de comisión AXI")}
             icon={Landmark}
           />
         </div>
@@ -853,12 +909,10 @@ export default function FinanceAdminPage() {
           />
 
           <FinanceCard
-            title="Ingreso neto AXI"
-            value={formatMoney(
-              stats.netPlatformRevenueBeforeExpenses,
-            )}
-            subtitle="Antes de gastos operativos"
-            icon={TrendingUp}
+            title="Conciliación"
+            value={`${reconciliationPercentage.toFixed(1)}%`}
+            subtitle={`${reconciledPayments} de ${totalReconciliationPayments} pagos`}
+            icon={ShieldCheck}
           />
 
           <FinanceCard
@@ -963,42 +1017,94 @@ export default function FinanceAdminPage() {
 
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-lg font-black text-slate-950">
-            Impuestos y retenciones
-          </h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
+                Fiscal
+              </p>
 
-          <div className="mt-6 divide-y divide-slate-100">
-            <div className="flex items-center justify-between py-4">
-              <span className="text-sm text-slate-600">
-                IVA de comisión AXI
-              </span>
-              <span className="font-black text-slate-950">
-                {formatMoney(
-                  stats.platformCommissionIvaTotal,
-                )}
-              </span>
+              <h2 className="mt-2 text-lg font-black text-slate-950">
+                Impuestos y retenciones
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Obligaciones fiscales generadas por la operación.
+              </p>
             </div>
 
-            <div className="flex items-center justify-between py-4">
-              <span className="text-sm text-slate-600">
-                Retención de IVA
-              </span>
-              <span className="font-black text-slate-950">
-                {formatMoney(
-                  stats.ivaWithholdingTotal,
-                )}
-              </span>
+            <a
+              href="/dashboard/admin/finance/taxes"
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+            >
+              Ver Centro Fiscal
+            </a>
+          </div>
+
+          <div className="mt-6 rounded-2xl bg-slate-950 p-5 text-white">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+              Total fiscal administrado
+            </p>
+
+            <p className="mt-2 text-3xl font-black">
+              {formatMoney(totalTaxesAdministered)}
+            </p>
+
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              Incluye IVA de la comisión de AXI, IVA retenido e ISR retenido.
+              No representa utilidad de la plataforma.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-black text-slate-900">
+                    IVA cobrado por AXI
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    IVA trasladado sobre la comisión de la plataforma.
+                  </p>
+                </div>
+
+                <span className="text-lg font-black text-slate-950">
+                  {formatMoney(stats.platformCommissionIvaTotal)}
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between py-4">
-              <span className="text-sm text-slate-600">
-                Retención de ISR
-              </span>
-              <span className="font-black text-slate-950">
-                {formatMoney(
-                  stats.isrWithholdingTotal,
-                )}
-              </span>
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-black text-slate-900">
+                    IVA retenido
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Retención aplicada a los ingresos de conductores.
+                  </p>
+                </div>
+
+                <span className="text-lg font-black text-slate-950">
+                  {formatMoney(stats.ivaWithholdingTotal)}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-black text-slate-900">
+                    ISR retenido
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    ISR retenido a conductores por la plataforma.
+                  </p>
+                </div>
+
+                <span className="text-lg font-black text-slate-950">
+                  {formatMoney(stats.isrWithholdingTotal)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
