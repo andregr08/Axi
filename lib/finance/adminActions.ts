@@ -146,6 +146,131 @@ export async function rejectRefund(
   if (error) throw error;
 }
 
+export async function startOriginalPaymentRefund(payload: {
+  id: string;
+  provider: string;
+}) {
+  const { data, error } = await supabase.rpc(
+    "start_original_payment_refund",
+    {
+      p_refund_id: payload.id,
+      p_provider: payload.provider.trim(),
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function completeOriginalPaymentRefund(payload: {
+  id: string;
+  providerReference: string;
+  providerRefundId: string;
+  completedAmount: number;
+  providerPayload?: Record<string, unknown>;
+}) {
+  const { data, error } = await supabase.rpc(
+    "complete_original_payment_refund",
+    {
+      p_refund_id: payload.id,
+      p_provider_reference:
+        payload.providerReference.trim(),
+      p_provider_refund_id:
+        payload.providerRefundId.trim(),
+      p_completed_amount:
+        payload.completedAmount,
+      p_provider_payload:
+        payload.providerPayload ?? {},
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function failOriginalPaymentRefund(payload: {
+  id: string;
+  failureReason: string;
+  providerReference?: string;
+  providerPayload?: Record<string, unknown>;
+}) {
+  const { data, error } = await supabase.rpc(
+    "fail_original_payment_refund",
+    {
+      p_refund_id: payload.id,
+      p_failure_reason:
+        payload.failureReason.trim(),
+      p_provider_reference:
+        payload.providerReference?.trim() || null,
+      p_provider_payload:
+        payload.providerPayload ?? {},
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function cancelOriginalPaymentRefund(payload: {
+  id: string;
+  cancellationReason: string;
+}) {
+  const { data, error } = await supabase.rpc(
+    "cancel_original_payment_refund",
+    {
+      p_refund_id: payload.id,
+      p_cancellation_reason:
+        payload.cancellationReason.trim(),
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function reverseOriginalPaymentRefund(payload: {
+  id: string;
+  reversalReason: string;
+}) {
+  const { data, error } = await supabase.rpc(
+    "reverse_original_payment_refund",
+    {
+      p_refund_id: payload.id,
+      p_reversal_reason:
+        payload.reversalReason.trim(),
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function reconcileOriginalPaymentRefund(payload: {
+  id: string;
+  status: "matched" | "mismatch";
+  notes?: string;
+}) {
+  const { data, error } = await supabase.rpc(
+    "reconcile_original_payment_refund",
+    {
+      p_refund_id: payload.id,
+      p_reconciliation_status:
+        payload.status,
+      p_notes:
+        payload.notes?.trim() || null,
+    }
+  );
+
+  if (error) throw error;
+
+  return data;
+}
+
 
 export async function registerCashDebtPayment(payload: {
   driverId: string;

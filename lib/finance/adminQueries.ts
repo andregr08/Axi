@@ -152,24 +152,23 @@ export async function getPendingWithdrawals() {
 
 export async function getPendingRefunds() {
   const { data, error } = await supabase
-    .from("refund_requests")
-    .select(`
-      *,
-      trips(
-        id,
-        origin_address,
-        destination_address
-      )
-    `)
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
+    .from("finance_refunds_detailed")
+    .select("*")
+    .in("status", [
+      "pending",
+      "approved",
+      "processing",
+      "completed",
+      "failed",
+      "cancelled",
+      "rejected",
+    ])
+    .order("requested_at", { ascending: false })
+    .limit(200);
 
   if (error) throw error;
 
-  return attachProfiles(
-    (data ?? []) as FinanceRow[],
-    "passenger_id"
-  );
+  return data ?? [];
 }
 
 export async function getDrivers() {
